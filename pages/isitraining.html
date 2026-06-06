@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  IS IT RAINING — Channel 13 weather-guess push-your-luck ladder          │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A late-night TV set rendered as a CRT. Chip Chipman (a pixel-art      │
+  │    weatherman drawn into #weatherman-canvas) asks "Is it raining in     │
+  │    [city]?" — or sometimes a cloud or temperature question. The player  │
+  │    sets a wager, clicks YES or NO, and the page hits Open-Meteo to find │
+  │    out. First correct guess pays ×0.15 of wager into the POT; each      │
+  │    subsequent correct guess multiplies the pot by 1.75× (10-rung        │
+  │    ladder). After each correct rung the player decides: CASH OUT or    │
+  │    PUSH IT into a new city. One free STRIKE per run — pot/rung kept    │
+  │    on the first wrong; a second wrong wipes the pot. Surrounding       │
+  │    decoration: a wall of mini-CRTs cycling through color bars, snow,   │
+  │    channel cards, ad-marquees, and a feed of the child's face that    │
+  │    pulls from Child.describeFace every 620ms.                           │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, taglines.js, quotes.js,      │
+  │      isitraining/audio.js, isitraining/page.js, header.js                │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #weatherman-canvas, #ir-q-prefix, #ir-city,        │
+  │      #ir-q-suffix, #ir-result, #ir-pot-value, #ir-rung-value,            │
+  │      #ir-strikes-value (.tv-lcd-strikes .is-warn @ MAX), #ir-strike-x   │
+  │      (big red ✕ slammed over CRT on strike), #ir-wager,                 │
+  │      #ir-max, #ir-yes, #ir-no, #ir-cash, #ir-next, #ir-restart,          │
+  │      #ir-mute, .tv-mini[data-mode], #debug-reset                         │
+  │    flow: page.js init → bind YES/NO/cash/next/restart/max/mute →         │
+  │      decorateMiniTVs → startNewRun → loadCity (pickCity → fetchWeather   │
+  │      open-meteo.com → composeQuestion) → answer(yes): 1st→Wallet.spend + │
+  │      Child.recordPlay; evaluateGuess → correct?rung++,                   │
+  │      pot=floor(0.15·1.75^(rung-1)·wager),state='climb' : pot=0,rung=0,   │
+  │      state='busted'; cashOut→Wallet.add(pot); pushIt→loadCity; rAF loop  │
+  │      → tickBlink + drawWeatherman                                        │
+  │    storage R/W: sinnerbox (Wallet), wendys_palace_child (R/W via         │
+  │      Child.recordPlay + describeFace), wendys_palace_intro_seen (R),     │
+  │      wendys_palace_death (R); GET api.open-meteo.com/v1/forecast         │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Is It Raining?</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/isitraining/isitraining.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body class="ir-body">
+  <div class="lounge-haze" aria-hidden="true"></div>
+  <div class="lounge-smoke lounge-smoke-1" aria-hidden="true"></div>
+  <div class="lounge-smoke lounge-smoke-2" aria-hidden="true"></div>
+
+  <header>
+    <div class="ir-title-block">
+      <div class="ir-title-preline">
+        <span class="ir-title-star">★</span>
+        Channel 13 Presents
+        <span class="ir-title-star">★</span>
+      </div>
+      <h1 class="ir-title" data-text="Is It Raining?">Is It Raining?</h1>
+      <div class="ir-title-bars" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span>
+      </div>
+      <p class="ir-subtitle">with Chip Chipman · Live at the Top of the Hour</p>
+    </div>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Wall of background TVs above the main set — color bars, snow, channel
+         numbers, off-air. Pure decoration; not part of the game. -->
+    <section class="tv-wall tv-wall-top" aria-hidden="true">
+      <div class="tv-mini" data-mode="bars"></div>
+      <div class="tv-mini" data-mode="quotes"></div>
+      <div class="tv-mini" data-mode="standby"></div>
+      <div class="tv-mini" data-mode="channel" data-ch="04"></div>
+      <div class="tv-mini" data-mode="test"></div>
+      <div class="tv-mini" data-mode="channel" data-ch="07"></div>
+      <div class="tv-mini" data-mode="ads"></div>
+      <div class="tv-mini" data-mode="taglines"></div>
+      <div class="tv-mini" data-mode="child-face"></div>
+      <div class="tv-mini" data-mode="channel" data-ch="11"></div>
+    </section>
+
+    <section class="tv-stage">
+      <div class="tv">
+        <div class="tv-antenna" aria-hidden="true">
+          <span class="tv-antenna-left"></span>
+          <span class="tv-antenna-right"></span>
+          <span class="tv-antenna-base"></span>
+        </div>
+
+        <!-- Screen + built-in ladder side-by-side inside the cabinet -->
+        <div class="tv-screen-row">
+        <div class="tv-screen-frame">
+          <div class="tv-screen">
+            <canvas id="weatherman-canvas" width="24" height="30" aria-label="Pixel art weatherman"></canvas>
+            <div class="tv-overlay">
+              <div class="tv-banner">CHANNEL 13 WEATHER</div>
+              <div class="tv-city">
+                <span class="tv-q-prefix" id="ir-q-prefix">Is it raining in</span>
+                <span class="tv-q-city"   id="ir-city">—</span>
+                <span class="tv-q-suffix" id="ir-q-suffix">?</span>
+              </div>
+              <div class="tv-result" id="ir-result"></div>
+            </div>
+            <div class="crt-scanlines" aria-hidden="true"></div>
+            <div class="crt-roll" aria-hidden="true"></div>
+            <div class="crt-vignette" aria-hidden="true"></div>
+            <div id="ir-strike-x" class="ir-strike-x" aria-hidden="true">✕</div>
+          </div>
+        </div>
+
+        <aside class="tv-builtin-ladder" aria-label="Prize ladder">
+          <div class="ir-ladder-title">PAYOUT</div>
+          <ol class="ir-ladder-list"></ol>
+        </aside>
+        </div>
+
+        <!-- Built-in control panel: pot LCD, wager dial, and game buttons -->
+        <div class="tv-panel">
+          <div class="tv-panel-row tv-panel-readouts">
+            <div class="tv-lcd tv-lcd-pot">
+              <span class="tv-lcd-label">POT</span>
+              <span class="tv-lcd-value" id="ir-pot-value">0</span>
+            </div>
+            <div class="tv-lcd tv-lcd-rung">
+              <span class="tv-lcd-label">RUNG</span>
+              <span class="tv-lcd-value" id="ir-rung-value">0</span>
+            </div>
+            <div class="tv-lcd tv-lcd-strikes" title="One free miss per run.">
+              <span class="tv-lcd-label">STRIKES</span>
+              <span class="tv-lcd-value" id="ir-strikes-value">0/1</span>
+            </div>
+            <div class="tv-wager">
+              <span class="tv-wager-label">WAGER</span>
+              <input type="number" id="ir-wager" min="1" value="5" inputmode="numeric" autocomplete="off">
+              <button id="ir-max" class="tv-mini-btn" type="button">MAX</button>
+            </div>
+          </div>
+
+          <div class="tv-panel-row tv-panel-buttons">
+            <button id="ir-yes" class="tv-btn tv-btn-yes" type="button">✓ YES</button>
+            <button id="ir-no"  class="tv-btn tv-btn-no"  type="button">✗ NO</button>
+          </div>
+
+          <!-- Decision row: appears below the answer buttons after a guess
+               resolves. Different buttons, different row, different styling -
+               not the YES/NO swapped to new labels. -->
+          <div class="tv-panel-row tv-panel-decision">
+            <button id="ir-cash"    class="tv-decision-btn tv-decision-cash" type="button" hidden>💰 CASH OUT</button>
+            <button id="ir-next"    class="tv-decision-btn tv-decision-push" type="button" hidden>PUSH IT →</button>
+            <button id="ir-restart" class="tv-decision-btn tv-decision-new"  type="button" hidden>NEW RUN →</button>
+          </div>
+
+          <div class="tv-panel-row tv-panel-base">
+            <div class="tv-knob" aria-hidden="true"></div>
+            <div class="tv-brand">FORTUNA-VISION</div>
+            <div class="tv-speaker" aria-hidden="true"></div>
+            <button id="ir-mute" class="tv-mute-btn" type="button" aria-label="Mute" title="Mute / unmute">🔊</button>
+            <div class="tv-knob" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div class="tv-leg tv-leg-l" aria-hidden="true"></div>
+        <div class="tv-leg tv-leg-r" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <div class="ir-ladder-hint">First right pays ×0.15 of wager. Each next right multiplies the pot by 1.75×. One free strike per run — a second wrong wipes the pot.</div>
+
+    <!-- Lower bank of monitors flanking the ladder -->
+    <section class="tv-wall tv-wall-bottom" aria-hidden="true">
+      <div class="tv-mini" data-mode="taglines"></div>
+      <div class="tv-mini" data-mode="bars"></div>
+      <div class="tv-mini" data-mode="off"></div>
+      <div class="tv-mini" data-mode="channel" data-ch="13"></div>
+      <div class="tv-mini" data-mode="standby"></div>
+    </section>
+
+    <!-- Lounge dressing -->
+    <div class="lounge-ashtray" aria-hidden="true">
+      <span class="lounge-cig"></span>
+      <span class="lounge-cig-tip"></span>
+      <span class="lounge-cig-smoke"></span>
+    </div>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/taglines.js"></script>
+  <script src="../js/quotes.js"></script>
+  <script src="../js/isitraining/audio.js"></script>
+  <script src="../js/isitraining/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

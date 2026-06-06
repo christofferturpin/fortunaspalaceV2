@@ -1,0 +1,128 @@
+/*
+  BET-INPUT — palace-wide bet/wager/stake input enhancement (pulse + steppers)
+  ─────────────────────────────────────────────────────────────────────────
+  Sections:
+    1. .bet-enh-wrap:   inline-flex wrapper injected by js/bet-input.js
+                        around the original number input; carries the
+                        subtle pulsing sulfur halo so the bet section
+                        reads as the live control
+    2. .bet-enh-input:  the original <input type="number"> — gets the
+                        ns-resize cursor that telegraphs vertical drag,
+                        and native webkit/firefox spinners are hidden so
+                        only our custom steppers show
+    3. .bet-enh-steps:  thin column of small up/down stepper buttons
+                        rendered to the right of the input
+    4. @keyframes bet-enh-pulse: 2.6s sulfur halo loop
+  Owns selectors: .bet-enh-wrap, .bet-enh-input, .bet-enh-steps,
+                  .bet-enh-step, .bet-enh-step-up, .bet-enh-step-down,
+                  .bet-enh-wrap.is-dragging
+  CSS vars consumed: --sulfur (gold halo / arrow tint)
+  Consumed by: every betting-game page (sinnerbox, matchbox, hollerworks,
+               jackandgin, foresttrick, foresthoard, craps, pool,
+               criticalhit, opossumer, crossfire, horserace, isitraining,
+               doublehappiness, bearbaiting, raid, pacman, shapebots).
+  External deps: base.css (palette vars)
+*/
+
+.bet-enh-wrap {
+  display: inline-flex;
+  align-items: stretch;
+  position: relative;
+  border-radius: 3px;
+  animation: bet-enh-pulse 2.6s ease-in-out infinite;
+  /* keep the wrap tight so it slots in where the input used to sit */
+  vertical-align: middle;
+}
+
+.bet-enh-wrap.is-dragging {
+  animation-duration: 1.1s;
+}
+
+.bet-enh-input {
+  cursor: ns-resize;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.bet-enh-input::-webkit-outer-spin-button,
+.bet-enh-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.bet-enh-wrap.is-dragging .bet-enh-input {
+  user-select: none;
+}
+
+@keyframes bet-enh-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 2px rgba(255, 255, 255, 0.30),
+      0 0 4px rgba(212, 175, 55, 0.22),
+      0 0 9px rgba(212, 175, 55, 0.10);
+  }
+  50% {
+    box-shadow:
+      0 0 4px rgba(255, 255, 255, 0.65),
+      0 0 9px rgba(212, 175, 55, 0.55),
+      0 0 16px rgba(212, 175, 55, 0.22);
+  }
+}
+
+.bet-enh-steps {
+  display: flex;
+  flex-direction: column;
+  width: 14px;
+  margin-left: 3px;
+  flex: 0 0 auto;
+}
+
+.bet-enh-step {
+  flex: 1 1 0;
+  min-height: 11px;
+  background: transparent;
+  border: 1px solid rgba(212, 175, 55, 0.38);
+  color: rgba(212, 175, 55, 0.78);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  font-size: 8px;
+  line-height: 1;
+  font-family: inherit;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 80ms linear, color 80ms linear, border-color 80ms linear;
+}
+
+.bet-enh-step:hover {
+  background: rgba(212, 175, 55, 0.18);
+  color: #ffeba0;
+  border-color: rgba(212, 175, 55, 0.75);
+}
+
+.bet-enh-step:active,
+.bet-enh-step.is-held {
+  background: rgba(212, 175, 55, 0.32);
+  color: #fff5c8;
+}
+
+.bet-enh-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.bet-enh-step-up    { border-radius: 2px 2px 0 0; border-bottom: none; }
+.bet-enh-step-down  { border-radius: 0 0 2px 2px; }
+
+.bet-enh-step-arrow {
+  display: block;
+  width: 0;
+  height: 0;
+  border-left:  4px solid transparent;
+  border-right: 4px solid transparent;
+}
+
+.bet-enh-step-up   .bet-enh-step-arrow { border-bottom: 5px solid currentColor; }
+.bet-enh-step-down .bet-enh-step-arrow { border-top:    5px solid currentColor; }

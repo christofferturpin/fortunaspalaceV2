@@ -1,0 +1,1494 @@
+/*
+  MATCHBOX — old-matchbox / baseball-card / thrift-shop styling
+  ─────────────────────────────────────────────────────────────────────────
+  Sections:
+    1. .matchbox container — palette vars, two-panel layout on dusty shelf
+    2. Slot panel — a chunky cardboard matchbox cover with corner stamps
+    3. Slot grid + cells — pip cells like printed-card panels
+    4. Slot controls (wager, MAX, SPIN, result)
+    5. Paytable — dashed-border printed legend with chips and labels
+    6. Match panel — dim collector's tray, "Series 1" label
+    7. Tile faces — faded colored cards with cream borders + suit pip
+    8. Tile interaction states (selected, clearing, locked, hover)
+  Owns selectors: .matchbox, .slot-panel, .slot-grid, .cell, .cell-win,
+    .cell-bonus, .slot-controls, #bet-tiers, .bet-label, #bet-amount,
+    .bet-shortcut, #spin-btn, .slot-result, .paytable, .paytable-row,
+    .paytable-label, .paytable-chip, .paytable-suffix, .dot, .dot-nada,
+    .dot-yellow, .match-panel, .match-hud, .match-payout, .match-grid,
+    .tile, .tile-red, .tile-blue, .tile-green, .tile-yellow, .tile-empty,
+    .tile-selected, .tile-clearing
+  CSS vars: --paper, --paper-deep, --ink-red, --ink-blue, --ink-green,
+    --ink-mustard, --ink-sepia, --ink-dust, --mb-nada, --mb-blue, --mb-yellow
+  Consumed by: pages/matchbox.html
+  External deps: base.css
+*/
+
+/* ── Loteria scene: dim gas-station-corner with the cabinet under a single
+   fluorescent tube. Posters in the half-shadow carry the bureaucratic-cruelty
+   commentary. Everything outside the light pool fades to near-black. */
+/* ── Loteria-spooky header — aged ochre parchment, double-line frame like a
+   real lotería card, calavera skulls flanking the title, Mexican flag
+   stripe still at the bottom. Pro-immigrant tagline in blood-red ink as
+   the card subtitle. */
+.loteria-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 28px 24px;
+  background:
+    /* aging dirt-spots */
+    radial-gradient(circle at 12% 22%, rgba(40, 18, 6, 0.32) 0 5px, transparent 14px),
+    radial-gradient(circle at 86% 78%, rgba(40, 18, 6, 0.32) 0 6px, transparent 16px),
+    radial-gradient(circle at 32% 86%, rgba(40, 18, 6, 0.24) 0 4px, transparent 12px),
+    radial-gradient(circle at 72% 18%, rgba(40, 18, 6, 0.24) 0 4px, transparent 12px),
+    /* paper grain — vertical + horizontal hairlines */
+    repeating-linear-gradient(0deg, rgba(80, 50, 20, 0.05) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(80, 50, 20, 0.05) 0 1px, transparent 1px 4px),
+    /* aged ochre parchment base */
+    linear-gradient(180deg, #d4b070 0%, #a88248 100%);
+  border-top: 2px solid #1a0a04;
+  border-bottom: 2px solid #1a0a04;
+  /* double-line lotería-card frame via stacked inset shadows + outer drop */
+  box-shadow:
+    inset 0 0 0 2px #f4e4b0,
+    inset 0 0 0 4px #2a1a08,
+    inset 0 0 0 6px #f4e4b0,
+    0 4px 14px rgba(0, 0, 0, 0.75);
+}
+
+/* Mexican flag tricolor stripe — sits just below the header */
+.loteria-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 4px;
+  background: linear-gradient(90deg,
+    #006847 0%, #006847 33.33%,
+    #f4e4b0 33.33%, #f4e4b0 66.66%,
+    #ce1126 66.66%, #ce1126 100%);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+}
+
+.loteria-header .header-center {
+  flex: 1;
+  text-align: center;
+  pointer-events: none;
+}
+
+.loteria-header h1 {
+  margin: 0;
+  font-family: 'Georgia', serif;
+  font-size: 38px;
+  font-weight: bold;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  color: #1a0a04;
+  text-shadow:
+    1px 1px 0 #f4e4b0,
+    2px 2px 0 rgba(138, 24, 16, 0.5),
+    3px 3px 0 rgba(0, 0, 0, 0.7);
+  line-height: 1;
+}
+
+/* Calavera skulls flanking the title — deeper red, slightly larger,
+   spaced out so the title reads like a lotería-card frontispiece */
+.header-skull {
+  display: inline-block;
+  margin: 0 16px;
+  font-style: normal;
+  font-size: 30px;
+  color: #5a1408;
+  text-shadow:
+    1px 1px 0 #f4e4b0,
+    2px 2px 0 rgba(0, 0, 0, 0.55);
+  vertical-align: -3px;
+}
+
+.loteria-header .header-tagline {
+  margin: 10px 0 0;
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #5a1408;
+  text-shadow:
+    1px 1px 0 rgba(244, 228, 176, 0.6),
+    0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* nav + coins overrides for the new dustier palette */
+.loteria-header .header-nav a {
+  color: #1a0a04;
+  font-family: 'Georgia', serif;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  text-shadow: 1px 1px 0 rgba(244, 228, 176, 0.6);
+}
+
+.loteria-header .header-nav a:hover {
+  color: #8a1810;
+}
+
+.loteria-header .coins-bar {
+  color: #1a0a04;
+  font-family: 'Georgia', serif;
+  font-weight: bold;
+  text-shadow: 1px 1px 0 rgba(244, 228, 176, 0.6);
+}
+
+.loteria-header .coins-label {
+  color: #5a1408;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.loteria-header #balance {
+  color: #1a0a04;
+  font-size: 18px;
+}
+
+.loteria-header #debug-reset {
+  background: #5a1408;
+  color: #f4e4b0;
+  border: 1px solid #1a0a04;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  padding: 3px 7px;
+  border-radius: 1px;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.loteria-header #debug-reset:hover {
+  background: #8a2410;
+}
+
+@media (max-width: 680px) {
+  .loteria-header { padding: 12px 14px 18px; flex-wrap: wrap; }
+  .loteria-header h1 { font-size: 24px; }
+  .header-skull { margin: 0 8px; font-size: 20px; }
+  .loteria-header .header-tagline { font-size: 10px; letter-spacing: 0.16em; }
+}
+
+/* Magazine-ad bleed: scene.js sets --scene-mash on <body> and adds
+   .scene-mashed. The mash takes the full viewport, fixed-attached so it
+   stays put while the page scrolls. */
+body.scene-mashed {
+  background: var(--scene-mash) center / cover no-repeat fixed,
+              linear-gradient(180deg, #1a140a 0%, #060402 100%);
+}
+
+.loteria-scene {
+  position: relative;
+  max-width: 1080px;
+  margin: 18px auto;
+  padding: 70px 80px 90px;
+  background: transparent;
+  border-radius: 4px;
+  overflow: hidden;
+  min-height: 760px;
+}
+
+/* soft warm light pool over the cabinet + gentle corner darkening — the
+   only overlay on the scene itself now that the mash lives on body. Keeps
+   the cabinet visually the focal point without blocking the magazine bg. */
+.loteria-scene::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 38% 48% at 50% 42%, rgba(220, 240, 130, 0.10) 0%, transparent 65%),
+    radial-gradient(ellipse 70% 30% at 50% 95%, rgba(80, 60, 30, 0.12) 0%, transparent 75%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.28) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* keep every real child above the two pseudo-element layers */
+.loteria-scene > * {
+  position: relative;
+  z-index: 2;
+}
+
+.scene-tube {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 62%;
+  height: 22px;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 18px rgba(220, 240, 120, 0.45))
+          drop-shadow(0 2px 6px rgba(220, 240, 120, 0.35));
+  animation: tube-flicker 6s steps(40) infinite;
+  z-index: 0;
+}
+
+@keyframes tube-flicker {
+  0%, 100% { opacity: 1;    }
+  3%       { opacity: 0.92; }
+  5%       { opacity: 1;    }
+  22%      { opacity: 0.97; }
+  46%      { opacity: 1;    }
+  62%      { opacity: 0.84; }
+  64%      { opacity: 1;    }
+  88%      { opacity: 0.96; }
+}
+
+.scene-poster {
+  position: absolute;
+  padding: 10px 14px;
+  background:
+    radial-gradient(ellipse at 18% 22%, rgba(60, 40, 10, 0.4), transparent 55%),
+    radial-gradient(ellipse at 82% 80%, rgba(60, 40, 10, 0.45), transparent 50%),
+    linear-gradient(170deg, #c8b078 0%, #907a48 100%);
+  border: 1px solid #2a1c08;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: #1a1004;
+  max-width: 180px;
+  line-height: 1.45;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow:
+    2px 4px 10px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 240, 180, 0.25);
+}
+
+.scene-poster-notice {
+  top: 90px;
+  right: 14px;
+  transform: rotate(2.2deg);
+  filter: brightness(0.62) contrast(0.92) saturate(0.85);
+}
+
+.scene-poster-notice .poster-header {
+  font-family: 'Georgia', serif;
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 0.28em;
+  border-bottom: 1px dashed rgba(40, 24, 8, 0.6);
+  padding-bottom: 3px;
+  margin-bottom: 4px;
+  color: #5a1408;
+}
+
+.scene-poster-notice p { margin: 0 0 3px; }
+.scene-poster-notice strong { color: #1a1004; }
+.scene-poster-notice .poster-fine {
+  font-style: italic;
+  color: #4a3018;
+  font-size: 9px;
+  margin-top: 4px;
+}
+
+.scene-poster-peel {
+  bottom: 70px;
+  left: 18px;
+  transform: rotate(-4deg);
+  filter: brightness(0.42) contrast(0.85) saturate(0.7);
+  background:
+    radial-gradient(ellipse at 70% 75%, rgba(60, 40, 10, 0.45), transparent 50%),
+    linear-gradient(170deg, #b8a070 0%, #806838 100%);
+}
+
+.scene-poster-peel .poster-headline {
+  font-family: 'Georgia', serif;
+  font-size: 17px;
+  font-weight: bold;
+  letter-spacing: 0.15em;
+  color: #1a1004;
+  margin: 0;
+}
+
+.scene-poster-peel .poster-strike {
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  color: #5a1408;
+  margin: 2px 0 0;
+  text-decoration: line-through;
+  text-decoration-color: #5a1408;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 760px) {
+  .loteria-scene { padding: 50px 14px 60px; min-height: auto; }
+  .scene-poster { display: none; }
+  .scene-tube { width: 78%; }
+}
+
+.matchbox {
+  --paper: #ead9b4;
+  --paper-deep: #d2bd86;
+  --paper-shadow: #b89e64;
+  --ink-red: #9c3826;
+  --ink-blue: #34536e;
+  --ink-green: #4f6a3a;
+  --ink-mustard: #c48a30;
+  --ink-sepia: #5a3e22;
+  --ink-dust: #9b7d4e;
+
+  --mb-nada: #a9926a;
+  --mb-blue: #9c3826;
+  --mb-yellow: #c48a30;
+
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 14px;
+  max-width: 720px;
+  margin: 18px auto;
+  padding: 14px;
+  /* drop-shadow (not box-shadow) so the shadow follows the masked shape,
+     giving the cabinet visual elevation against the mash behind it */
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55));
+  background:
+    /* dark water-staining at corners */
+    radial-gradient(ellipse at 8% 8%, rgba(20, 16, 14, 0.55), transparent 32%),
+    radial-gradient(ellipse at 92% 92%, rgba(20, 16, 14, 0.55), transparent 32%),
+    /* greasy palm smudges from past hands */
+    radial-gradient(circle at 68% 28%, rgba(20, 18, 14, 0.28), transparent 22%),
+    radial-gradient(circle at 22% 68%, rgba(20, 18, 14, 0.24), transparent 26%),
+    /* aggregate grit — small dark specks scattered around */
+    radial-gradient(circle at 42% 18%, rgba(0, 0, 0, 0.4) 0 1px, transparent 2px),
+    radial-gradient(circle at 78% 54%, rgba(0, 0, 0, 0.4) 0 1px, transparent 2px),
+    radial-gradient(circle at 12% 42%, rgba(0, 0, 0, 0.4) 0 1px, transparent 2px),
+    radial-gradient(circle at 56% 84%, rgba(0, 0, 0, 0.4) 0 1px, transparent 2px),
+    /* faint cool top light bleed */
+    linear-gradient(180deg,
+      rgba(220, 220, 210, 0.06) 0%,
+      transparent 30%,
+      transparent 70%,
+      rgba(0, 0, 0, 0.45) 100%),
+    /* base gradient — picks up the generated mash palette via vars so
+       the cabinet harmonizes with whatever color the loteria produced
+       on this load. Falls back to bone/concrete if scene.js fails. */
+    linear-gradient(165deg,
+      var(--scene-color-mid, #6a6660) 0%,
+      var(--scene-color-dark, #2a2622) 100%);
+  border: none;
+  border-radius: 3px;
+  /* Solid middle, edges fade hard — inner 50% stays fully opaque,
+     outer 50% dissolves into the loteria mash. The play area is a
+     confident slab; the perimeter ghosts out into the background. */
+  -webkit-mask-image: radial-gradient(ellipse 105% 115% at 50% 50%, black 50%, transparent 100%);
+          mask-image: radial-gradient(ellipse 105% 115% at 50% 50%, black 50%, transparent 100%);
+  box-shadow:
+    /* inner deep shadow + faint internal trim — kept since they're inside
+       the masked area; outer drop shadows removed (mask would clip them
+       weirdly against the dissolving edge). */
+    inset 0 0 80px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(140, 150, 90, 0.12);
+  color: var(--ink-sepia);
+  font-family: 'Courier New', 'Courier', monospace;
+  animation: gas-flicker 6s steps(40) infinite;
+}
+
+/* dying fluorescent tube above the cabinet — irregular brightness blips.
+   Drop-shadow embedded in every keyframe so it doesn't get cancelled
+   during the animation (filter is one property, all values overwrite). */
+@keyframes gas-flicker {
+  0%, 100% { filter: brightness(1.00) saturate(1)     drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  3%       { filter: brightness(1.04)                 drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  5%       { filter: brightness(0.95)                 drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  7%       { filter: brightness(1.02)                 drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  19%      { filter: brightness(1.01)                 drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  23%      { filter: brightness(0.97)                 drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  46%      { filter: brightness(1.03)                 drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  62%      { filter: brightness(0.94) saturate(0.95)  drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  66%      { filter: brightness(1.05)                 drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  84%      { filter: brightness(0.99)                 drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+  89%      { filter: brightness(1.02)                 drop-shadow(0 4px 16px rgba(0, 0, 0, 0.55)); }
+}
+
+@media (max-width: 680px) {
+  .matchbox {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin: 10px;
+    padding: 10px;
+  }
+}
+
+/* ── Cómo Jugar — bone instructions plate, aged ivory with rust stains
+   and hairline cracks. Spans both grid columns as a header. */
+.mb-rules {
+  grid-column: 1 / -1;
+  position: relative;
+  margin: 0;
+  padding: 0;
+  background:
+    /* rust / age stains at corners */
+    radial-gradient(ellipse at 22% 18%, rgba(80, 40, 12, 0.4), transparent 45%),
+    radial-gradient(ellipse at 78% 82%, rgba(80, 40, 12, 0.4), transparent 45%),
+    /* hairline cracks */
+    repeating-linear-gradient(76deg, transparent 0 80px, rgba(70, 50, 30, 0.15) 80px 81px, transparent 81px 160px),
+    /* bone — pale ivory fading to aged tan */
+    linear-gradient(170deg, #d8cca0 0%, #b8a878 60%, #8e7d50 100%);
+  border: 1px solid #2c2418;
+  border-radius: 2px;
+  box-shadow:
+    2px 3px 0 rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 250, 220, 0.4),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.35);
+  color: #221a0c;
+  font-family: 'Courier New', 'Courier', monospace;
+}
+
+.mb-rules summary {
+  padding: 5px 12px;
+  cursor: pointer;
+  font-family: 'Georgia', serif;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #1a1004;
+  user-select: none;
+  list-style: none;
+}
+
+.mb-rules summary::-webkit-details-marker { display: none; }
+
+.mb-rules summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+
+.mb-rules[open] summary::before { transform: rotate(90deg); }
+
+.mb-rules summary:hover { color: #4a2810; }
+
+.mb-rules-body {
+  padding: 4px 14px 12px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: #2a1c08;
+  border-top: 1px dashed rgba(40, 24, 8, 0.4);
+}
+
+.mb-rules-body h4 {
+  margin: 10px 0 4px;
+  font-family: 'Georgia', serif;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #5a1408;
+}
+
+.mb-rules-body p {
+  margin: 0 0 6px;
+}
+
+.mb-rules-list {
+  margin: 0 0 6px;
+  padding-left: 20px;
+  list-style: square;
+}
+
+.mb-rules-list li {
+  margin: 0 0 2px;
+}
+
+.mb-rules-body strong { color: #1a1004; }
+.mb-rules-body em { font-style: italic; color: #5a1408; }
+
+/* phase dim: slot.js toggles .phase-match on .matchbox when movesLeft > 0.
+   The inactive half desaturates and drops opacity so attention flips to
+   the panel the player should be acting on. */
+.matchbox .slot-panel,
+.matchbox .match-panel {
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.matchbox.phase-match .slot-panel {
+  opacity: 0.4;
+  filter: saturate(0.55) brightness(0.85);
+}
+
+.matchbox:not(.phase-match) .match-panel {
+  opacity: 0.5;
+  filter: saturate(0.6) brightness(0.85);
+}
+
+/* ── slot panel: bone — pale ivory with hairline cracks ─────────────────── */
+.slot-panel {
+  position: relative;
+  padding: 14px 10px 8px;
+  border: 1px solid #4a3a2a;
+  border-radius: 2px;
+  transform: rotate(-0.4deg);
+  background:
+    /* corner rivets (dark, like iron pegs in bone) */
+    radial-gradient(circle at 6px 6px, #1a1208 0 1.4px, transparent 2.4px),
+    radial-gradient(circle at calc(100% - 6px) 6px, #1a1208 0 1.4px, transparent 2.4px),
+    radial-gradient(circle at 6px calc(100% - 6px), #1a1208 0 1.4px, transparent 2.4px),
+    radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), #1a1208 0 1.4px, transparent 2.4px),
+    /* hairline cracks — two angled dark lines */
+    repeating-linear-gradient(83deg, transparent 0 60px, rgba(80, 60, 40, 0.18) 60px 61px, transparent 61px 140px),
+    repeating-linear-gradient(-72deg, transparent 0 80px, rgba(80, 60, 40, 0.14) 80px 81px, transparent 81px 180px),
+    /* aging dark specks (small dots scattered) */
+    radial-gradient(circle at 22% 35%, rgba(60, 40, 20, 0.4) 0 0.8px, transparent 1.6px),
+    radial-gradient(circle at 78% 18%, rgba(60, 40, 20, 0.4) 0 0.8px, transparent 1.6px),
+    radial-gradient(circle at 42% 88%, rgba(60, 40, 20, 0.4) 0 0.8px, transparent 1.6px),
+    /* subtle paper texture (vertical + horizontal hairlines) */
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(40, 30, 20, 0.03) 0 1px, transparent 1px 4px),
+    /* bone base — bone-light highlight to mid-tone shadow, both
+       pulled from the generated loteria palette */
+    linear-gradient(160deg,
+      var(--scene-color-light, #ece2c4) 0%,
+      var(--scene-color-mid,   #c8b89c) 100%);
+  box-shadow:
+    2px 3px 0 rgba(20, 10, 4, 0.45),
+    inset 0 0 0 1px rgba(255, 250, 230, 0.4),
+    inset 0 0 22px rgba(120, 80, 40, 0.18);
+}
+
+.slot-panel::before {
+  content: 'STRIKE ANYWHERE';
+  position: absolute;
+  top: -7px;
+  left: 10px;
+  padding: 0 5px;
+  background: var(--paper-deep);
+  border: 1px solid var(--ink-sepia);
+  color: var(--ink-red);
+  font-family: 'Georgia', serif;
+  font-size: 8px;
+  font-weight: bold;
+  letter-spacing: 0.22em;
+  transform: rotate(-1.4deg);
+  text-shadow: 0.6px 0 0 rgba(52, 83, 110, 0.35);
+}
+
+.slot-panel::after {
+  content: 'NO. 22';
+  position: absolute;
+  top: -7px;
+  right: 10px;
+  padding: 0 5px;
+  background: var(--paper-deep);
+  border: 1px solid var(--ink-sepia);
+  color: var(--ink-sepia);
+  font-family: 'Georgia', serif;
+  font-size: 8px;
+  letter-spacing: 0.22em;
+  transform: rotate(0.9deg);
+}
+
+/* ── El Premio Gordo — progressive jackpot meter above the slot grid.
+   Faded lotería plate with the label in blood red and the dollar amount
+   in marigold LED-style glow. Grows by ceil(balance*1%) per spin. */
+.jackpot-display {
+  position: relative;
+  margin: 0 4px 8px;
+  padding: 4px 8px 5px;
+  border: 1px solid #2a1a08;
+  border-radius: 2px;
+  background:
+    radial-gradient(ellipse at 18% 22%, rgba(40, 18, 6, 0.3), transparent 55%),
+    linear-gradient(180deg, #1a0e04 0%, #0a0604 100%);
+  text-align: center;
+  box-shadow:
+    inset 0 0 0 1px rgba(244, 228, 176, 0.18),
+    inset 0 0 10px rgba(0, 0, 0, 0.6);
+}
+
+.jackpot-label {
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #c8a560;
+  margin-bottom: 1px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.jackpot-amount {
+  font-family: 'Georgia', serif;
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  color: #ffd040;
+  text-shadow:
+    0 0 4px rgba(255, 210, 80, 0.85),
+    0 0 10px rgba(255, 170, 30, 0.55),
+    0 0 22px rgba(255, 130, 10, 0.35);
+  animation: jackpot-throb 2.6s ease-in-out infinite;
+}
+
+@keyframes jackpot-throb {
+  0%, 100% { filter: brightness(1)   saturate(1); }
+  50%      { filter: brightness(1.18) saturate(1.1); }
+}
+
+/* ¡PREMIO GORDO! variant — caution hazard-tape stripes (yellow + black
+   diagonal), bigger font, pulse animation. Still border-wall in palette
+   but loud enough that a jackpot reads as A Big Damn Event. */
+.match-payout.premio-gordo {
+  font-size: 18px;
+  padding: 8px 18px;
+  border: 2px solid #0a0a08;
+  border-top: 3px solid #e8c828;
+  border-bottom: 3px solid #e8c828;
+  background:
+    /* yellow + black hazard-tape diagonal stripes */
+    repeating-linear-gradient(45deg,
+      #e8c828 0 14px,
+      #1a1a18 14px 28px);
+  color: #1a1a18;
+  text-shadow:
+    1px 1px 0 #e8c828,
+    -1px -1px 0 #e8c828,
+    1px -1px 0 #e8c828,
+    -1px 1px 0 #e8c828,
+    0 0 6px rgba(0, 0, 0, 0.8);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.85),
+    0 0 30px rgba(232, 200, 40, 0.55),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.4);
+  animation: premio-pulse 0.5s ease-in-out 0s 4 alternate;
+}
+
+@keyframes premio-pulse {
+  0%   { transform: translate(-50%, -50%) scale(1);    filter: brightness(1); }
+  100% { transform: translate(-50%, -50%) scale(1.06); filter: brightness(1.15); }
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  perspective: 700px;
+}
+
+.cell {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  transform-style: preserve-3d;
+  /* default = nada — dark teal top paint over tobacco base */
+  --top: #16424a;
+  --top-deep: #061c22;
+  --base: #5a3818;
+  background:
+    radial-gradient(circle at 14% 22%, var(--base) 0 4px, rgba(0, 0, 0, 0.5) 4px 5px, transparent 5px),
+    radial-gradient(circle at 78% 15%, var(--base) 0 3px, rgba(0, 0, 0, 0.5) 3px 4px, transparent 4px),
+    radial-gradient(circle at 62% 78%, var(--base) 0 5px, rgba(0, 0, 0, 0.5) 5px 6px, transparent 6px),
+    radial-gradient(circle at 8% 88%, var(--base) 0 3.5px, rgba(0, 0, 0, 0.5) 3.5px 4.5px, transparent 4.5px),
+    radial-gradient(circle at 88% 60%, var(--base) 0 4px, rgba(0, 0, 0, 0.5) 4px 5px, transparent 5px),
+    radial-gradient(circle at 35% 50%, var(--base) 0 2.5px, rgba(0, 0, 0, 0.5) 2.5px 3.5px, transparent 3.5px),
+    radial-gradient(circle at 50% 8%, var(--base) 0 3px, rgba(0, 0, 0, 0.5) 3px 4px, transparent 4px),
+    radial-gradient(circle at 22% 65%, var(--base) 0 2px, rgba(0, 0, 0, 0.5) 2px 3px, transparent 3px),
+    linear-gradient(165deg, var(--top), var(--top-deep));
+}
+
+.cell[data-color="nada"] {
+  --top: #16424a;
+  --top-deep: #061c22;
+  --base: #5a3818;
+}
+
+/* sol — marigold over old oxblood walls */
+.cell[data-color="blue"] {
+  --top: #e89030;
+  --top-deep: #985008;
+  --base: #6a1408;
+}
+
+/* cruz — hot pink over old teal bar paint */
+.cell[data-color="yellow"] {
+  --top: #d63872;
+  --top-deep: #8e1448;
+  --base: #16424a;
+}
+
+/* split-flap halves: each clips to half the cell; glyph spans 200% so each
+   half shows its respective top/bottom slice of the same character. */
+.cell-half {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  overflow: hidden;
+  pointer-events: none;
+  backface-visibility: hidden;
+}
+
+.cell-top {
+  top: 0;
+  transform-origin: 50% 100%;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.7);
+}
+
+.cell-bot {
+  top: 50%;
+  transform-origin: 50% 0%;
+}
+
+.cell-glyph {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Georgia', serif;
+  font-size: 62px;
+  font-weight: bold;
+  line-height: 1;
+  color: #fbeed2;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.6),
+    0 0 1px rgba(0, 0, 0, 0.65);
+}
+
+.cell-top .cell-glyph { top: 0; }
+.cell-bot .cell-glyph { top: -100%; }
+
+/* nada glyph dimmed — the "no win" cards barely advertise themselves */
+.cell[data-color="nada"] .cell-glyph {
+  color: rgba(251, 238, 210, 0.42);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+@keyframes flap-top-flip {
+  0%   { transform: rotateX(0); }
+  50%  { transform: rotateX(-90deg); }
+  100% { transform: rotateX(0); }
+}
+
+@keyframes flap-bot-flip {
+  0%   { transform: rotateX(0); }
+  50%  { transform: rotateX(90deg); }
+  100% { transform: rotateX(0); }
+}
+
+.cell-top.flap-flipping { animation: flap-top-flip 0.18s ease-in-out; }
+.cell-bot.flap-flipping { animation: flap-bot-flip 0.18s ease-in-out; }
+
+.cell-win {
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 2px #fbeed2,
+    inset 0 0 10px rgba(255, 245, 200, 0.4);
+  animation: cell-stamp 0.6s ease-out;
+}
+
+.cell-bonus {
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 2px #c0f038,
+    inset 0 0 10px rgba(192, 240, 56, 0.4);
+}
+
+/* Hold-beat amp — slot.js adds .slot-grid-hit to #slot-grid for ~1.1s
+   right after a winning spin lands. While that class is on, the winning
+   cells get a stronger pulsing outer halo + a deeper inset bloom so the
+   hit reads as a punch before control transfers to the matcher. */
+.slot-grid-hit .cell-win {
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 2px #ffffff,
+    inset 0 0 18px rgba(255, 240, 180, 0.85),
+    0 0 12px rgba(255, 220, 120, 0.7),
+    0 0 30px rgba(255, 200, 90, 0.45),
+    0 0 60px rgba(255, 180, 60, 0.25);
+  animation: cell-hit-pulse 0.55s ease-in-out infinite alternate;
+}
+
+.slot-grid-hit .cell-bonus {
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 2px #e6ff80,
+    inset 0 0 18px rgba(220, 255, 130, 0.85),
+    0 0 12px rgba(192, 240, 56, 0.75),
+    0 0 30px rgba(140, 220, 40, 0.45),
+    0 0 60px rgba(120, 200, 40, 0.25);
+  animation: cell-hit-pulse 0.55s ease-in-out infinite alternate;
+}
+
+@keyframes cell-hit-pulse {
+  0%   { transform: scale(1);    filter: brightness(1)   saturate(1); }
+  100% { transform: scale(1.08); filter: brightness(1.3) saturate(1.2); }
+}
+
+@keyframes cell-stamp {
+  0%   { transform: scale(0.92); }
+  50%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* flip on column-land: 0→90→0 on Y, symbol swap at mid (JS-driven) */
+.cell-flipping {
+  animation: cell-flip 0.36s ease-in-out;
+}
+
+@keyframes cell-flip {
+  0%   { transform: rotateY(0deg); }
+  50%  { transform: rotateY(90deg); }
+  100% { transform: rotateY(0deg); }
+}
+
+/* ── slot controls ───────────────────────────────────────────────────── */
+.slot-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+#bet-tiers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 5px;
+  background: var(--paper);
+  border: 1px solid var(--ink-sepia);
+  border-radius: 1px;
+}
+
+.bet-label {
+  font-family: 'Georgia', serif;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-sepia);
+}
+
+#bet-amount {
+  width: 56px;
+  padding: 2px 4px;
+  background: #f4e6c4;
+  border: 1px solid var(--ink-sepia);
+  border-radius: 1px;
+  color: var(--ink-sepia);
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.bet-shortcut {
+  padding: 2px 6px;
+  background: var(--ink-red);
+  border: 1px solid var(--ink-sepia);
+  border-radius: 1px;
+  color: #f4e6c4;
+  font-family: 'Georgia', serif;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.bet-shortcut:hover { background: #b04830; }
+
+#spin-btn {
+  padding: 5px 14px;
+  background: linear-gradient(180deg, #9c3826, #7a2818);
+  border: 1px solid var(--ink-sepia);
+  border-radius: 1px;
+  color: #f4e6c4;
+  font-family: 'Georgia', serif;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  text-shadow: 0.7px 0 0 rgba(255, 220, 180, 0.4);
+  box-shadow:
+    2px 2px 0 #4a1808,
+    inset 0 1px 0 rgba(255, 220, 180, 0.3);
+  transition: transform 0.04s ease, background 0.15s ease, box-shadow 0.04s ease;
+}
+
+#spin-btn:hover {
+  background: linear-gradient(180deg, #b04830, #8a3020);
+}
+
+#spin-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow:
+    0 0 0 #4a1808,
+    inset 0 1px 0 rgba(255, 220, 180, 0.3);
+}
+
+#spin-btn:disabled {
+  background: #8a7858;
+  color: #c0a878;
+  cursor: not-allowed;
+  box-shadow: 2px 2px 0 #5a4830;
+}
+
+.slot-result {
+  flex: 1;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink-sepia);
+}
+
+/* ── paytable ────────────────────────────────────────────────────────── */
+.paytable {
+  margin-top: 8px;
+  padding: 5px 7px;
+  background: var(--paper);
+  border: 1px dashed var(--ink-sepia);
+  border-radius: 1px;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--ink-sepia);
+}
+
+.paytable-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.paytable-row:last-child { margin-bottom: 0; }
+
+.paytable-label {
+  display: inline-block;
+  min-width: 46px;
+  font-family: 'Georgia', serif;
+  font-size: 8px;
+  font-weight: bold;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-red);
+}
+
+.paytable-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 4px;
+  background: #f0deb0;
+  border: 1px solid var(--ink-dust);
+  border-radius: 1px;
+}
+
+.paytable-suffix {
+  color: #6a4a30;
+  font-style: italic;
+}
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-sepia);
+}
+
+.dot-nada   { background: var(--mb-nada); }
+.dot-yellow { background: var(--mb-yellow); }
+
+/* ── match panel: dark concrete slab ─────────────────────────────────── */
+.match-panel {
+  position: relative;
+  padding: 14px 10px 10px;
+  border: 1px solid #0a0908;
+  border-radius: 2px;
+  transform: rotate(0.35deg);
+  background:
+    /* corner rivets */
+    radial-gradient(circle at 6px 6px, #050404 0 1.4px, transparent 2.4px),
+    radial-gradient(circle at calc(100% - 6px) 6px, #050404 0 1.4px, transparent 2.4px),
+    radial-gradient(circle at 6px calc(100% - 6px), #050404 0 1.4px, transparent 2.4px),
+    radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), #050404 0 1.4px, transparent 2.4px),
+    /* aggregate grit specks */
+    radial-gradient(circle at 32% 24%, rgba(0, 0, 0, 0.5) 0 1px, transparent 2px),
+    radial-gradient(circle at 68% 62%, rgba(0, 0, 0, 0.5) 0 1px, transparent 2px),
+    radial-gradient(circle at 18% 78%, rgba(0, 0, 0, 0.5) 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 18%, rgba(0, 0, 0, 0.5) 0 1px, transparent 2px),
+    /* water-streak / hairline texture */
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px),
+    /* dark concrete base — mid-tone to deep shadow pulled from the
+       generated loteria palette */
+    linear-gradient(160deg,
+      var(--scene-color-mid,  #3a3633) 0%,
+      var(--scene-color-dark, #1c1a18) 100%);
+  box-shadow:
+    2px 3px 0 rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(180, 180, 170, 0.12),
+    inset 0 0 22px rgba(0, 0, 0, 0.45);
+}
+
+.match-panel::before {
+  content: 'COLLECTORS · SERIES 1';
+  position: absolute;
+  top: -7px;
+  left: 12px;
+  padding: 0 5px;
+  background: var(--paper-deep);
+  border: 1px solid var(--ink-sepia);
+  color: var(--ink-sepia);
+  font-family: 'Georgia', serif;
+  font-size: 8px;
+  font-weight: bold;
+  letter-spacing: 0.18em;
+  transform: rotate(-1.1deg);
+}
+
+/* Translate-trap overrides — when translate-trap.js detects auto-translate
+   and swaps the page to Chinese, it adds body.translated-zh. The pseudo-
+   element stamps can't be replaced via JS (their content is in CSS), so
+   we override here. */
+body.translated-zh .slot-panel::before { content: '随处划火柴'; letter-spacing: 0.15em; }
+body.translated-zh .slot-panel::after  { content: '第 22 号'; letter-spacing: 0.12em; }
+body.translated-zh .match-panel::before { content: '收藏家 · 系列 1'; letter-spacing: 0.15em; }
+
+.match-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d8c08c;
+}
+
+/* Move counter — badge style. Bigger, brighter, with the number set apart
+   so the player can read remaining moves at a glance. Pulses warmer when
+   moves are running low (≤2) via a class slot.js could set; for now it
+   just stays prominent. */
+.match-hud > span:first-child {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 12px;
+  background: linear-gradient(180deg, rgba(60, 50, 30, 0.85), rgba(20, 14, 8, 0.95));
+  border: 1px solid #4a3818;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(232, 200, 80, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  color: #c8a560;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+}
+
+#moves-count {
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 0;
+  color: #ffd040;
+  text-shadow:
+    0 0 4px rgba(255, 210, 80, 0.85),
+    0 0 10px rgba(255, 170, 30, 0.55),
+    0 1px 0 rgba(0, 0, 0, 0.7);
+  min-width: 16px;
+  text-align: center;
+  line-height: 1;
+}
+
+/* Border-checkpoint banner — small, stenciled, steel-slat background with
+   caution-yellow accent bars at top + bottom. Swerves in fast at an angle,
+   overshoots, settles. Roomy padding so it has space to land. */
+.match-payout {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  /* default (hidden) state — off-axis, scaled down, rotated */
+  transform: translate(-50%, -50%) scale(0.4) rotate(-14deg);
+  font-family: 'Courier New', 'Courier', monospace;
+  font-size: 15px;
+  font-weight: bold;
+  color: #f4ebd0;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 10px 28px;
+  background:
+    /* vertical steel slat texture */
+    repeating-linear-gradient(90deg,
+      rgba(70, 70, 70, 0.4) 0 3px,
+      rgba(20, 20, 20, 0.5) 3px 4px,
+      rgba(70, 70, 70, 0.4) 4px 8px),
+    /* solid steel base */
+    linear-gradient(180deg, #3a3a38 0%, #1a1a18 100%);
+  border: 1px solid #0a0a08;
+  border-top: 2px solid #e8c828;
+  border-bottom: 2px solid #e8c828;
+  border-radius: 0;
+  text-shadow:
+    1px 1px 0 rgba(0, 0, 0, 0.85),
+    0 0 4px rgba(232, 200, 40, 0.4);
+  box-shadow:
+    0 3px 14px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(232, 200, 40, 0.2),
+    inset 0 -1px 0 rgba(232, 200, 40, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+  text-align: center;
+  /* fast swerve with overshoot via spring-y cubic-bezier */
+  transition:
+    opacity 0.18s ease,
+    transform 0.26s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.match-payout.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1) rotate(0deg);
+}
+
+.match-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+  padding: 5px;
+  background: #1a0f08;
+  border: 1px solid var(--ink-sepia);
+  border-radius: 1px;
+}
+
+.match-grid.locked {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ── tile faces: faded printed cards with cream borders ──────────────── */
+.tile {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  border-radius: 3px;
+  font-family: 'Georgia', serif;
+  font-size: 22px;
+  font-weight: bold;
+  cursor: pointer;
+  background-color: #060304;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+/* Two layers on ::before:
+   1. Mana-twinkle dot — a small bright radial that blinks in and out at
+      a fixed point on each tile during match phase (background-size
+      animates 0 → peak → 0). Like FF mana shimmer.
+   2. White-hot inner core bloom (static, always-on, centered above the
+      flame radial). Both blend additively via mix-blend-mode: screen. */
+.tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image:
+    radial-gradient(circle 14px at center,
+      rgba(255, 255, 255, 1)    0%,
+      rgba(255, 255, 255, 0.55) 35%,
+      rgba(255, 255, 255, 0.18) 60%,
+      transparent 85%),
+    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.5), transparent 22%);
+  background-size: 0 0, 100% 100%;
+  background-position: 45% 28%, 0 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+
+/* Mana twinkle — brief sparkle pop on each gem during match phase. The
+   bright spot scales in from 0, peaks for a frame, scales back out. Total
+   visible window is ~600ms out of every 5s cycle. */
+.matchbox.phase-match .tile-red::before,
+.matchbox.phase-match .tile-blue::before,
+.matchbox.phase-match .tile-green::before,
+.matchbox.phase-match .tile-yellow::before,
+.matchbox.phase-match .tile-wild::before {
+  animation: mana-twinkle 5s ease-in-out infinite;
+}
+
+@keyframes mana-twinkle {
+  0%, 86%, 100% { background-size: 0 0,       100% 100%; }
+  91%           { background-size: 26px 26px, 100% 100%; }
+  94%           { background-size: 32px 32px, 100% 100%; }
+  97%           { background-size: 18px 18px, 100% 100%; }
+}
+
+/* per-tile staggers — different twinkle positions and delays so the grid
+   blinks asynchronously instead of pulsing in unison. */
+.matchbox.phase-match .match-grid .tile:nth-child(2n)::before {
+  background-position: 60% 32%, 0 0;
+  animation-delay: -2.3s;
+}
+.matchbox.phase-match .match-grid .tile:nth-child(3n+1)::before {
+  background-position: 35% 22%, 0 0;
+  animation-delay: -1.0s;
+}
+.matchbox.phase-match .match-grid .tile:nth-child(5n+2)::before {
+  background-position: 55% 42%, 0 0;
+  animation-delay: -3.6s;
+}
+.matchbox.phase-match .match-grid .tile:nth-child(7n+3)::before {
+  background-position: 25% 35%, 0 0;
+  animation-delay: -1.8s;
+}
+.matchbox.phase-match .match-grid .tile:nth-child(11n+5)::before {
+  background-position: 48% 60%, 0 0;
+  animation-delay: -4.2s;
+}
+
+.tile::after {
+  position: relative;
+  z-index: 2;
+}
+
+/* BURNING MATCH HEADS — concentrated flame radial centered on each tile,
+   dark surround that reads as the air around the flame, colored glow halo
+   bleeding out into the dark match-grid. */
+.tile-red {
+  background:
+    radial-gradient(ellipse 50% 55% at 50% 38%,
+      #ffe080 0%,
+      #ff7820 18%,
+      #d01828 42%,
+      #5a0810 68%,
+      transparent 88%),
+    radial-gradient(circle at 50% 50%, #14080a 0%, #050204 100%);
+  color: #fff0d8;
+  text-shadow:
+    0 0 4px #ffc060,
+    0 0 10px #ff6020,
+    0 0 22px rgba(255, 80, 30, 0.7);
+  box-shadow:
+    0 0 14px rgba(255, 110, 40, 0.85),
+    0 0 30px rgba(255, 90, 40, 0.5),
+    0 0 52px rgba(255, 70, 60, 0.28),
+    inset 0 0 14px rgba(0, 0, 0, 0.6);
+}
+
+.tile-blue {
+  background:
+    radial-gradient(ellipse 50% 55% at 50% 38%,
+      #d0f0ff 0%,
+      #50b8ff 18%,
+      #1868d0 42%,
+      #051838 68%,
+      transparent 88%),
+    radial-gradient(circle at 50% 50%, #060818 0%, #020208 100%);
+  color: #e0f4ff;
+  text-shadow:
+    0 0 4px #b0e0ff,
+    0 0 10px #40a0ff,
+    0 0 22px rgba(40, 140, 255, 0.7);
+  box-shadow:
+    0 0 14px rgba(80, 200, 255, 0.85),
+    0 0 30px rgba(80, 180, 255, 0.5),
+    0 0 52px rgba(80, 160, 255, 0.28),
+    inset 0 0 14px rgba(0, 0, 0, 0.6);
+}
+
+.tile-green {
+  background:
+    radial-gradient(ellipse 50% 55% at 50% 38%,
+      #d8ffb8 0%,
+      #70f060 18%,
+      #28b030 42%,
+      #082018 68%,
+      transparent 88%),
+    radial-gradient(circle at 50% 50%, #061208 0%, #020604 100%);
+  color: #e8ffe0;
+  text-shadow:
+    0 0 4px #b0f0a0,
+    0 0 10px #40e040,
+    0 0 22px rgba(64, 224, 64, 0.7);
+  box-shadow:
+    0 0 14px rgba(112, 248, 112, 0.85),
+    0 0 30px rgba(96, 240, 96, 0.5),
+    0 0 52px rgba(96, 240, 96, 0.28),
+    inset 0 0 14px rgba(0, 0, 0, 0.6);
+}
+
+.tile-yellow {
+  background:
+    radial-gradient(ellipse 50% 55% at 50% 38%,
+      #fff8c0 0%,
+      #ffd040 18%,
+      #c08818 42%,
+      #4a3008 68%,
+      transparent 88%),
+    radial-gradient(circle at 50% 50%, #0c0804 0%, #040302 100%);
+  color: #fff4c0;
+  text-shadow:
+    0 0 4px #fff080,
+    0 0 10px #ffb840,
+    0 0 22px rgba(255, 184, 32, 0.7);
+  box-shadow:
+    0 0 14px rgba(255, 216, 80, 0.85),
+    0 0 30px rgba(255, 200, 80, 0.5),
+    0 0 52px rgba(255, 180, 80, 0.28),
+    inset 0 0 14px rgba(0, 0, 0, 0.6);
+}
+
+/* irregular brightness flicker — each match burns at its own jagged rate,
+   uneven keyframes so neighbors don't sync up into a uniform pulse */
+.tile-red, .tile-blue, .tile-green, .tile-yellow {
+  animation: tile-flicker 3s ease-in-out infinite;
+}
+
+@keyframes tile-flicker {
+  0%, 100% { filter: brightness(1)    saturate(1); }
+  18%      { filter: brightness(1.10) saturate(1.06); }
+  37%      { filter: brightness(0.95); }
+  56%      { filter: brightness(1.12) saturate(1.08); }
+  72%      { filter: brightness(1.04); }
+  88%      { filter: brightness(0.97); }
+}
+
+/* desync each tile so the grid breathes at different rates */
+.match-grid .tile:nth-child(7n)   { animation-delay: -0.5s; animation-duration: 2.8s; }
+.match-grid .tile:nth-child(5n+1) { animation-delay: -1.1s; animation-duration: 3.4s; }
+.match-grid .tile:nth-child(3n+2) { animation-delay: -1.7s; animation-duration: 3.1s; }
+.match-grid .tile:nth-child(11n)  { animation-delay: -2.2s; animation-duration: 3.6s; }
+.match-grid .tile:nth-child(13n)  { animation-delay: -0.9s; animation-duration: 2.9s; }
+
+.tile-red::after {
+  content: '🌶';
+  filter:
+    brightness(0)
+    drop-shadow(0 0 5px #ff5076)
+    drop-shadow(0 0 12px rgba(255, 48, 96, 0.82))
+    drop-shadow(0 0 22px rgba(255, 48, 96, 0.5));
+}
+
+.tile-blue::after {
+  content: '🌙';
+  filter:
+    brightness(0)
+    drop-shadow(0 0 5px #50c0ff)
+    drop-shadow(0 0 12px rgba(48, 160, 255, 0.82))
+    drop-shadow(0 0 22px rgba(48, 160, 255, 0.5));
+}
+
+.tile-green::after {
+  content: '👁';
+  filter:
+    brightness(0)
+    drop-shadow(0 0 5px #70f070)
+    drop-shadow(0 0 12px rgba(64, 224, 64, 0.82))
+    drop-shadow(0 0 22px rgba(64, 224, 64, 0.5));
+}
+
+.tile-yellow::after {
+  content: '🦂';
+  filter:
+    brightness(0)
+    drop-shadow(0 0 5px #ffd040)
+    drop-shadow(0 0 12px rgba(255, 184, 32, 0.82))
+    drop-shadow(0 0 22px rgba(255, 184, 32, 0.5));
+}
+
+/* wild — MAGNESIUM BURN, the wild card matches any color. White-hot core,
+   cool-blue flame edges, ice-white halo so it pops harder than any colored
+   match in the grid. */
+.tile-wild {
+  background:
+    radial-gradient(ellipse 50% 55% at 50% 38%,
+      #ffffff 0%,
+      #f0f4ff 15%,
+      #c8dcff 35%,
+      #5070b0 60%,
+      #060f1c 85%,
+      transparent 92%),
+    radial-gradient(circle at 50% 50%, #060810 0%, #020208 100%);
+  color: #fcfcff;
+  text-shadow:
+    0 0 4px #ffffff,
+    0 0 10px #c8dcff,
+    0 0 22px rgba(200, 220, 255, 0.75);
+  box-shadow:
+    0 0 16px rgba(230, 240, 255, 0.95),
+    0 0 32px rgba(200, 220, 255, 0.6),
+    0 0 56px rgba(180, 200, 255, 0.35),
+    inset 0 0 14px rgba(0, 0, 0, 0.5);
+  animation: tile-flicker 2.7s ease-in-out infinite;
+}
+
+.tile-wild::after {
+  content: '💀';
+  font-size: 22px;
+  filter:
+    brightness(0)
+    drop-shadow(0 0 4px #ffffff)
+    drop-shadow(0 0 10px rgba(200, 220, 255, 0.7))
+    drop-shadow(0 0 18px rgba(200, 220, 255, 0.4));
+}
+
+.tile-empty {
+  background: transparent;
+  border: 1px dashed rgba(180, 140, 80, 0.22);
+  box-shadow: none;
+  cursor: default;
+}
+
+.tile-empty::before,
+.tile-empty::after { content: none; }
+
+.tile-clearing { animation: tile-fade 0.26s ease-out forwards; }
+
+@keyframes tile-fade {
+  0%   { transform: scale(1);    opacity: 1; filter: brightness(1.4) saturate(1.4); }
+  40%  { transform: scale(1.18); opacity: 1; filter: brightness(2.2) saturate(1.6); }
+  100% { transform: scale(0.4) rotate(14deg); opacity: 0; filter: brightness(2.6) saturate(2); }
+}
+
+.tile:hover {
+  transform: translateY(-2px) scale(1.06);
+  filter: brightness(1.4) saturate(1.25);
+  z-index: 3;
+}
+
+.tile:active {
+  transform: translateY(1px) scale(1);
+  filter: brightness(0.95);
+}
+
+.tile-selected {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+  transform: scale(0.92);
+  filter: brightness(1.55) saturate(1.3);
+  z-index: 4;
+}

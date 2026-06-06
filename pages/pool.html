@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  WITCHES POOL — sigil-table pool with curve-handle & glowing orbs        │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A 900×580 black ink basin set into a leather-bound spread. A bone     │
+  │    cue ball begins at a randomized spot; four jewel-toned orbs (red on   │
+  │    north, blue on east, green on south, yellow on west) sit lit at       │
+  │    their compass posts. The walls are painted in matching ink. A gilded  │
+  │    iron sigil rests at the centre. The player aims with the mouse,       │
+  │    fires straight with SPACE / click / SHOOT; on first contact the       │
+  │    book pauses, a pull-out handle extends along the natural carom and   │
+  │    a dashed polyline previews the orbital curve. RELEASE commits the    │
+  │    curve through a spin-up burst, then live physics resume. Striking a  │
+  │    lit orb on its matching wall scores a point, dims that orb and       │
+  │    pulses the combo glyph in the sigil. Dim orbs cannot score; when     │
+  │    all four are dark they relight in a bone burst. The cue stopping     │
+  │    or a colored orb striking the sigil ends the run, and the entire     │
+  │    game replays.                                                        │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, pool/page.js, header.js     │
+  │    inline route-guards: intro→splash; death→death; child stat≤0→        │
+  │      child-died; child.lockedUntil→child (Palace-wide gates)            │
+  │    DOM ids: #pool-canvas (900×580), #pool-power, #pool-power-val,       │
+  │      #pool-shoot, #pool-reset, #pool-status, #pool-bet, #pool-mult,    │
+  │      #pool-payout, #pool-balance, #pool-quote-layer, #balance,        │
+  │      #pool-press-space (coach prompt, .is-on while phase∈{AIM,BEND}),    │
+  │      #debug-reset                                                       │
+  │    flow: page.js init on DOMContentLoaded → rAF loop:                  │
+  │      AIM → CAST (Child.recordPlay + Wallet.spend bet) → FIRED →       │
+  │      BEND (orbital preview) → RELEASE → SPIN_UP → CURVE_FIRED →      │
+  │      MULTI_ROLLING → GAME_OVER → REPLAY                              │
+  │    payouts: per-hit bet×mult(combo) → Wallet.add; break-even at       │
+  │      combo 5; coven verse drops on every 4 scores                      │
+  │    storage R/W: none (delegated to wallet/expenses/child)              │
+  │    routes out: ../index.html (back to lobby)                            │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Witches Pool</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+  <style>
+    /* GRIMOIRE IN A COMP NOTEBOOK ----------------------------------------
+       The body is a marbled comp-book cover; the page itself is cream
+       ruled paper with a red left margin, all the ritual content drawn
+       onto it like a hand-kept grimoire. Buttons are inked boxes, the
+       canvas is a pasted-in diagram with tape strips.                    */
+
+    body {
+      background:
+        /* speckle highlights for the marbled cover */
+        radial-gradient(ellipse 38% 32% at 18% 22%, rgba(255,255,255,0.08), transparent 60%),
+        radial-gradient(ellipse 30% 24% at 78% 68%, rgba(255,255,255,0.06), transparent 60%),
+        radial-gradient(ellipse 24% 28% at 42% 84%, rgba(255,255,255,0.05), transparent 60%),
+        radial-gradient(ellipse 26% 22% at 88% 18%, rgba(255,255,255,0.04), transparent 60%),
+        /* base cover */
+        linear-gradient(140deg, #1a1a1c 0%, #0a0a0c 55%, #1a1a1c 100%);
+      background-attachment: fixed;
+      color: #1a0a08;
+      font-family: Georgia, 'Times New Roman', serif;
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    /* Centered "page" that holds everything — cream paper, ruled lines,
+       red margin, taped to the cover with a slight rotation.            */
+    body > header,
+    body > main {
+      background-color: #f1e2bc;
+      background-image:
+        /* red margin line at ~92px in from the left */
+        linear-gradient(90deg,
+          transparent 91px,
+          rgba(176, 36, 36, 0.78) 91px,
+          rgba(176, 36, 36, 0.78) 93px,
+          transparent 93px),
+        /* faint blue horizontal rules every 30px */
+        repeating-linear-gradient(0deg,
+          transparent 0,
+          transparent 29px,
+          rgba(64, 110, 170, 0.28) 29px,
+          rgba(64, 110, 170, 0.28) 30px),
+        /* paper grain — subtle noise via stacked radials */
+        radial-gradient(ellipse 80% 50% at 30% 40%, rgba(180,140,80,0.06), transparent 60%),
+        radial-gradient(ellipse 70% 60% at 70% 60%, rgba(160,100,60,0.05), transparent 60%);
+      box-shadow:
+        0 0 0 1px rgba(80, 40, 20, 0.10),
+        0 18px 40px rgba(0, 0, 0, 0.55);
+      max-width: 1180px;
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: 116px;       /* leave the red margin clear of text  */
+      padding-right: 60px;
+      box-sizing: border-box;
+    }
+    body > header { margin-top: 28px; padding-top: 24px; padding-bottom: 14px; border-top-left-radius: 3px; border-top-right-radius: 3px; }
+    body > main   { margin-bottom: 28px; padding-top: 6px; padding-bottom: 38px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; }
+
+    /* Title — handwritten grimoire heading, slightly off-kilter so it
+       doesn't read like print.                                          */
+    h1 {
+      font-family: 'Cinzel', Georgia, serif;
+      font-style: italic;
+      letter-spacing: 0.18em;
+      color: #1a0a08;
+      font-weight: 700;
+      font-size: 2.4rem;
+      margin: 6px 0 2px;
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      transform: rotate(-0.5deg);
+      transform-origin: left center;
+    }
+    h1::before, h1::after {
+      content: '☽';
+      color: #7a1818;
+      font-size: 0.85em;
+      opacity: 0.9;
+    }
+    h1::after { content: '☾'; }
+
+    header a {
+      color: #1a0a08;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      letter-spacing: 0.08em;
+      font-family: 'Cinzel', Georgia, serif;
+    }
+    header a:hover { color: #7a1818; }
+
+    /* Override the Palace-wide coins-bar so it reads on the cream page
+       instead of the dark gothic palette base.css ships with. */
+    .coins-bar {
+      position: absolute;
+      top: 16px;
+      right: 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Cinzel', Georgia, serif;
+      color: #1a0a08;
+      font-size: 0.95rem;
+      letter-spacing: 0.06em;
+    }
+    .coins-label {
+      color: #5a3818;
+      font-style: italic;
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    #balance {
+      color: #1a0a08;
+      font-weight: 700;
+      font-size: 1.1rem;
+      text-shadow: 0 0 4px rgba(176, 36, 36, 0.18);
+    }
+    #debug-reset {
+      background: #f6ead0;
+      color: #1a0a08;
+      border: 2px solid #1a0a08;
+      border-radius: 0;
+      padding: 2px 8px;
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 2px 2px 0 #1a0a08;
+    }
+    #debug-reset:hover {
+      background: #1a0a08;
+      color: #f6ead0;
+      box-shadow: 2px 2px 0 #7a1818;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      position: relative; /* containing block for the quote layer */
+    }
+    /* Quote layer — coven verses inscribed onto the paper as the player
+       scores. Sits behind all content so the canvas, controls, and text
+       overlay it cleanly. */
+    #pool-quote-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    main > .pool-stage,
+    main > .pool-buttons,
+    main > .pool-bet-row,
+    main > #pool-status,
+    main > .pool-hint {
+      position: relative;
+      z-index: 1;
+    }
+    .pool-quote {
+      position: absolute;
+      font-family: 'Cinzel', Georgia, serif;
+      font-style: italic;
+      color: rgba(36, 12, 12, 0.78);
+      font-size: 0.92rem;
+      letter-spacing: 0.04em;
+      line-height: 1.25;
+      max-width: 220px;
+      text-shadow: 0 0 1px rgba(20, 4, 4, 0.45);
+      opacity: 0;
+      transform: rotate(var(--rot, -2deg));
+      animation: poolQuoteInk 1.6s ease forwards;
+    }
+    @keyframes poolQuoteInk {
+      0%   { opacity: 0; filter: blur(2.5px); }
+      60%  { opacity: 0.85; filter: blur(0); }
+      100% { opacity: 0.85; filter: blur(0); }
+    }
+
+    .pool-stage {
+      display: flex;
+      align-items: flex-start;
+      gap: 22px;
+    }
+
+    /* Canvas — a "ritual diagram" pasted onto the page, taped at the
+       corners, with a slight handheld tilt.                             */
+    .pool-canvas-wrap {
+      position: relative;
+      line-height: 0;
+      padding: 6px;
+      background: #0a0408;
+      border: 1.5px solid #1a0a08;
+      box-shadow:
+        0 0 0 1px #2a1010,
+        6px 8px 26px rgba(0, 0, 0, 0.50);
+      transform: rotate(-0.4deg);
+      margin-top: 6px;
+    }
+    .pool-canvas-wrap::before,
+    .pool-canvas-wrap::after {
+      content: '';
+      position: absolute;
+      width: 72px;
+      height: 22px;
+      background: rgba(232, 212, 158, 0.78);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+      pointer-events: none;
+    }
+    .pool-canvas-wrap::before {
+      top: -10px; left: -14px;
+      transform: rotate(-14deg);
+    }
+    .pool-canvas-wrap::after {
+      bottom: -10px; right: -14px;
+      transform: rotate(-12deg);
+    }
+    #pool-canvas {
+      cursor: crosshair;
+      touch-action: none;
+      display: block;
+      border: 1px solid #2a1010;
+      box-shadow: inset 0 0 0 1px rgba(120, 60, 30, 0.15);
+    }
+
+    /* Coaching overlay — pinned to the top edge of the felt so the playing
+       area (and the player's first-shot trajectory) stays clear. Pixel-font
+       arcade prompt; pulses red so it reads against the grimoire palette.
+       JS swaps the text and toggles .is-on for AIM (aim coaching) and BEND
+       (handle coaching). */
+    .pool-press-space {
+      position: absolute;
+      left: 50%;
+      top: 10px;
+      transform: translate(-50%, 0);
+      font-family: 'Press Start 2P', 'VT323', 'Courier New', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      color: #ff2222;
+      text-shadow:
+        0 0 4px #ff2a2a,
+        0 0 10px rgba(220, 0, 0, 0.95),
+        0 0 22px rgba(220, 0, 0, 0.65),
+        0 0 40px rgba(255, 60, 60, 0.45),
+        2px 2px 0 rgba(0, 0, 0, 0.85);
+      pointer-events: none;
+      user-select: none;
+      opacity: 0;
+      visibility: hidden;
+      z-index: 4;
+      white-space: nowrap;
+      transition: opacity 0.18s ease;
+    }
+    .pool-press-space.is-on {
+      opacity: 1;
+      visibility: visible;
+      animation: pool-press-pulse 1.05s ease-in-out infinite;
+    }
+    @keyframes pool-press-pulse {
+      0%, 100% {
+        opacity: 0.85;
+        text-shadow:
+          0 0 4px #ff2a2a,
+          0 0 10px rgba(220, 0, 0, 0.95),
+          0 0 22px rgba(220, 0, 0, 0.65),
+          2px 2px 0 rgba(0, 0, 0, 0.85);
+      }
+      50% {
+        opacity: 1;
+        text-shadow:
+          0 0 6px #ff5a5a,
+          0 0 18px rgba(255, 30, 30, 1),
+          0 0 36px rgba(255, 50, 50, 0.85),
+          0 0 60px rgba(255, 90, 90, 0.55),
+          2px 2px 0 rgba(0, 0, 0, 0.85);
+      }
+    }
+
+    /* Power column — an inked-box sidebar with double-line border,
+       like a margin annotation.                                         */
+    .pool-power-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 10px;
+      background: #f6ead0;
+      border: 2px solid #1a0a08;
+      border-radius: 0;
+      box-shadow: inset 0 0 0 2px #f6ead0, inset 0 0 0 3px #1a0a08;
+      transform: rotate(0.5deg);
+    }
+    .pool-power-label {
+      font-family: 'Cinzel', Georgia, serif;
+      letter-spacing: 0.22em;
+      color: #1a0a08;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    #pool-power {
+      writing-mode: vertical-lr;
+      direction: rtl;
+      -webkit-appearance: slider-vertical;
+      appearance: slider-vertical;
+      width: 28px;
+      height: 460px;
+      accent-color: #7a1818;
+      cursor: pointer;
+    }
+    #pool-power-val {
+      font-family: 'Cinzel', Georgia, serif;
+      color: #1a0a08;
+      font-size: 1.1rem;
+      min-width: 36px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    /* Buttons — drawn-on stamps with offset block shadow, slight
+       opposing tilts so they feel hand-placed.                          */
+    .pool-buttons {
+      display: flex;
+      gap: 18px;
+      margin-top: 6px;
+    }
+    .pool-btn {
+      background: #f1e2bc;
+      color: #1a0a08;
+      border: 2px solid #1a0a08;
+      border-radius: 0;
+      padding: 10px 24px;
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 0.95rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      box-shadow: 3px 3px 0 #1a0a08;
+      transform: rotate(-0.6deg);
+    }
+    .pool-btn + .pool-btn { transform: rotate(0.6deg); }
+    .pool-btn:hover:not(:disabled) {
+      background: #1a0a08;
+      color: #f6ead0;
+      box-shadow: 4px 4px 0 #7a1818;
+      transform: rotate(-0.4deg) translate(-1px, -1px);
+    }
+    .pool-btn + .pool-btn:hover:not(:disabled) { transform: rotate(0.4deg) translate(-1px, -1px); }
+    .pool-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Bet row — inked ledger line jotted at the bottom of the page.    */
+    .pool-bet-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 0.95rem;
+      color: #1a0a08;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .pool-bet-label {
+      letter-spacing: 0.20em;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    #pool-bet {
+      background: #f6ead0;
+      border: 2px solid #1a0a08;
+      color: #1a0a08;
+      padding: 6px 8px;
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 1rem;
+      width: 88px;
+      text-align: center;
+      border-radius: 0;
+      box-shadow: 2px 2px 0 #1a0a08;
+    }
+    #pool-bet:focus {
+      outline: none;
+      box-shadow: 2px 2px 0 #7a1818;
+    }
+    .pool-bet-hint {
+      font-style: italic;
+      letter-spacing: 0.04em;
+      color: #5a3818;
+    }
+    .pool-bet-hint #pool-mult,
+    .pool-bet-hint #pool-payout,
+    .pool-bet-hint #pool-balance {
+      font-weight: 700;
+      font-style: normal;
+      color: #1a0a08;
+    }
+    .pool-bet-spacer { color: #7a1818; opacity: 0.6; }
+
+    /* Status — italic red-ink note. Hint — sepia footnote.              */
+    #pool-status {
+      min-height: 1.4em;
+      font-family: 'Cinzel', Georgia, serif;
+      font-style: italic;
+      font-size: 1.05rem;
+      color: #7a1818;
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+    .pool-hint {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-style: italic;
+      font-size: 0.85rem;
+      color: #5a3818;
+      letter-spacing: 0.02em;
+      text-align: center;
+      max-width: 760px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Witches Pool</h1>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+  <main>
+    <div id="pool-quote-layer" aria-hidden="true"></div>
+    <div class="pool-bet-row" aria-label="stake">
+      <label class="pool-bet-label" for="pool-bet">STAKE</label>
+      <input id="pool-bet" type="number" min="1" max="999" step="1" value="10" />
+      <span class="pool-bet-hint">×<span id="pool-mult">0.25</span> at combo</span>
+      <span class="pool-bet-spacer">·</span>
+      <span class="pool-bet-hint">paid <span id="pool-payout">0</span></span>
+      <span class="pool-bet-spacer">·</span>
+      <span class="pool-bet-hint">purse <span id="pool-balance">0</span></span>
+    </div>
+    <div class="pool-stage">
+      <div class="pool-canvas-wrap">
+        <canvas id="pool-canvas" width="900" height="580" aria-label="wizard's pool — sigil table"></canvas>
+        <div id="pool-press-space" class="pool-press-space" aria-hidden="true">aim with mouse and press space, don&rsquo;t forget to adjust power</div>
+      </div>
+      <div class="pool-power-col" aria-label="incantation power">
+        <span class="pool-power-label">PWR</span>
+        <input id="pool-power" type="range" min="0" max="100" value="55" aria-label="incantation power">
+        <span id="pool-power-val">55</span>
+      </div>
+    </div>
+    <div class="pool-buttons">
+      <button id="pool-shoot" class="pool-btn" type="button">Cast</button>
+      <button id="pool-reset" class="pool-btn" type="button">Reset</button>
+    </div>
+    <div id="pool-status">AIM CAREFULLY / click parchment / CAST to loose the cue.</div>
+    <div class="pool-hint">aim with the radial · CAST releases the cue · drag the handle to bend (hold ⇧ to bend by a hair) · land each sister on her matching element · let the cue rest or let a sister touch the center portal and the rite ends</div>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/pool/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

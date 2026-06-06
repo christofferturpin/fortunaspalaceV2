@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Crypt of the Five Floors</title>
+<style>
+  :root {
+    --bg: #07080c;
+    --panel: #11131a;
+    --panel2: #161922;
+    --border: #2b2f3e;
+    --ink: #d8d4c5;
+    --dim: #6a6a7a;
+    --accent: #f1c40f;
+    --hp: #c0392b;
+    --mp: #2980b9;
+    --xp: #27ae60;
+    --warn: #e67e22;
+    --bad: #e74c3c;
+  }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Consolas", "Menlo", "Courier New", monospace;
+    height: 100%;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  #app {
+    width: 1240px;
+    max-width: 100vw;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+  h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: 0.04em; }
+  .row { display: flex; gap: 12px; }
+  .col { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ---------- Title / class select ---------- */
+  #title {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  #title h1 {
+    font-size: 42px;
+    color: var(--accent);
+    margin-bottom: 6px;
+    letter-spacing: 0.16em;
+  }
+  #title .sub {
+    color: var(--dim);
+    margin-bottom: 28px;
+    font-style: italic;
+  }
+  .class-cards {
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+    margin: 24px 0;
+  }
+  .class-card {
+    width: 280px;
+    padding: 22px 20px;
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, background 0.15s;
+    text-align: left;
+  }
+  .class-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent);
+    background: var(--panel2);
+  }
+  .class-card .glyph {
+    font-size: 48px;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 8px;
+    font-weight: bold;
+  }
+  .class-card .name {
+    font-size: 20px;
+    color: var(--ink);
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: 0.08em;
+  }
+  .class-card .desc {
+    color: var(--dim);
+    font-size: 13px;
+    margin-bottom: 12px;
+    min-height: 50px;
+  }
+  .class-card .stats {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 4px 12px;
+    font-size: 13px;
+  }
+  .class-card .stats .k { color: var(--dim); }
+  .class-card .stats .v { color: var(--ink); text-align: right; }
+
+  #title .controls-info {
+    margin-top: 36px;
+    color: var(--dim);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  #title .controls-info span {
+    color: var(--accent);
+    background: var(--panel);
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    margin: 0 2px;
+  }
+
+  /* ---------- Game layout ---------- */
+  #game { display: none; }
+  #game.active { display: block; }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px 8px;
+    font-size: 14px;
+  }
+  .top-bar .title-mini { color: var(--accent); letter-spacing: 0.1em; }
+  .top-bar .floor-mini { color: var(--ink); }
+  .top-bar .floor-mini b { color: var(--accent); }
+
+  .play-area {
+    display: flex;
+    gap: 12px;
+  }
+  #map-wrap {
+    background: #050609;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    padding: 4px;
+    position: relative;
+  }
+  #map {
+    display: block;
+    image-rendering: pixelated;
+  }
+  .side-panel {
+    width: 220px;
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-sizing: border-box;
+  }
+  .stat-block .name {
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .stat-block .class {
+    color: var(--dim);
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .bar {
+    margin-bottom: 6px;
+  }
+  .bar .label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+  .bar .label .k { color: var(--dim); }
+  .bar .label .v { color: var(--ink); }
+  .bar .track {
+    height: 8px;
+    background: #050609;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .bar .fill {
+    height: 100%;
+    width: 50%;
+    transition: width 0.2s;
+  }
+  .bar.hp .fill { background: var(--hp); }
+  .bar.mp .fill { background: var(--mp); }
+  .bar.xp .fill { background: var(--xp); }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 2px 10px;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  .stats-grid .k { color: var(--dim); }
+  .stats-grid .v { color: var(--ink); text-align: right; }
+
+  .equip {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    font-size: 13px;
+  }
+  .equip h3 {
+    font-size: 12px;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+  .equip-line { display: flex; justify-content: space-between; margin-bottom: 2px; }
+  .equip-line .k { color: var(--dim); }
+  .equip-line .v { color: var(--ink); }
+  .equip-line.empty .v { color: var(--dim); font-style: italic; }
+
+  .effects {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    font-size: 12px;
+  }
+  .effects h3 {
+    font-size: 12px;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+  .effect-pill {
+    display: inline-block;
+    background: var(--panel2);
+    color: var(--warn);
+    padding: 2px 6px;
+    margin: 0 4px 4px 0;
+    border-radius: 3px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+  }
+  .effect-pill.buff { color: var(--xp); }
+
+  /* ---------- Message log ---------- */
+  #log-wrap {
+    margin-top: 12px;
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    height: 130px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  #log-wrap .msg { margin-bottom: 1px; }
+  .msg.combat { color: var(--ink); }
+  .msg.player { color: #f4d03f; }
+  .msg.enemy { color: #ec7063; }
+  .msg.heal { color: #58d68d; }
+  .msg.magic { color: #af7ac5; }
+  .msg.loot { color: #5dade2; }
+  .msg.system { color: var(--dim); font-style: italic; }
+  .msg.boss { color: var(--bad); font-weight: bold; }
+
+  /* ---------- Modal overlays ---------- */
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .modal.active { display: flex; }
+  .modal-box {
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 6px;
+    padding: 22px 26px;
+    min-width: 420px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 0 40px rgba(241, 196, 15, 0.15);
+  }
+  .modal-box h2 {
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+    font-size: 18px;
+  }
+  .modal-box .hint {
+    margin-top: 12px;
+    color: var(--dim);
+    font-size: 12px;
+    font-style: italic;
+  }
+  .list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .list-item:hover { background: var(--panel2); }
+  .list-item.selected { background: var(--panel2); border-color: var(--accent); }
+  .list-item .key {
+    color: var(--accent);
+    width: 18px;
+    text-align: center;
+    font-weight: bold;
+  }
+  .list-item .glyph {
+    color: var(--ink);
+    width: 16px;
+    text-align: center;
+    font-weight: bold;
+  }
+  .list-item .name { flex: 1; }
+  .list-item .meta { color: var(--dim); font-size: 12px; }
+  .list-item.equipped .name::after { content: " (worn)"; color: var(--xp); font-size: 11px; }
+  .list-item.disabled { color: var(--dim); cursor: not-allowed; }
+  .list-item.disabled:hover { background: transparent; }
+
+  /* ---------- End screens ---------- */
+  #end {
+    display: none;
+    text-align: center;
+    padding: 60px 30px;
+  }
+  #end.active { display: block; }
+  #end h1 {
+    font-size: 48px;
+    letter-spacing: 0.16em;
+    margin-bottom: 14px;
+  }
+  #end.victory h1 { color: #f1c40f; }
+  #end.death h1 { color: #c0392b; }
+  #end .reason {
+    color: var(--dim);
+    font-style: italic;
+    margin-bottom: 30px;
+  }
+  #end .summary {
+    display: inline-block;
+    text-align: left;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px 24px;
+    margin-bottom: 24px;
+    min-width: 320px;
+  }
+  #end .summary .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 30px;
+    padding: 3px 0;
+  }
+  #end .summary .k { color: var(--dim); }
+  #end .summary .v { color: var(--ink); }
+  #end button {
+    background: var(--accent);
+    color: #1a1a1a;
+    border: none;
+    padding: 12px 28px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  #end button:hover { background: #f4d03f; }
+
+  .key-hint { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ======================= TITLE SCREEN ======================= -->
+  <div id="title">
+    <h1>CRYPT OF THE FIVE FLOORS</h1>
+    <div class="sub">Descend. Steal what you can. Do not die.</div>
+
+    <div class="class-cards">
+      <div class="class-card" data-class="warrior">
+        <div class="glyph">@</div>
+        <div class="name">WARRIOR</div>
+        <div class="desc">A wall of muscle and iron. Trades sorcery for blood and stamina.</div>
+        <div class="stats">
+          <div class="k">Health</div><div class="v">35</div>
+          <div class="k">Mana</div><div class="v">8</div>
+          <div class="k">Strength</div><div class="v">8</div>
+          <div class="k">Defense</div><div class="v">3</div>
+          <div class="k">Style</div><div class="v">Bash &amp; Cleave</div>
+        </div>
+      </div>
+      <div class="class-card" data-class="mage">
+        <div class="glyph">@</div>
+        <div class="name">MAGE</div>
+        <div class="desc">Frail of body, terrible of mind. Burn the dungeon from afar.</div>
+        <div class="stats">
+          <div class="k">Health</div><div class="v">18</div>
+          <div class="k">Mana</div><div class="v">24</div>
+          <div class="k">Strength</div><div class="v">2</div>
+          <div class="k">Defense</div><div class="v">1</div>
+          <div class="k">Style</div><div class="v">Spellfire</div>
+        </div>
+      </div>
+      <div class="class-card" data-class="rogue">
+        <div class="glyph">@</div>
+        <div class="name">ROGUE</div>
+        <div class="desc">A whisper with a knife. Strike sharp, vanish, repeat.</div>
+        <div class="stats">
+          <div class="k">Health</div><div class="v">24</div>
+          <div class="k">Mana</div><div class="v">14</div>
+          <div class="k">Strength</div><div class="v">5</div>
+          <div class="k">Defense</div><div class="v">2</div>
+          <div class="k">Style</div><div class="v">Crits &amp; Tricks</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-info">
+      <div><span>↑↓←→</span> or <span>WASD</span> move &mdash; <span>.</span> wait &mdash; <span>G</span> pick up &mdash; <span>&gt;</span> descend stairs</div>
+      <div><span>I</span> inventory &mdash; <span>Z</span> spellbook &mdash; <span>Tab</span> character &mdash; <span>Esc</span> close menu</div>
+    </div>
+  </div>
+
+  <!-- ======================= GAME SCREEN ======================= -->
+  <div id="game">
+    <div class="top-bar">
+      <div class="title-mini">CRYPT OF THE FIVE FLOORS</div>
+      <div class="floor-mini">Floor <b id="floor-num">1</b> of 5</div>
+    </div>
+    <div class="play-area">
+      <div id="map-wrap">
+        <canvas id="map" width="1000" height="520"></canvas>
+      </div>
+      <div class="side-panel">
+        <div class="stat-block">
+          <div class="name" id="player-name">Adventurer</div>
+          <div class="class" id="player-class">— Lv 1 —</div>
+          <div class="bar hp">
+            <div class="label"><span class="k">HP</span><span class="v" id="hp-text">0/0</span></div>
+            <div class="track"><div class="fill" id="hp-bar"></div></div>
+          </div>
+          <div class="bar mp">
+            <div class="label"><span class="k">MP</span><span class="v" id="mp-text">0/0</span></div>
+            <div class="track"><div class="fill" id="mp-bar"></div></div>
+          </div>
+          <div class="bar xp">
+            <div class="label"><span class="k">XP</span><span class="v" id="xp-text">0/10</span></div>
+            <div class="track"><div class="fill" id="xp-bar"></div></div>
+          </div>
+          <div class="stats-grid">
+            <div class="k">Strength</div><div class="v" id="stat-str">0</div>
+            <div class="k">Defense</div><div class="v" id="stat-def">0</div>
+            <div class="k">Magic</div><div class="v" id="stat-mag">0</div>
+            <div class="k">Gold</div><div class="v" id="stat-gold">0</div>
+          </div>
+        </div>
+        <div class="equip">
+          <h3>EQUIPMENT</h3>
+          <div class="equip-line"><span class="k">Weapon</span><span class="v" id="equip-weapon">—</span></div>
+          <div class="equip-line"><span class="k">Armor</span><span class="v" id="equip-armor">—</span></div>
+        </div>
+        <div class="effects">
+          <h3>EFFECTS</h3>
+          <div id="effects-list"><span style="color:var(--dim);font-size:11px;">—</span></div>
+        </div>
+      </div>
+    </div>
+    <div id="log-wrap"></div>
+  </div>
+
+  <!-- ======================= END SCREEN ======================= -->
+  <div id="end">
+    <h1 id="end-title">YOU DIED</h1>
+    <div class="reason" id="end-reason"></div>
+    <div class="summary" id="end-summary"></div>
+    <div><button onclick="location.reload()">PLAY AGAIN</button></div>
+  </div>
+
+</div>
+
+<!-- ======================= MODALS ======================= -->
+<div class="modal" id="modal-inv">
+  <div class="modal-box">
+    <h2>INVENTORY</h2>
+    <div id="inv-list"></div>
+    <div class="hint">Press a letter to use/equip. <span class="key-hint">D</span>+letter to drop. <span class="key-hint">Esc</span> to close.</div>
+  </div>
+</div>
+
+<div class="modal" id="modal-spells">
+  <div class="modal-box">
+    <h2>SPELLBOOK</h2>
+    <div id="spell-list"></div>
+    <div class="hint">Press a letter to cast. <span class="key-hint">Esc</span> to close.</div>
+  </div>
+</div>
+
+<div class="modal" id="modal-levelup">
+  <div class="modal-box">
+    <h2>LEVEL UP</h2>
+    <div style="margin-bottom:14px;color:var(--ink);">Choose a boon:</div>
+    <div id="levelup-list"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// =============================================================
+// ============== CONFIGURATION & GAME DATA ====================
+// =============================================================
+
+const MAP_W = 50;
+const MAP_H = 26;
+const TILE = 20;
+const VIEW_RADIUS = 8;
+
+const T_WALL = 0;
+const T_FLOOR = 1;
+const T_HALL = 2;
+const T_STAIRS = 3;
+
+const XP_TABLE = [0, 12, 30, 60, 105, 170, 260, 380, 540];
+
+const CLASSES = {
+  warrior: {
+    name: 'Warrior',
+    desc: 'A wall of muscle and iron.',
+    hp: 35, mp: 8, str: 8, def: 3, mag: 1,
+    hpPerLvl: 7, mpPerLvl: 1, strPerLvl: 2, defPerLvl: 1, magPerLvl: 0,
+    spells: ['cleave', 'warcry'],
+    startItems: ['iron_sword', 'leather_armor', 'health_potion', 'health_potion']
+  },
+  mage: {
+    name: 'Mage',
+    desc: 'Frail of body, terrible of mind.',
+    hp: 18, mp: 24, str: 2, def: 1, mag: 5,
+    hpPerLvl: 3, mpPerLvl: 6, strPerLvl: 0, defPerLvl: 1, magPerLvl: 2,
+    spells: ['firebolt', 'frostshard', 'heal', 'arc_lightning'],
+    startItems: ['wooden_staff', 'cloth_robe', 'mana_potion', 'mana_potion', 'health_potion']
+  },
+  rogue: {
+    name: 'Rogue',
+    desc: 'A whisper with a knife.',
+    hp: 24, mp: 14, str: 5, def: 2, mag: 2,
+    hpPerLvl: 5, mpPerLvl: 3, strPerLvl: 1, defPerLvl: 1, magPerLvl: 1,
+    spells: ['focused_strike', 'shadowstep', 'smokebomb'],
+    startItems: ['dagger', 'leather_armor', 'health_potion', 'throwing_knife', 'throwing_knife']
+  }
+};
+
+const SPELLS = {
+  // --- Warrior ---
+  cleave: {
+    name: 'Cleave', cost: 3, type: 'self_buff',
+    desc: 'Next melee strike deals +50% damage and hits all adjacent foes.',
+    cast(g) { g.player.effects.cleave = 1; g.log('You ready a sweeping strike.', 'magic'); return true; }
+  },
+  warcry: {
+    name: 'War Cry', cost: 5, type: 'self_buff',
+    desc: 'Roar and gain +3 STR for 6 turns.',
+    cast(g) { g.player.effects.warcry = 6; g.log('You bellow! +3 STR.', 'magic'); return true; }
+  },
+  // --- Mage ---
+  firebolt: {
+    name: 'Firebolt', cost: 4, type: 'targeted', range: 7,
+    desc: 'A searing bolt. 7-11 damage + magic.',
+    cast(g, tx, ty) {
+      const m = g.monsterAt(tx, ty);
+      if (!m) { g.log('The bolt fizzles against stone.', 'magic'); return true; }
+      const dmg = g.rand(7, 11) + g.effectiveMag();
+      g.log(`A bolt of fire blasts ${m.name} for ${dmg}!`, 'magic');
+      g.damageMonster(m, dmg);
+      return true;
+    }
+  },
+  frostshard: {
+    name: 'Frostshard', cost: 5, type: 'targeted', range: 6,
+    desc: 'Pierces with cold. 5-8 dmg + magic, slows enemy.',
+    cast(g, tx, ty) {
+      const m = g.monsterAt(tx, ty);
+      if (!m) { g.log('The shard shatters on the wall.', 'magic'); return true; }
+      const dmg = g.rand(5, 8) + g.effectiveMag();
+      g.log(`Frostshard hits ${m.name} for ${dmg}. They slow!`, 'magic');
+      g.damageMonster(m, dmg);
+      if (m.alive) m.effects.slow = 4;
+      return true;
+    }
+  },
+  heal: {
+    name: 'Heal', cost: 6, type: 'self',
+    desc: 'Restore 14-22 HP.',
+    cast(g) {
+      const amt = g.rand(14, 22);
+      g.heal(g.player, amt);
+      g.log(`Light pours through you. +${amt} HP.`, 'heal');
+      return true;
+    }
+  },
+  arc_lightning: {
+    name: 'Arc Lightning', cost: 9, type: 'targeted', range: 5,
+    desc: 'Lightning that chains up to 2 nearby enemies (8-13 dmg + magic).',
+    cast(g, tx, ty) {
+      const m = g.monsterAt(tx, ty);
+      if (!m) { g.log('The lightning grounds against stone.', 'magic'); return true; }
+      const base = g.rand(8, 13) + g.effectiveMag();
+      g.log(`Lightning crashes into ${m.name} for ${base}!`, 'magic');
+      g.damageMonster(m, base);
+      // chain
+      let chained = [m];
+      let last = m;
+      for (let i = 0; i < 2; i++) {
+        const next = g.monsters.find(mm =>
+          mm.alive && !chained.includes(mm) &&
+          Math.abs(mm.x - last.x) <= 2 && Math.abs(mm.y - last.y) <= 2);
+        if (!next) break;
+        const cdmg = Math.max(2, base - 3 * (i + 1));
+        g.log(`The arc leaps to ${next.name} for ${cdmg}!`, 'magic');
+        g.damageMonster(next, cdmg);
+        chained.push(next);
+        last = next;
+      }
+      return true;
+    }
+  },
+  // --- Rogue ---
+  focused_strike: {
+    name: 'Focused Strike', cost: 3, type: 'self_buff',
+    desc: 'Your next attack is a guaranteed critical (3× damage).',
+    cast(g) { g.player.effects.focused = 1; g.log('You exhale and focus.', 'magic'); return true; }
+  },
+  shadowstep: {
+    name: 'Shadowstep', cost: 5, type: 'targeted', range: 7,
+    desc: 'Teleport to a visible tile.',
+    cast(g, tx, ty) {
+      if (!g.tilePassable(tx, ty) || g.monsterAt(tx, ty)) {
+        g.log('You cannot step there.', 'magic'); return false;
+      }
+      g.player.x = tx; g.player.y = ty;
+      g.log('You vanish into shadow.', 'magic');
+      return true;
+    }
+  },
+  smokebomb: {
+    name: 'Smoke Bomb', cost: 4, type: 'self',
+    desc: 'All enemies lose sight of you for 4 turns.',
+    cast(g) {
+      g.monsters.forEach(m => { if (m.alive) m.effects.blind = 4; });
+      g.log('Smoke billows. You disappear.', 'magic');
+      return true;
+    }
+  }
+};
+
+const ITEMS = {
+  health_potion: {
+    name: 'Health Potion', glyph: '!', color: '#e74c3c', type: 'consumable',
+    desc: 'Restores 20 HP.',
+    use(g) {
+      g.heal(g.player, 20);
+      g.log('You quaff a health potion. +20 HP.', 'heal');
+      return true;
+    }
+  },
+  greater_health_potion: {
+    name: 'Greater Health Potion', glyph: '!', color: '#ff6b6b', type: 'consumable',
+    desc: 'Restores 40 HP.',
+    use(g) {
+      g.heal(g.player, 40);
+      g.log('You quaff a greater health potion. +40 HP.', 'heal');
+      return true;
+    }
+  },
+  mana_potion: {
+    name: 'Mana Potion', glyph: '!', color: '#3498db', type: 'consumable',
+    desc: 'Restores 18 MP.',
+    use(g) {
+      g.player.mp = Math.min(g.player.maxMp, g.player.mp + 18);
+      g.log('You quaff a mana potion. +18 MP.', 'heal');
+      return true;
+    }
+  },
+  throwing_knife: {
+    name: 'Throwing Knife', glyph: ')', color: '#bdc3c7', type: 'throwable',
+    range: 6, desc: 'Hurl for 5-9 damage.',
+    use(g, tx, ty) {
+      const m = g.monsterAt(tx, ty);
+      if (!m) { g.log('The knife clatters on stone.'); return true; }
+      const dmg = g.rand(5, 9) + Math.floor(g.player.str / 4);
+      g.log(`Your knife thuds into ${m.name} for ${dmg}.`, 'player');
+      g.damageMonster(m, dmg);
+      return true;
+    }
+  },
+  scroll_fireball: {
+    name: 'Scroll of Fireball', glyph: '?', color: '#e67e22', type: 'scroll',
+    range: 7, desc: 'Burns target for 12-18 damage.',
+    use(g, tx, ty) {
+      const m = g.monsterAt(tx, ty);
+      if (!m) { g.log('The scroll crumbles to ash uselessly.', 'magic'); return true; }
+      const dmg = g.rand(12, 18);
+      g.log(`The scroll ignites! Fireball hits ${m.name} for ${dmg}!`, 'magic');
+      g.damageMonster(m, dmg);
+      return true;
+    }
+  },
+  scroll_teleport: {
+    name: 'Scroll of Teleport', glyph: '?', color: '#9b59b6', type: 'consumable',
+    desc: 'Random teleport on this floor.',
+    use(g) {
+      const room = g.rooms[g.rand(0, g.rooms.length - 1)];
+      const x = g.rand(room.x + 1, room.x + room.w - 2);
+      const y = g.rand(room.y + 1, room.y + room.h - 2);
+      g.player.x = x; g.player.y = y;
+      g.log('Reality folds. You stand elsewhere.', 'magic');
+      return true;
+    }
+  },
+  // ---- weapons ----
+  dagger: { name: 'Dagger', glyph: '/', color: '#95a5a6', type: 'weapon', slot: 'weapon',
+    damage: [2, 4], crit: 0.2, desc: 'Quick. Decent crit chance.' },
+  shadow_dagger: { name: 'Shadow Dagger', glyph: '/', color: '#8e44ad', type: 'weapon', slot: 'weapon',
+    damage: [4, 7], crit: 0.3, desc: 'A blade that drinks light.' },
+  iron_sword: { name: 'Iron Sword', glyph: '/', color: '#bdc3c7', type: 'weapon', slot: 'weapon',
+    damage: [4, 7], desc: 'Honest steel.' },
+  steel_sword: { name: 'Steel Sword', glyph: '/', color: '#ecf0f1', type: 'weapon', slot: 'weapon',
+    damage: [6, 10], desc: 'Cold, bright, mean.' },
+  flaming_sword: { name: 'Flaming Sword', glyph: '/', color: '#e67e22', type: 'weapon', slot: 'weapon',
+    damage: [8, 13], bonus: 2, desc: 'Wreathed in flame. +2 bonus.' },
+  wooden_staff: { name: 'Wooden Staff', glyph: '/', color: '#a04000', type: 'weapon', slot: 'weapon',
+    damage: [1, 3], mag: 2, desc: 'A focus. +2 Magic.' },
+  oak_staff: { name: 'Oak Staff', glyph: '/', color: '#784212', type: 'weapon', slot: 'weapon',
+    damage: [2, 4], mag: 4, desc: 'Carved with runes. +4 Magic.' },
+  archmage_staff: { name: "Archmage's Staff", glyph: '/', color: '#bb8fce', type: 'weapon', slot: 'weapon',
+    damage: [3, 5], mag: 7, desc: 'Hums with power. +7 Magic.' },
+  // ---- armor ----
+  cloth_robe: { name: 'Cloth Robe', glyph: '[', color: '#5dade2', type: 'armor', slot: 'armor',
+    defense: 1, mp: 4, desc: 'Soft. +4 max MP.' },
+  leather_armor: { name: 'Leather Armor', glyph: '[', color: '#a04000', type: 'armor', slot: 'armor',
+    defense: 2, desc: 'Cured hide.' },
+  chainmail: { name: 'Chainmail', glyph: '[', color: '#bdc3c7', type: 'armor', slot: 'armor',
+    defense: 4, desc: 'Rings of iron.' },
+  plate_armor: { name: 'Plate Armor', glyph: '[', color: '#ecf0f1', type: 'armor', slot: 'armor',
+    defense: 6, desc: 'A walking fortress.' },
+  enchanted_robe: { name: 'Enchanted Robe', glyph: '[', color: '#9b59b6', type: 'armor', slot: 'armor',
+    defense: 3, mp: 10, mag: 2, desc: 'Stitched with stars. +10 MP, +2 Magic.' }
+};
+
+const MONSTERS = {
+  rat:      { name: 'Rat',         glyph: 'r', color: '#7f8c8d', hp: 4,   dmg: [1, 3],  def: 0, xp: 2,  floors: [1] },
+  goblin:   { name: 'Goblin',      glyph: 'g', color: '#27ae60', hp: 9,   dmg: [2, 4],  def: 1, xp: 4,  floors: [1, 2] },
+  bat:      { name: 'Cave Bat',    glyph: 'b', color: '#7f8c8d', hp: 5,   dmg: [1, 3],  def: 0, xp: 3,  floors: [1, 2], erratic: true },
+  skeleton: { name: 'Skeleton',    glyph: 's', color: '#ecf0f1', hp: 14,  dmg: [3, 6],  def: 2, xp: 7,  floors: [2, 3] },
+  zombie:   { name: 'Zombie',      glyph: 'z', color: '#52be80', hp: 20,  dmg: [4, 7],  def: 1, xp: 8,  floors: [2, 3], slow: true },
+  orc:      { name: 'Orc',         glyph: 'o', color: '#229954', hp: 26,  dmg: [5, 9],  def: 2, xp: 12, floors: [3, 4] },
+  wizard:   { name: 'Dark Wizard', glyph: 'w', color: '#8e44ad', hp: 18,  dmg: [3, 5],  def: 1, xp: 16, floors: [3, 4], caster: true },
+  troll:    { name: 'Troll',       glyph: 'T', color: '#138d75', hp: 44,  dmg: [7, 11], def: 3, xp: 22, floors: [4, 5], regen: 2 },
+  demon:    { name: 'Demon',       glyph: 'D', color: '#c0392b', hp: 36,  dmg: [9, 13], def: 4, xp: 26, floors: [4, 5] },
+  wraith:   { name: 'Wraith',      glyph: 'W', color: '#5dade2', hp: 24,  dmg: [6, 10], def: 2, xp: 20, floors: [4, 5], phasing: true },
+  dragon:   { name: 'Ancient Dragon', glyph: 'D', color: '#e74c3c', hp: 150, dmg: [12, 18], def: 5, xp: 120,
+              floors: [5], boss: true, breath: true }
+};
+
+const LOOT_BY_FLOOR = {
+  1: ['health_potion', 'health_potion', 'mana_potion', 'iron_sword', 'leather_armor', 'dagger', 'wooden_staff'],
+  2: ['health_potion', 'mana_potion', 'iron_sword', 'leather_armor', 'scroll_fireball', 'throwing_knife', 'wooden_staff'],
+  3: ['health_potion', 'mana_potion', 'steel_sword', 'chainmail', 'shadow_dagger', 'oak_staff', 'scroll_fireball', 'scroll_teleport'],
+  4: ['greater_health_potion', 'mana_potion', 'steel_sword', 'chainmail', 'shadow_dagger', 'oak_staff', 'enchanted_robe', 'scroll_fireball'],
+  5: ['greater_health_potion', 'greater_health_potion', 'mana_potion', 'flaming_sword', 'plate_armor', 'archmage_staff', 'enchanted_robe', 'scroll_fireball', 'scroll_teleport']
+};
+
+// =============================================================
+// =================== GAME STATE ==============================
+// =============================================================
+
+const Game = {
+  state: 'title',  // title | playing | targeting | inventory | spellbook | levelup | end
+  floor: 1,
+  turn: 0,
+  player: null,
+  tiles: null,
+  visible: null,
+  seen: null,
+  rooms: [],
+  monsters: [],
+  items: [],          // items on the ground { x, y, id }
+  log: [],
+  cursor: { x: 0, y: 0 },
+  targeting: null,    // { spell|item, range, source: 'spell'|'item', invIndex? }
+  killCount: 0,
+  goldEarned: 0,
+  pickupKey: null,
+
+  // ---- random utilities ----
+  rand(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; },
+  chance(p) { return Math.random() < p; },
+  randItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; },
+
+  // ---- logging ----
+  log(msg, cls = 'combat') {
+    this.logEntries.push({ msg, cls });
+    if (this.logEntries.length > 200) this.logEntries.shift();
+    this._renderLog();
+  },
+  logEntries: [],
+  _renderLog() {
+    const el = document.getElementById('log-wrap');
+    el.innerHTML = this.logEntries.slice(-40).map(e =>
+      `<div class="msg ${e.cls}">${e.msg}</div>`
+    ).join('');
+    el.scrollTop = el.scrollHeight;
+  },
+
+  // =============================================================
+  // ============== MAP GENERATION ===============================
+  // =============================================================
+  generateFloor(level) {
+    this.floor = level;
+    this.tiles = Array.from({ length: MAP_H }, () => Array(MAP_W).fill(T_WALL));
+    this.visible = Array.from({ length: MAP_H }, () => Array(MAP_W).fill(false));
+    this.seen = Array.from({ length: MAP_H }, () => Array(MAP_W).fill(false));
+    this.rooms = [];
+    this.monsters = [];
+    this.items = [];
+
+    // Place 5 rooms
+    let attempts = 0;
+    while (this.rooms.length < 5 && attempts < 300) {
+      attempts++;
+      const w = this.rand(6, 11);
+      const h = this.rand(5, 8);
+      const x = this.rand(1, MAP_W - w - 2);
+      const y = this.rand(1, MAP_H - h - 2);
+      const r = { x, y, w, h };
+      let ok = true;
+      for (const o of this.rooms) {
+        if (x < o.x + o.w + 2 && x + w + 2 > o.x &&
+            y < o.y + o.h + 2 && y + h + 2 > o.y) { ok = false; break; }
+      }
+      if (ok) {
+        this.carveRoom(r);
+        this.rooms.push(r);
+      }
+    }
+
+    // Connect rooms (in order placed)
+    for (let i = 1; i < this.rooms.length; i++) {
+      const a = this.roomCenter(this.rooms[i - 1]);
+      const b = this.roomCenter(this.rooms[i]);
+      if (Math.random() < 0.5) {
+        this.carveHTunnel(a.x, b.x, a.y);
+        this.carveVTunnel(a.y, b.y, b.x);
+      } else {
+        this.carveVTunnel(a.y, b.y, a.x);
+        this.carveHTunnel(a.x, b.x, b.y);
+      }
+    }
+    // Add one extra random connection for cycle (so map isn't a line)
+    if (this.rooms.length >= 3) {
+      const a = this.roomCenter(this.rooms[0]);
+      const b = this.roomCenter(this.rooms[this.rooms.length - 1]);
+      this.carveHTunnel(a.x, b.x, a.y);
+      this.carveVTunnel(a.y, b.y, b.x);
+    }
+
+    // Place player in first room
+    if (level === 1 || !this.player.x) {
+      const c = this.roomCenter(this.rooms[0]);
+      this.player.x = c.x; this.player.y = c.y;
+    } else {
+      const c = this.roomCenter(this.rooms[0]);
+      this.player.x = c.x; this.player.y = c.y;
+    }
+
+    // Place stairs in last room (or boss room on floor 5)
+    if (level < 5) {
+      const c = this.roomCenter(this.rooms[this.rooms.length - 1]);
+      this.tiles[c.y][c.x] = T_STAIRS;
+    }
+
+    // Spawn monsters
+    this.spawnMonsters(level);
+    // Spawn items
+    this.spawnLoot(level);
+
+    this.computeFOV();
+    this.draw();
+  },
+
+  carveRoom(r) {
+    for (let y = r.y; y < r.y + r.h; y++)
+      for (let x = r.x; x < r.x + r.w; x++)
+        this.tiles[y][x] = T_FLOOR;
+  },
+  carveHTunnel(x1, x2, y) {
+    const a = Math.min(x1, x2), b = Math.max(x1, x2);
+    for (let x = a; x <= b; x++) {
+      if (this.tiles[y][x] === T_WALL) this.tiles[y][x] = T_HALL;
+    }
+  },
+  carveVTunnel(y1, y2, x) {
+    const a = Math.min(y1, y2), b = Math.max(y1, y2);
+    for (let y = a; y <= b; y++) {
+      if (this.tiles[y][x] === T_WALL) this.tiles[y][x] = T_HALL;
+    }
+  },
+  roomCenter(r) {
+    return { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) };
+  },
+
+  spawnMonsters(level) {
+    if (level === 5) {
+      // Boss in last room
+      const bossRoom = this.rooms[this.rooms.length - 1];
+      const bx = Math.floor(bossRoom.x + bossRoom.w / 2);
+      const by = Math.floor(bossRoom.y + bossRoom.h / 2);
+      this.monsters.push(this.makeMonster('dragon', bx, by));
+      // Also some demons/wraiths/trolls scattered in earlier rooms
+      const pool = ['troll', 'demon', 'wraith', 'orc'];
+      const count = this.rand(5, 7);
+      for (let i = 0; i < count; i++) {
+        const r = this.rooms[this.rand(1, this.rooms.length - 2)];
+        const pos = this.randomFloorTileInRoom(r);
+        if (pos) this.monsters.push(this.makeMonster(this.randItem(pool), pos.x, pos.y));
+      }
+      return;
+    }
+    const pool = Object.keys(MONSTERS).filter(k =>
+      MONSTERS[k].floors && MONSTERS[k].floors.includes(level));
+    const count = 4 + level;
+    for (let i = 0; i < count; i++) {
+      const r = this.rooms[this.rand(1, this.rooms.length - 1)];
+      const pos = this.randomFloorTileInRoom(r);
+      if (!pos) continue;
+      const id = this.randItem(pool);
+      this.monsters.push(this.makeMonster(id, pos.x, pos.y));
+    }
+  },
+
+  makeMonster(id, x, y) {
+    const tmpl = MONSTERS[id];
+    return {
+      id, x, y,
+      name: tmpl.name, glyph: tmpl.glyph, color: tmpl.color,
+      hp: tmpl.hp, maxHp: tmpl.hp,
+      dmgRange: tmpl.dmg, def: tmpl.def, xpGiven: tmpl.xp,
+      alive: true,
+      effects: {},
+      tmpl
+    };
+  },
+
+  randomFloorTileInRoom(r) {
+    for (let i = 0; i < 30; i++) {
+      const x = this.rand(r.x, r.x + r.w - 1);
+      const y = this.rand(r.y, r.y + r.h - 1);
+      if (this.tiles[y][x] === T_FLOOR && !this.monsterAt(x, y) &&
+          !(this.player.x === x && this.player.y === y)) {
+        return { x, y };
+      }
+    }
+    return null;
+  },
+
+  spawnLoot(level) {
+    const pool = LOOT_BY_FLOOR[level] || LOOT_BY_FLOOR[1];
+    const count = 3 + Math.floor(level / 2);
+    for (let i = 0; i < count; i++) {
+      const r = this.rooms[this.rand(1, this.rooms.length - 1)];
+      const pos = this.randomFloorTileInRoom(r);
+      if (!pos) continue;
+      const id = this.randItem(pool);
+      this.items.push({ x: pos.x, y: pos.y, id });
+    }
+    // Gold piles
+    const goldCount = 2 + level;
+    for (let i = 0; i < goldCount; i++) {
+      const r = this.rooms[this.rand(0, this.rooms.length - 1)];
+      const pos = this.randomFloorTileInRoom(r);
+      if (!pos) continue;
+      this.items.push({ x: pos.x, y: pos.y, id: 'gold', amount: this.rand(3, 12) * level });
+    }
+  },
+
+  // =============================================================
+  // ================== FIELD OF VIEW ============================
+  // =============================================================
+  computeFOV() {
+    for (let y = 0; y < MAP_H; y++)
+      for (let x = 0; x < MAP_W; x++)
+        this.visible[y][x] = false;
+
+    const px = this.player.x, py = this.player.y;
+    this.visible[py][px] = true;
+    this.seen[py][px] = true;
+
+    const rays = 180;
+    for (let i = 0; i < rays; i++) {
+      const angle = (i / rays) * Math.PI * 2;
+      const dx = Math.cos(angle);
+      const dy = Math.sin(angle);
+      let x = px + 0.5, y = py + 0.5;
+      for (let step = 0; step < VIEW_RADIUS; step++) {
+        x += dx; y += dy;
+        const ix = Math.floor(x), iy = Math.floor(y);
+        if (ix < 0 || iy < 0 || ix >= MAP_W || iy >= MAP_H) break;
+        this.visible[iy][ix] = true;
+        this.seen[iy][ix] = true;
+        if (this.tiles[iy][ix] === T_WALL) break;
+      }
+    }
+  },
+
+  tilePassable(x, y) {
+    if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return false;
+    const t = this.tiles[y][x];
+    return t === T_FLOOR || t === T_HALL || t === T_STAIRS;
+  },
+
+  monsterAt(x, y) {
+    return this.monsters.find(m => m.alive && m.x === x && m.y === y);
+  },
+  itemAt(x, y) {
+    return this.items.find(it => it.x === x && it.y === y);
+  },
+
+  // =============================================================
+  // ================== COMBAT ===================================
+  // =============================================================
+  playerAttack(monster) {
+    const w = this.player.equip.weapon ? ITEMS[this.player.equip.weapon] : null;
+    let lo = 1, hi = 2;
+    if (w) { lo = w.damage[0]; hi = w.damage[1]; }
+    if (w && w.bonus) { lo += w.bonus; hi += w.bonus; }
+    let dmg = this.rand(lo, hi);
+    let str = this.player.str;
+    if (this.player.effects.warcry) str += 3;
+    dmg += Math.floor(str / 3);
+
+    // Crit
+    let crit = false;
+    if (this.player.effects.focused) {
+      crit = true;
+      this.player.effects.focused = 0;
+    } else if (w && w.crit && Math.random() < w.crit) {
+      crit = true;
+    }
+    if (crit) dmg = Math.floor(dmg * 3);
+
+    // Cleave consumed
+    let cleaveTargets = [];
+    if (this.player.effects.cleave) {
+      dmg = Math.floor(dmg * 1.5);
+      this.player.effects.cleave = 0;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const m2 = this.monsterAt(monster.x + dx, monster.y + dy);
+          if (m2 && m2 !== monster) cleaveTargets.push(m2);
+        }
+    }
+
+    dmg = Math.max(1, dmg - monster.def);
+    const verb = crit ? 'critically strike' : 'hit';
+    this.log(`You ${verb} the ${monster.name} for ${dmg}${crit ? '!' : '.'}`, 'player');
+    this.damageMonster(monster, dmg);
+
+    cleaveTargets.forEach(m => {
+      const cdmg = Math.max(1, Math.floor(dmg * 0.6) - m.def);
+      this.log(`Cleave catches ${m.name} for ${cdmg}.`, 'player');
+      this.damageMonster(m, cdmg);
+    });
+  },
+
+  damageMonster(m, dmg) {
+    m.hp -= dmg;
+    if (m.hp <= 0) {
+      m.alive = false;
+      this.log(`The ${m.name} dies.`, 'player');
+      if (m.tmpl.boss) {
+        this.bossKilled = true;
+        this.log(`The ${m.name} crumbles. The crypt falls silent.`, 'boss');
+      }
+      this.gainXP(m.xpGiven);
+      this.killCount++;
+      // chance to drop gold
+      if (this.chance(0.35)) {
+        this.items.push({ x: m.x, y: m.y, id: 'gold', amount: this.rand(2, 8) * this.floor });
+      } else if (this.chance(0.10)) {
+        const pool = LOOT_BY_FLOOR[this.floor] || LOOT_BY_FLOOR[1];
+        this.items.push({ x: m.x, y: m.y, id: this.randItem(pool) });
+      }
+    }
+  },
+
+  monsterAttack(m) {
+    const lo = m.dmgRange[0], hi = m.dmgRange[1];
+    let dmg = this.rand(lo, hi);
+    dmg = Math.max(1, dmg - this.player.def - this.armorDef());
+    this.player.hp -= dmg;
+    this.log(`The ${m.name} hits you for ${dmg}.`, 'enemy');
+    if (this.player.hp <= 0) {
+      this.gameOver(`Slain by ${m.tmpl.boss ? 'the ' : 'a '}${m.name} on floor ${this.floor}.`);
+    }
+  },
+
+  armorDef() {
+    const a = this.player.equip.armor;
+    return a ? ITEMS[a].defense : 0;
+  },
+
+  effectiveMag() {
+    let m = this.player.mag;
+    if (this.player.equip.weapon && ITEMS[this.player.equip.weapon].mag) m += ITEMS[this.player.equip.weapon].mag;
+    if (this.player.equip.armor && ITEMS[this.player.equip.armor].mag) m += ITEMS[this.player.equip.armor].mag;
+    return m;
+  },
+
+  heal(entity, amt) {
+    entity.hp = Math.min(entity.maxHp, entity.hp + amt);
+  },
+
+  gainXP(amt) {
+    this.player.xp += amt;
+    this.log(`+${amt} XP`, 'system');
+    while (this.player.level < XP_TABLE.length - 1 &&
+           this.player.xp >= XP_TABLE[this.player.level]) {
+      this.levelUp();
+    }
+  },
+
+  levelUp() {
+    this.player.level++;
+    const cls = CLASSES[this.player.classId];
+    this.player.maxHp += cls.hpPerLvl;
+    this.player.maxMp += cls.mpPerLvl;
+    this.player.str += cls.strPerLvl;
+    this.player.def += cls.defPerLvl;
+    this.player.mag += cls.magPerLvl;
+    this.player.hp = this.player.maxHp;
+    this.player.mp = this.player.maxMp;
+    this.log(`*** LEVEL UP! You are now level ${this.player.level}. ***`, 'heal');
+  },
+
+  // =============================================================
+  // ================== TURN PROCESSING ==========================
+  // =============================================================
+  endPlayerTurn() {
+    this.turn++;
+    // tick effects
+    for (const k of Object.keys(this.player.effects)) {
+      if (typeof this.player.effects[k] === 'number' && this.player.effects[k] > 0) {
+        if (k === 'warcry') this.player.effects[k]--;
+        if (this.player.effects[k] <= 0) delete this.player.effects[k];
+      }
+    }
+    // Regen tiny mp
+    if (this.turn % 5 === 0 && this.player.mp < this.player.maxMp) {
+      this.player.mp = Math.min(this.player.maxMp, this.player.mp + 1);
+    }
+    // Monster turns
+    this.monsters.forEach(m => { if (m.alive) this.monsterTurn(m); });
+    // Cleanup dead
+    this.monsters = this.monsters.filter(m => m.alive || false);
+    this.computeFOV();
+    this.draw();
+    this.updateHUD();
+  },
+
+  monsterTurn(m) {
+    // tick monster effects
+    for (const k of Object.keys(m.effects)) {
+      if (typeof m.effects[k] === 'number' && m.effects[k] > 0) {
+        m.effects[k]--;
+        if (m.effects[k] <= 0) delete m.effects[k];
+      }
+    }
+    if (m.tmpl.regen) m.hp = Math.min(m.maxHp, m.hp + m.tmpl.regen);
+
+    if (m.effects.slow && m.effects.slow % 2 === 0) return; // slowed: skip half
+
+    const sees = this.canSee(m.x, m.y, this.player.x, this.player.y);
+    if (!sees || m.effects.blind) {
+      // wander
+      if (this.chance(0.3)) {
+        const dx = this.rand(-1, 1), dy = this.rand(-1, 1);
+        if (dx === 0 && dy === 0) return;
+        const nx = m.x + dx, ny = m.y + dy;
+        if (this.tilePassable(nx, ny) && !this.monsterAt(nx, ny) &&
+            !(nx === this.player.x && ny === this.player.y)) {
+          m.x = nx; m.y = ny;
+        }
+      }
+      return;
+    }
+
+    const dist = Math.max(Math.abs(m.x - this.player.x), Math.abs(m.y - this.player.y));
+    // Adjacent? attack
+    if (dist === 1) {
+      this.monsterAttack(m);
+      return;
+    }
+    // Caster: cast bolt
+    if (m.tmpl.caster && dist <= 5 && this.chance(0.5)) {
+      const dmg = this.rand(4, 8);
+      const blocked = Math.max(0, dmg - this.player.def - this.armorDef());
+      this.log(`The ${m.name} hurls a dark bolt at you for ${blocked}!`, 'enemy');
+      this.player.hp -= blocked;
+      if (this.player.hp <= 0) this.gameOver(`Slain by a Dark Wizard's curse.`);
+      return;
+    }
+    // Dragon breath
+    if (m.tmpl.breath && dist <= 5 && this.chance(0.4)) {
+      const dmg = this.rand(10, 18);
+      const blocked = Math.max(2, dmg - this.player.def - this.armorDef());
+      this.log(`The ${m.name} unleashes a torrent of flame! ${blocked} damage!`, 'boss');
+      this.player.hp -= blocked;
+      if (this.player.hp <= 0) this.gameOver('Burned to ash by the Ancient Dragon.');
+      return;
+    }
+    // Move toward player
+    let dx = Math.sign(this.player.x - m.x);
+    let dy = Math.sign(this.player.y - m.y);
+    if (m.tmpl.erratic && this.chance(0.4)) {
+      dx = this.rand(-1, 1); dy = this.rand(-1, 1);
+    }
+    // try diagonal then axes
+    const tries = [[dx, dy], [dx, 0], [0, dy]];
+    for (const [tx, ty] of tries) {
+      if (tx === 0 && ty === 0) continue;
+      const nx = m.x + tx, ny = m.y + ty;
+      if (this.tilePassable(nx, ny) && !this.monsterAt(nx, ny) &&
+          !(nx === this.player.x && ny === this.player.y)) {
+        m.x = nx; m.y = ny;
+        return;
+      }
+    }
+  },
+
+  canSee(x1, y1, x2, y2) {
+    // Bresenham line, blocked by walls
+    let dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
+    let sx = x1 < x2 ? 1 : -1, sy = y1 < y2 ? 1 : -1;
+    let err = dx - dy;
+    let x = x1, y = y1;
+    let steps = 0;
+    while (!(x === x2 && y === y2) && steps < 12) {
+      const e2 = 2 * err;
+      if (e2 > -dy) { err -= dy; x += sx; }
+      if (e2 < dx) { err += dx; y += sy; }
+      if (x === x2 && y === y2) return true;
+      if (this.tiles[y] && this.tiles[y][x] === T_WALL) return false;
+      steps++;
+    }
+    return steps < 12;
+  },
+
+  // =============================================================
+  // ================== PLAYER ACTIONS ===========================
+  // =============================================================
+  tryMove(dx, dy) {
+    if (this.state !== 'playing') return;
+    const nx = this.player.x + dx;
+    const ny = this.player.y + dy;
+    if (!this.tilePassable(nx, ny)) {
+      // bumping a wall is free
+      return;
+    }
+    const m = this.monsterAt(nx, ny);
+    if (m) {
+      this.playerAttack(m);
+      this.endPlayerTurn();
+      return;
+    }
+    this.player.x = nx; this.player.y = ny;
+    // auto-describe items
+    const it = this.itemAt(nx, ny);
+    if (it) {
+      if (it.id === 'gold') this.log(`You see ${it.amount} gold here.`, 'loot');
+      else this.log(`You see ${ITEMS[it.id].name} here. Press G to pick up.`, 'loot');
+    }
+    this.endPlayerTurn();
+  },
+
+  tryDescend() {
+    if (this.state !== 'playing') return;
+    if (this.tiles[this.player.y][this.player.x] !== T_STAIRS) {
+      this.log('You see no stairs here.');
+      return;
+    }
+    if (this.floor >= 5) return;
+    this.floor++;
+    this.log(`--- Floor ${this.floor} ---`, 'system');
+    this.generateFloor(this.floor);
+    this.updateHUD();
+  },
+
+  tryPickup() {
+    if (this.state !== 'playing') return;
+    const it = this.itemAt(this.player.x, this.player.y);
+    if (!it) { this.log('Nothing to pick up.'); return; }
+    if (it.id === 'gold') {
+      this.player.gold += it.amount;
+      this.goldEarned += it.amount;
+      this.log(`+${it.amount} gold.`, 'loot');
+    } else {
+      if (this.player.inventory.length >= 20) {
+        this.log('Your pack is full.'); return;
+      }
+      this.player.inventory.push(it.id);
+      this.log(`Picked up ${ITEMS[it.id].name}.`, 'loot');
+    }
+    this.items = this.items.filter(x => x !== it);
+    this.endPlayerTurn();
+  },
+
+  wait() {
+    if (this.state !== 'playing') return;
+    if (this.player.hp < this.player.maxHp && Math.random() < 0.3) {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + 1);
+    }
+    this.endPlayerTurn();
+  },
+
+  // =============================================================
+  // ================== INVENTORY UI =============================
+  // =============================================================
+  openInventory() {
+    if (this.state !== 'playing') return;
+    this.state = 'inventory';
+    this.renderInventory();
+    document.getElementById('modal-inv').classList.add('active');
+  },
+  closeInventory() {
+    this.state = 'playing';
+    document.getElementById('modal-inv').classList.remove('active');
+  },
+  renderInventory() {
+    const list = document.getElementById('inv-list');
+    if (this.player.inventory.length === 0) {
+      list.innerHTML = '<div style="color:var(--dim);padding:8px;font-style:italic;">Your pack is empty.</div>';
+      return;
+    }
+    // first matching inventory index for each equipped id, so duplicates don't all show "worn"
+    const equippedAt = {};
+    if (this.player.equip.weapon)
+      equippedAt.weapon = this.player.inventory.indexOf(this.player.equip.weapon);
+    if (this.player.equip.armor)
+      equippedAt.armor = this.player.inventory.indexOf(this.player.equip.armor);
+    list.innerHTML = this.player.inventory.map((id, i) => {
+      const it = ITEMS[id];
+      const letter = String.fromCharCode(97 + i);
+      const isEq = (equippedAt.weapon === i) || (equippedAt.armor === i);
+      const meta = it.desc || '';
+      return `<div class="list-item ${isEq ? 'equipped' : ''}" data-idx="${i}">
+        <span class="key">${letter}</span>
+        <span class="glyph" style="color:${it.color}">${it.glyph}</span>
+        <span class="name">${it.name}</span>
+        <span class="meta">${meta}</span>
+      </div>`;
+    }).join('');
+  },
+  useInventoryItem(idx) {
+    if (idx < 0 || idx >= this.player.inventory.length) return;
+    const id = this.player.inventory[idx];
+    const it = ITEMS[id];
+    if (it.type === 'weapon' || it.type === 'armor') {
+      const slot = it.slot;
+      const prev = this.player.equip[slot];
+      // adjust armor mp bonus on swap
+      if (slot === 'armor') {
+        const prevMp = prev && ITEMS[prev].mp ? ITEMS[prev].mp : 0;
+        const newMp = it.mp || 0;
+        this.player.maxMp += (newMp - prevMp);
+        if (this.player.mp > this.player.maxMp) this.player.mp = this.player.maxMp;
+      }
+      this.player.equip[slot] = id;
+      this.log(`You equip the ${it.name}.`, 'system');
+      this.closeInventory();
+      this.endPlayerTurn();
+      return;
+    }
+    if (it.type === 'consumable') {
+      const ok = it.use(this);
+      if (ok) {
+        this.player.inventory.splice(idx, 1);
+        this.closeInventory();
+        this.endPlayerTurn();
+      }
+      return;
+    }
+    if (it.type === 'throwable' || it.type === 'scroll') {
+      this.closeInventory();
+      this.beginTargeting({ source: 'item', invIndex: idx, range: it.range || 6 });
+      return;
+    }
+  },
+  dropInventoryItem(idx) {
+    if (idx < 0 || idx >= this.player.inventory.length) return;
+    const id = this.player.inventory[idx];
+    // If equipped, also unequip
+    if (this.player.equip.weapon === id) this.player.equip.weapon = null;
+    if (this.player.equip.armor === id) this.player.equip.armor = null;
+    this.player.inventory.splice(idx, 1);
+    this.items.push({ x: this.player.x, y: this.player.y, id });
+    this.log(`You drop the ${ITEMS[id].name}.`);
+    this.closeInventory();
+    this.endPlayerTurn();
+  },
+
+  // =============================================================
+  // ================== SPELLBOOK UI =============================
+  // =============================================================
+  openSpellbook() {
+    if (this.state !== 'playing') return;
+    this.state = 'spellbook';
+    this.renderSpellbook();
+    document.getElementById('modal-spells').classList.add('active');
+  },
+  closeSpellbook() {
+    this.state = 'playing';
+    document.getElementById('modal-spells').classList.remove('active');
+  },
+  renderSpellbook() {
+    const list = document.getElementById('spell-list');
+    if (!this.player.spells || this.player.spells.length === 0) {
+      list.innerHTML = '<div style="color:var(--dim);padding:8px;font-style:italic;">No spells.</div>';
+      return;
+    }
+    list.innerHTML = this.player.spells.map((id, i) => {
+      const sp = SPELLS[id];
+      const letter = String.fromCharCode(97 + i);
+      const can = this.player.mp >= sp.cost;
+      return `<div class="list-item ${can ? '' : 'disabled'}" data-idx="${i}">
+        <span class="key">${letter}</span>
+        <span class="name">${sp.name}</span>
+        <span class="meta">${sp.cost} MP — ${sp.desc}</span>
+      </div>`;
+    }).join('');
+  },
+  castSpell(idx) {
+    if (idx < 0 || idx >= this.player.spells.length) return;
+    const id = this.player.spells[idx];
+    const sp = SPELLS[id];
+    if (this.player.mp < sp.cost) {
+      this.log('Not enough mana.', 'system');
+      return;
+    }
+    if (sp.type === 'targeted') {
+      this.closeSpellbook();
+      this.beginTargeting({ source: 'spell', spellId: id, range: sp.range });
+      return;
+    }
+    // Self / self_buff
+    const ok = sp.cast(this);
+    if (ok) {
+      this.player.mp -= sp.cost;
+      this.closeSpellbook();
+      this.endPlayerTurn();
+    }
+  },
+
+  // =============================================================
+  // ================== TARGETING ================================
+  // =============================================================
+  beginTargeting(t) {
+    this.state = 'targeting';
+    this.targeting = t;
+    // Default cursor on nearest visible monster, else on player
+    let best = null, bestD = 999;
+    this.monsters.forEach(m => {
+      if (!m.alive) return;
+      if (!this.visible[m.y][m.x]) return;
+      const d = Math.abs(m.x - this.player.x) + Math.abs(m.y - this.player.y);
+      if (d < bestD) { bestD = d; best = m; }
+    });
+    if (best) { this.cursor = { x: best.x, y: best.y }; }
+    else { this.cursor = { x: this.player.x, y: this.player.y }; }
+    this.log(`Select target. Move cursor, Enter to confirm, Esc to cancel.`, 'system');
+    this.draw();
+  },
+  moveCursor(dx, dy) {
+    if (this.state !== 'targeting') return;
+    const nx = this.cursor.x + dx;
+    const ny = this.cursor.y + dy;
+    const range = this.targeting.range || 99;
+    const dist = Math.max(Math.abs(nx - this.player.x), Math.abs(ny - this.player.y));
+    if (nx < 0 || ny < 0 || nx >= MAP_W || ny >= MAP_H) return;
+    if (dist > range) return;
+    this.cursor = { x: nx, y: ny };
+    this.draw();
+  },
+  confirmTarget() {
+    if (this.state !== 'targeting') return;
+    const tx = this.cursor.x, ty = this.cursor.y;
+    const t = this.targeting;
+    if (t.source === 'spell') {
+      const sp = SPELLS[t.spellId];
+      const ok = sp.cast(this, tx, ty);
+      if (ok) {
+        this.player.mp -= sp.cost;
+        this.state = 'playing';
+        this.targeting = null;
+        this.endPlayerTurn();
+      } else {
+        // cast failed (e.g. shadowstep into wall), allow re-target
+      }
+    } else if (t.source === 'item') {
+      const id = this.player.inventory[t.invIndex];
+      const it = ITEMS[id];
+      const ok = it.use(this, tx, ty);
+      if (ok) {
+        this.player.inventory.splice(t.invIndex, 1);
+        this.state = 'playing';
+        this.targeting = null;
+        this.endPlayerTurn();
+      }
+    }
+  },
+  cancelTarget() {
+    this.state = 'playing';
+    this.targeting = null;
+    this.log('Cancelled.', 'system');
+    this.draw();
+  },
+
+  // =============================================================
+  // ================== GAME OVER / VICTORY ======================
+  // =============================================================
+  gameOver(reason) {
+    if (this.state === 'end') return;
+    this.state = 'end';
+    document.getElementById('game').classList.remove('active');
+    const end = document.getElementById('end');
+    end.classList.add('active', 'death');
+    document.getElementById('end-title').textContent = 'YOU DIED';
+    document.getElementById('end-reason').textContent = reason;
+    document.getElementById('end-summary').innerHTML = this.summaryHTML();
+  },
+  victory() {
+    this.state = 'end';
+    document.getElementById('game').classList.remove('active');
+    const end = document.getElementById('end');
+    end.classList.add('active', 'victory');
+    document.getElementById('end-title').textContent = 'VICTORY';
+    document.getElementById('end-reason').textContent =
+      'The Ancient Dragon falls. You climb out of the crypt with its hoard at your back.';
+    document.getElementById('end-summary').innerHTML = this.summaryHTML();
+  },
+  summaryHTML() {
+    const cls = CLASSES[this.player.classId];
+    return `
+      <div class="row"><span class="k">Class</span><span class="v">${cls.name}</span></div>
+      <div class="row"><span class="k">Final level</span><span class="v">${this.player.level}</span></div>
+      <div class="row"><span class="k">Floor reached</span><span class="v">${this.floor}</span></div>
+      <div class="row"><span class="k">Kills</span><span class="v">${this.killCount}</span></div>
+      <div class="row"><span class="k">Gold gathered</span><span class="v">${this.goldEarned}</span></div>
+      <div class="row"><span class="k">Turns</span><span class="v">${this.turn}</span></div>
+    `;
+  },
+
+  // =============================================================
+  // ================== HUD ======================================
+  // =============================================================
+  updateHUD() {
+    document.getElementById('floor-num').textContent = this.floor;
+    const p = this.player;
+    document.getElementById('player-name').textContent = CLASSES[p.classId].name;
+    document.getElementById('player-class').textContent = `— Level ${p.level} —`;
+
+    document.getElementById('hp-text').textContent = `${Math.max(0, p.hp)} / ${p.maxHp}`;
+    document.getElementById('hp-bar').style.width = `${Math.max(0, p.hp) / p.maxHp * 100}%`;
+    document.getElementById('mp-text').textContent = `${p.mp} / ${p.maxMp}`;
+    document.getElementById('mp-bar').style.width = `${p.mp / p.maxMp * 100}%`;
+
+    const nextXp = XP_TABLE[p.level] || XP_TABLE[XP_TABLE.length - 1];
+    const prevXp = XP_TABLE[p.level - 1] || 0;
+    const frac = Math.min(1, (p.xp - prevXp) / Math.max(1, (nextXp - prevXp)));
+    document.getElementById('xp-text').textContent = `${p.xp} / ${nextXp}`;
+    document.getElementById('xp-bar').style.width = `${frac * 100}%`;
+
+    document.getElementById('stat-str').textContent = p.str + (p.effects.warcry ? ' (+3)' : '');
+    document.getElementById('stat-def').textContent = p.def + this.armorDef();
+    document.getElementById('stat-mag').textContent = this.effectiveMag();
+    document.getElementById('stat-gold').textContent = p.gold;
+
+    document.getElementById('equip-weapon').textContent =
+      p.equip.weapon ? ITEMS[p.equip.weapon].name : '—';
+    document.getElementById('equip-armor').textContent =
+      p.equip.armor ? ITEMS[p.equip.armor].name : '—';
+    document.querySelector('.equip-line:nth-child(2)').classList.toggle('empty', !p.equip.weapon);
+    document.querySelector('.equip-line:nth-child(3)').classList.toggle('empty', !p.equip.armor);
+
+    const eff = document.getElementById('effects-list');
+    const pills = [];
+    if (p.effects.cleave) pills.push(`<span class="effect-pill buff">Cleave ready</span>`);
+    if (p.effects.warcry) pills.push(`<span class="effect-pill buff">War Cry (${p.effects.warcry})</span>`);
+    if (p.effects.focused) pills.push(`<span class="effect-pill buff">Focused Strike</span>`);
+    eff.innerHTML = pills.length ? pills.join('') : '<span style="color:var(--dim);font-size:11px;">—</span>';
+  },
+
+  // =============================================================
+  // ================== DRAWING ==================================
+  // =============================================================
+  draw() {
+    const canvas = document.getElementById('map');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#050609';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.font = `${TILE - 2}px "Consolas", monospace`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'center';
+
+    for (let y = 0; y < MAP_H; y++) {
+      for (let x = 0; x < MAP_W; x++) {
+        const t = this.tiles[y][x];
+        const px = x * TILE, py = y * TILE;
+        let bg = '#050609';
+        let glyph = '', color = '#3a3a4a';
+
+        if (this.visible[y][x]) {
+          if (t === T_WALL) { bg = '#1d1f28'; }
+          else if (t === T_FLOOR) { bg = '#2c2620'; glyph = '·'; color = '#5a4a3a'; }
+          else if (t === T_HALL) { bg = '#262022'; glyph = '·'; color = '#4a3a3a'; }
+          else if (t === T_STAIRS) { bg = '#3a3520'; glyph = '>'; color = '#f1c40f'; }
+        } else if (this.seen[y][x]) {
+          if (t === T_WALL) { bg = '#0e0f14'; }
+          else if (t === T_FLOOR) { bg = '#161310'; glyph = '·'; color = '#2a241e'; }
+          else if (t === T_HALL) { bg = '#141113'; glyph = '·'; color = '#241a1c'; }
+          else if (t === T_STAIRS) { bg = '#201c10'; glyph = '>'; color = '#8a6f10'; }
+        }
+
+        ctx.fillStyle = bg;
+        ctx.fillRect(px, py, TILE, TILE);
+        if (glyph) {
+          ctx.fillStyle = color;
+          ctx.fillText(glyph, px + TILE / 2, py + 1);
+        }
+      }
+    }
+
+    // Items
+    this.items.forEach(it => {
+      if (!this.visible[it.y][it.x]) return;
+      const px = it.x * TILE, py = it.y * TILE;
+      if (it.id === 'gold') {
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillText('$', px + TILE / 2, py + 1);
+      } else {
+        const tmpl = ITEMS[it.id];
+        ctx.fillStyle = tmpl.color;
+        ctx.fillText(tmpl.glyph, px + TILE / 2, py + 1);
+      }
+    });
+
+    // Monsters
+    this.monsters.forEach(m => {
+      if (!m.alive) return;
+      if (!this.visible[m.y][m.x]) return;
+      const px = m.x * TILE, py = m.y * TILE;
+      ctx.fillStyle = m.color;
+      ctx.fillText(m.glyph, px + TILE / 2, py + 1);
+      // tiny hp bar
+      if (m.hp < m.maxHp) {
+        const w = TILE - 2;
+        const frac = m.hp / m.maxHp;
+        ctx.fillStyle = '#3a0a0a';
+        ctx.fillRect(px + 1, py + TILE - 3, w, 2);
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(px + 1, py + TILE - 3, w * frac, 2);
+      }
+    });
+
+    // Player
+    if (this.player) {
+      const px = this.player.x * TILE, py = this.player.y * TILE;
+      ctx.fillStyle = '#f1c40f';
+      ctx.fillText('@', px + TILE / 2, py + 1);
+    }
+
+    // Targeting overlay
+    if (this.state === 'targeting') {
+      // range circle
+      const range = this.targeting.range || 6;
+      ctx.strokeStyle = 'rgba(241, 196, 15, 0.15)';
+      ctx.lineWidth = 1;
+      for (let y = 0; y < MAP_H; y++)
+        for (let x = 0; x < MAP_W; x++) {
+          const d = Math.max(Math.abs(x - this.player.x), Math.abs(y - this.player.y));
+          if (d === range) {
+            ctx.strokeRect(x * TILE + 0.5, y * TILE + 0.5, TILE - 1, TILE - 1);
+          }
+        }
+      // cursor
+      const cx = this.cursor.x * TILE, cy = this.cursor.y * TILE;
+      ctx.strokeStyle = '#f1c40f';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx + 1, cy + 1, TILE - 2, TILE - 2);
+      // line from player to cursor
+      ctx.strokeStyle = 'rgba(241, 196, 15, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(this.player.x * TILE + TILE / 2, this.player.y * TILE + TILE / 2);
+      ctx.lineTo(this.cursor.x * TILE + TILE / 2, this.cursor.y * TILE + TILE / 2);
+      ctx.stroke();
+    }
+  },
+
+  // =============================================================
+  // ================== INPUT ====================================
+  // =============================================================
+  handleKey(e) {
+    const k = e.key;
+
+    // ----- inventory mode -----
+    if (this.state === 'inventory') {
+      if (k === 'Escape' || k === 'i' || k === 'I') { this.closeInventory(); this.draw(); return; }
+      // d + letter = drop  (use shift modifier instead for simplicity)
+      if (k.length === 1 && k >= 'a' && k <= 't') {
+        const idx = k.charCodeAt(0) - 97;
+        this.useInventoryItem(idx);
+        return;
+      }
+      if (k.length === 1 && k >= 'A' && k <= 'T') {
+        const idx = k.charCodeAt(0) - 65;
+        this.dropInventoryItem(idx);
+        return;
+      }
+      return;
+    }
+
+    // ----- spellbook mode -----
+    if (this.state === 'spellbook') {
+      if (k === 'Escape' || k === 'z' || k === 'Z') { this.closeSpellbook(); this.draw(); return; }
+      if (k.length === 1 && k >= 'a' && k <= 'z') {
+        const idx = k.charCodeAt(0) - 97;
+        this.castSpell(idx);
+        return;
+      }
+      return;
+    }
+
+    // ----- targeting -----
+    if (this.state === 'targeting') {
+      const mv = this.keyToDir(k);
+      if (mv) { this.moveCursor(mv.dx, mv.dy); return; }
+      if (k === 'Enter' || k === ' ') { this.confirmTarget(); return; }
+      if (k === 'Escape') { this.cancelTarget(); return; }
+      return;
+    }
+
+    // ----- normal play -----
+    if (this.state !== 'playing') return;
+
+    const mv = this.keyToDir(k);
+    if (mv) { this.tryMove(mv.dx, mv.dy); return; }
+    if (k === '.' || k === '5') { this.wait(); return; }
+    if (k === 'g' || k === 'G') { this.tryPickup(); return; }
+    if (k === '>' || k === '<') { this.tryDescend(); return; }
+    if (k === 'i' || k === 'I') { this.openInventory(); return; }
+    if (k === 'z' || k === 'Z') { this.openSpellbook(); return; }
+  },
+
+  keyToDir(k) {
+    switch (k) {
+      case 'ArrowUp':    case 'w': case 'W': case 'k': return { dx: 0, dy: -1 };
+      case 'ArrowDown':  case 's': case 'S': case 'j': return { dx: 0, dy: 1 };
+      case 'ArrowLeft':  case 'a': case 'A': case 'h': return { dx: -1, dy: 0 };
+      case 'ArrowRight': case 'd': case 'D': case 'l': return { dx: 1, dy: 0 };
+      case 'y': return { dx: -1, dy: -1 };
+      case 'u': return { dx: 1, dy: -1 };
+      case 'b': return { dx: -1, dy: 1 };
+      case 'n': return { dx: 1, dy: 1 };
+    }
+    return null;
+  },
+
+  // =============================================================
+  // ================== START ====================================
+  // =============================================================
+  startGame(classId) {
+    const cls = CLASSES[classId];
+    this.player = {
+      classId,
+      x: 0, y: 0,
+      hp: cls.hp, maxHp: cls.hp,
+      mp: cls.mp, maxMp: cls.mp,
+      str: cls.str, def: cls.def, mag: cls.mag,
+      xp: 0, level: 1, gold: 0,
+      inventory: [],
+      equip: { weapon: null, armor: null },
+      spells: [...cls.spells],
+      effects: {}
+    };
+    // Add starting items
+    for (const id of cls.startItems) this.player.inventory.push(id);
+    // Auto-equip first weapon & armor
+    const firstWeapon = this.player.inventory.find(id => ITEMS[id].slot === 'weapon');
+    if (firstWeapon) this.player.equip.weapon = firstWeapon;
+    const firstArmor = this.player.inventory.find(id => ITEMS[id].slot === 'armor');
+    if (firstArmor) this.player.equip.armor = firstArmor;
+    // Apply armor mp bonus to max mp
+    if (firstArmor && ITEMS[firstArmor].mp) this.player.maxMp += ITEMS[firstArmor].mp;
+
+    this.state = 'playing';
+    this.floor = 1;
+    this.turn = 0;
+    this.killCount = 0;
+    this.goldEarned = 0;
+    this.logEntries = [];
+
+    document.getElementById('title').style.display = 'none';
+    document.getElementById('game').classList.add('active');
+
+    this.log(`You step into the crypt. The dust has not been disturbed in a thousand years.`, 'system');
+    this.log(`You are a ${cls.name}.`, 'system');
+    this.generateFloor(1);
+    this.updateHUD();
+  }
+};
+
+// =============================================================
+// ================== EVENT WIRING =============================
+// =============================================================
+document.querySelectorAll('.class-card').forEach(card => {
+  card.addEventListener('click', () => {
+    Game.startGame(card.getAttribute('data-class'));
+  });
+});
+
+document.addEventListener('keydown', (e) => {
+  if (Game.state === 'title' || Game.state === 'end') return;
+  // prevent page scroll on arrow keys
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
+    e.preventDefault();
+  }
+  Game.handleKey(e);
+  if (Game.bossKilled && Game.state === 'playing') {
+    Game.victory();
+  }
+});
+
+// Inventory click handlers (event delegation)
+document.getElementById('modal-inv').addEventListener('click', (e) => {
+  const item = e.target.closest('.list-item');
+  if (!item) return;
+  const idx = parseInt(item.getAttribute('data-idx'));
+  Game.useInventoryItem(idx);
+});
+document.getElementById('modal-spells').addEventListener('click', (e) => {
+  const item = e.target.closest('.list-item');
+  if (!item || item.classList.contains('disabled')) return;
+  const idx = parseInt(item.getAttribute('data-idx'));
+  Game.castSpell(idx);
+});
+
+</script>
+</body>
+</html>

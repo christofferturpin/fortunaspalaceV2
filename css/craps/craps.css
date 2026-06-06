@@ -1,0 +1,1011 @@
+/* Craps — dingy hospital. Yellowed gauze, sickly pea-green walls, dried-blood
+   red trim, fluorescent-tube vitals green, lipstick-pink pin-up accent. */
+
+html, body {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 36px,
+      rgba(0, 0, 0, 0.10) 36px 37px
+    ),
+    radial-gradient(ellipse at center top, #4a5a4e 0%, #1c2520 70%) no-repeat,
+    #1c2520;
+  color: #e6dabd;
+  font-family: var(--font-ui);
+}
+
+body {
+  padding: 6px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 6px;
+  width: 100%;
+  max-width: 760px;
+  position: relative;
+}
+
+.header-nav {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  z-index: 10;
+}
+.header-nav a {
+  display: inline-block;
+  padding: 4px 10px;
+  color: #d8c4a4;
+  opacity: 0.55;
+  text-decoration: none;
+}
+.header-nav a:hover { opacity: 1; color: #d4536d; }
+
+h1 {
+  font-family: 'Special Elite', 'Courier Prime', 'Courier New', monospace;
+  font-weight: 700;
+  color: #d4536d;
+  letter-spacing: 0.28em;
+  margin: 0 0 2px;
+  font-size: 24px;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 6px rgba(212, 83, 109, 0.45),
+    0 0 16px rgba(184, 0, 31, 0.25),
+    0 2px 0 rgba(0, 0, 0, 0.6);
+  animation: cp-fluoro-flicker 4.6s steps(2, end) infinite;
+}
+h1::before,
+h1::after {
+  content: "✚";
+  color: #b8001f;
+  font-size: 0.55em;
+  vertical-align: 0.35em;
+  margin: 0 16px;
+  text-shadow: 0 0 6px rgba(184, 0, 31, 0.6);
+}
+@keyframes cp-fluoro-flicker {
+  0%, 7%, 9%, 100%   { opacity: 1; }
+  8%                 { opacity: 0.55; }
+  44%, 46%           { opacity: 1; }
+  45%                { opacity: 0.7; }
+}
+
+.cp-subtitle {
+  margin: 0 0 4px;
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+  font-style: italic;
+  opacity: 0.68;
+  letter-spacing: 0.05em;
+  font-size: 12px;
+  color: #c8b894;
+}
+
+.coins-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  padding: 2px 10px;
+  background: rgba(20, 28, 24, 0.55);
+  border: 1px solid rgba(168, 232, 184, 0.25);
+  border-radius: 2px;
+}
+.coins-bar .coins-label {
+  letter-spacing: 0.16em;
+  opacity: 0.75;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: #c8b894;
+}
+#balance {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 18px;
+  color: #a8e8b8;
+  text-shadow:
+    0 0 4px rgba(168, 232, 184, 0.8),
+    0 0 12px rgba(168, 232, 184, 0.4);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 760px;
+}
+
+/* ----- Rules drawer — manila chart ----- */
+
+.cp-rules {
+  width: 100%;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 22px,
+      rgba(110, 80, 40, 0.06) 22px 23px
+    ),
+    linear-gradient(180deg, #d6cbb3 0%, #c0b59a 100%);
+  border: 1px solid #6e5238;
+  border-top: 3px solid #8b2c2c;
+  border-radius: 2px;
+  padding: 3px 12px;
+  font-size: 13px;
+  color: #2a2018;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 245, 220, 0.5),
+    0 3px 8px rgba(0, 0, 0, 0.4);
+}
+.cp-rules summary {
+  cursor: pointer;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8b2c2c;
+  padding: 2px 0;
+  font-size: 11px;
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+  font-weight: 700;
+}
+.cp-rules summary::before {
+  content: "Rx ";
+  color: #b8001f;
+  font-style: italic;
+  letter-spacing: 0;
+  margin-right: 6px;
+}
+.cp-rules-body { padding: 8px 0 12px; }
+.cp-rules-body p { margin: 6px 0; }
+.cp-rules-list {
+  margin: 6px 0 12px;
+  padding-left: 18px;
+}
+.cp-rules-list li { margin: 4px 0; }
+.cp-pip {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 6px;
+  text-align: center;
+  border-radius: 2px;
+  font-weight: 700;
+  font-family: var(--font-ui);
+  background: #f0e4c8;
+  color: #2a2018;
+  border: 1px solid #6e5238;
+}
+.cp-pip-red {
+  background: #8b2c2c;
+  color: #f0e4c8;
+  border-color: #5a1414;
+}
+
+.cp-paytable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 14px;
+}
+.cp-paytable th, .cp-paytable td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px dashed rgba(110, 82, 56, 0.45);
+}
+.cp-paytable th {
+  color: #8b2c2c;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-family: 'Special Elite', monospace;
+}
+
+/* ----- Dice tray — chrome surgical tray ----- */
+
+.cp-tray {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 245, 230, 0.10), transparent 60%),
+    linear-gradient(180deg, #4a4e48 0%, #1a1e1c 100%);
+  border: 1px solid #6e7068;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.7),
+    0 6px 18px rgba(0, 0, 0, 0.55);
+  width: 100%;
+}
+
+.cp-die {
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 2px;
+  padding: 7px;
+  background: #f0e4c8;
+  border: 1px solid #6e5238;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 250, 235, 0.55),
+    inset 0 -2px 6px rgba(120, 90, 50, 0.35),
+    0 4px 10px rgba(0, 0, 0, 0.6);
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.15s ease;
+}
+.cp-die.cp-die-red {
+  background: linear-gradient(180deg, #b8001f 0%, #6e0014 100%);
+  border-color: #8b0018;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 220, 220, 0.25),
+    inset 0 -2px 8px rgba(0, 0, 0, 0.7),
+    0 0 16px rgba(184, 0, 31, 0.4);
+}
+.cp-die.cp-die-black {
+  background: linear-gradient(180deg, #f0e4c8 0%, #c8b890 100%);
+  border-color: #6e5238;
+}
+.cp-die.cp-rolling { animation: cp-shake 0.06s linear infinite alternate; }
+@keyframes cp-shake {
+  from { transform: translate(-2px, 1px) rotate(-3deg); }
+  to   { transform: translate(2px, -1px) rotate(3deg); }
+}
+
+.cp-die .pip {
+  background: #2a1014;
+  border-radius: 50%;
+  width: 100%;
+  height: 100%;
+  align-self: center;
+  justify-self: center;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.45);
+}
+.cp-die-red .pip { background: #f8e0d8; box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.55); }
+.cp-die .pip-empty { background: transparent; box-shadow: none; }
+
+/* ----- Readout — vital signs monitor line ----- */
+
+.cp-readout {
+  min-height: 22px;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  text-align: center;
+  color: #e6dabd;
+  opacity: 0.9;
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+}
+.cp-readout.cp-readout-win {
+  color: #a8e8b8;
+  text-shadow: 0 0 8px rgba(168, 232, 184, 0.45);
+}
+.cp-readout.cp-readout-loss {
+  color: #d4536d;
+  text-shadow: 0 0 6px rgba(212, 83, 109, 0.4);
+}
+
+/* ----- Bet table — clipboard chart pad ----- */
+
+.cp-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px 8px;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 22px,
+      rgba(80, 100, 130, 0.10) 22px 23px
+    ),
+    linear-gradient(180deg, #ece1c4 0%, #d4c8a8 100%);
+  border: 2px solid #6e5238;
+  border-top: 6px solid #8b2c2c;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 250, 230, 0.55),
+    inset 0 -2px 6px rgba(110, 82, 56, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.55);
+}
+.cp-table::before {
+  /* binder clip at top center */
+  content: "";
+  display: block;
+  position: relative;
+  width: 50px;
+  height: 9px;
+  margin: -18px auto 2px;
+  background: linear-gradient(180deg, #7d7870 0%, #4a4540 100%);
+  border: 1px solid #2a2520;
+  border-radius: 3px 3px 1px 1px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+.cp-spot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px 8px 4px;
+  background: linear-gradient(180deg, #f8efd8 0%, #e0d2b0 100%);
+  border: 1px solid #8a6e4a;
+  border-radius: 3px;
+  color: #2a1f18;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 250, 230, 0.65);
+}
+.cp-spot:hover:not(:disabled) {
+  border-color: #d4536d;
+  background: linear-gradient(180deg, #fff0e4 0%, #f0d8c4 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.8),
+    0 0 10px rgba(212, 83, 109, 0.35);
+}
+.cp-spot.cp-picked {
+  border-color: #b8001f;
+  background: linear-gradient(180deg, #ffe4e0 0%, #f0c8c0 100%);
+  box-shadow:
+    0 0 0 1px rgba(184, 0, 31, 0.45),
+    inset 0 0 24px rgba(184, 0, 31, 0.15);
+}
+.cp-spot:focus-visible {
+  outline: none;
+  border-color: #b8001f;
+  box-shadow: 0 0 0 2px rgba(184, 0, 31, 0.6);
+}
+
+/* Nurse-pin chip — red cross button instead of a poker chip */
+.cp-spot-chip {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #ffffff 0 22%, #f4ecd6 23% 55%, #d8cab0 56% 100%);
+  border: 2px solid #b8001f;
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+  opacity: 0;
+  transform: scale(0.5) rotate(-30deg);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+.cp-spot-chip::before,
+.cp-spot-chip::after {
+  content: "";
+  position: absolute;
+  background: #b8001f;
+  top: 50%;
+  left: 50%;
+  border-radius: 1px;
+}
+.cp-spot-chip::before { width: 10px; height: 3px; transform: translate(-50%, -50%); }
+.cp-spot-chip::after  { width: 3px; height: 10px; transform: translate(-50%, -50%); }
+.cp-spot.cp-picked .cp-spot-chip {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.cp-spot.cp-spot-hit {
+  animation: cp-hit 0.9s ease;
+  border-color: #5a8a3a;
+  box-shadow:
+    0 0 0 1px rgba(168, 232, 184, 0.55),
+    inset 0 0 18px rgba(168, 232, 184, 0.3);
+}
+@keyframes cp-hit {
+  0%   { box-shadow: 0 0 0 1px rgba(168, 232, 184, 0.0), inset 0 0 8px rgba(168, 232, 184, 0.0); }
+  50%  { box-shadow: 0 0 0 3px rgba(168, 232, 184, 0.9), inset 0 0 30px rgba(168, 232, 184, 0.55); }
+  100% { box-shadow: 0 0 0 1px rgba(168, 232, 184, 0.55), inset 0 0 18px rgba(168, 232, 184, 0.3); }
+}
+.cp-spot.cp-spot-miss { opacity: 0.4; filter: grayscale(0.5); }
+
+/* ✓ / ✗ overlay on the player's picked spots, post-roll. Big symbol pop-in. */
+.cp-spot.cp-picked.cp-spot-hit::after,
+.cp-spot.cp-picked.cp-spot-miss::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+  font-size: 30px;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 5;
+  line-height: 1;
+  animation: cp-mark-pop 0.45s cubic-bezier(0.18, 1.2, 0.4, 1);
+}
+.cp-spot.cp-picked.cp-spot-hit::after {
+  content: '\2713';
+  color: #5a8a3a;
+  text-shadow:
+    0 0 8px rgba(90, 138, 58, 0.9),
+    0 0 18px rgba(168, 232, 184, 0.65);
+}
+.cp-spot.cp-picked.cp-spot-miss::after {
+  content: '\2715';
+  color: #b8001f;
+  text-shadow:
+    0 0 8px rgba(184, 0, 31, 0.95),
+    0 0 18px rgba(212, 83, 109, 0.55);
+}
+@keyframes cp-mark-pop {
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+  60%  { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
+}
+.cp-spot:disabled { cursor: default; }
+
+.cp-spot-name {
+  font-family: 'Special Elite', 'Courier Prime', 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  color: #8b2c2c;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+.cp-spot-cond {
+  font-size: 10px;
+  opacity: 0.72;
+  letter-spacing: 0.02em;
+  color: #4a3a2a;
+  font-style: italic;
+  line-height: 1.1;
+}
+.cp-spot-mult {
+  font-size: 12px;
+  color: #2a4a30;
+  letter-spacing: 0.06em;
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.cp-spot-red       .cp-spot-name { color: #b8001f; text-shadow: 0 0 6px rgba(184, 0, 31, 0.35); }
+.cp-spot-black     .cp-spot-name { color: #2a2018; }
+.cp-spot-run       .cp-spot-name { color: #d4536d; }
+.cp-spot-doubles   .cp-spot-name { color: #5a4a78; }
+.cp-spot-nodoubles .cp-spot-name { color: #4a7a54; }
+
+/* ----- Wager row — Rx prescription pad ----- */
+
+.cp-wager-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  padding: 5px 14px;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 22px,
+      rgba(110, 60, 60, 0.06) 22px 23px
+    ),
+    linear-gradient(180deg, #f4ecd0 0%, #d8c8a8 100%);
+  border: 1px solid #8a6e4a;
+  border-left: 4px solid #8b2c2c;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.6),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+.cp-wager-label {
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: #8b2c2c;
+  font-family: 'Special Elite', monospace;
+  font-weight: 700;
+}
+.cp-wager-label::before {
+  content: "℞ ";
+  font-size: 1.3em;
+  margin-right: 4px;
+  vertical-align: -0.1em;
+}
+#cp-wager {
+  width: 80px;
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 22px;
+  text-align: center;
+  background: #1a201c;
+  color: #a8e8b8;
+  border: 1px solid #4a3a2a;
+  border-radius: 2px;
+  padding: 2px 6px;
+  text-shadow: 0 0 6px rgba(168, 232, 184, 0.55);
+}
+#cp-wager:focus {
+  outline: none;
+  border-color: #b8001f;
+  box-shadow: 0 0 0 1px rgba(184, 0, 31, 0.55);
+}
+#cp-wager::-webkit-outer-spin-button,
+#cp-wager::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#cp-wager[type=number] { -moz-appearance: textfield; }
+.cp-wager-hint {
+  font-size: 11px;
+  opacity: 0.7;
+  font-style: italic;
+  color: #4a3a2a;
+  font-family: 'Special Elite', monospace;
+}
+
+/* ----- Picks banner — chart vitals strip ----- */
+
+.cp-picks-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 12px;
+  background: rgba(15, 22, 18, 0.55);
+  border: 1px dashed rgba(168, 232, 184, 0.4);
+  border-radius: 2px;
+  font-size: 12px;
+}
+.cp-pick-slot {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.cp-pick-label {
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  font-size: 9px;
+  color: #c8b894;
+  font-family: 'Special Elite', monospace;
+}
+.cp-pick-value {
+  font-size: 13px;
+  color: #d4536d;
+  text-shadow: 0 0 6px rgba(212, 83, 109, 0.4);
+  letter-spacing: 0.1em;
+  min-width: 70px;
+  display: inline-block;
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.cp-pick-sep {
+  opacity: 0.4;
+  font-size: 14px;
+  color: #b8001f;
+}
+
+/* ----- Bet table rows ----- */
+
+.cp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cp-row-label {
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #8b2c2c;
+  opacity: 0.85;
+  font-family: 'Special Elite', monospace;
+}
+.cp-row-spots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.cp-row-spots.cp-row-spots-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* ----- HUD + controls ----- */
+
+.cp-hud {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: 16px;
+}
+.cp-hud-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.cp-hud-label {
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 12px;
+  opacity: 0.7;
+  color: #c8b894;
+}
+.cp-hud-value {
+  font-size: 22px;
+  color: #e6dabd;
+}
+.cp-hud-suffix {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+.cp-hud-tokens {
+  color: #d4536d;
+  text-shadow:
+    0 0 6px rgba(212, 83, 109, 0.5),
+    0 0 12px rgba(184, 0, 31, 0.25);
+}
+
+.cp-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.cp-btn {
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #e8dcc0 0%, #c8b894 100%);
+  color: #2a1f18;
+  border: 1px solid #6e5238;
+  padding: 4px 16px;
+  cursor: pointer;
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.6),
+    0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.cp-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f4ecd0 0%, #d4c4a0 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.8),
+    0 4px 10px rgba(0, 0, 0, 0.55);
+}
+.cp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Roll button — red+white capsule */
+.cp-btn-roll {
+  background:
+    linear-gradient(90deg, #b8001f 0%, #b8001f 50%, #f4ecd0 50%, #f4ecd0 100%);
+  border-color: #6e0014;
+  color: #2a1f18;
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.18em;
+  padding: 6px 26px;
+  border-radius: 18px;
+  text-shadow: 0 1px 0 rgba(255, 250, 230, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.35),
+    0 4px 10px rgba(0, 0, 0, 0.55);
+  position: relative;
+}
+.cp-btn-roll:hover:not(:disabled) {
+  filter: brightness(1.08) saturate(1.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.55),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.35),
+    0 4px 14px rgba(184, 0, 31, 0.55);
+}
+.cp-btn-roll:disabled {
+  filter: grayscale(0.6);
+}
+
+/* ----- Pin-up: a sexy nurse pixel-art calendar tacked to the wall ----- */
+
+.cp-nurse {
+  position: fixed;
+  top: 130px;
+  left: 24px;
+  width: 124px;
+  z-index: 5;
+  pointer-events: none;
+  transform: rotate(-3.5deg);
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.7));
+  animation: cp-nurse-sway 7s ease-in-out infinite;
+}
+
+.cp-nurse-tape {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 50px;
+  height: 16px;
+  transform: translateX(-50%) rotate(6deg);
+  background: rgba(240, 220, 180, 0.6);
+  border: 1px solid rgba(140, 110, 70, 0.35);
+  border-left-style: dashed;
+  border-right-style: dashed;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+}
+
+.cp-nurse-card {
+  position: relative;
+  background:
+    radial-gradient(ellipse at 50% 30%, #fdf3d2 0%, #e2cf9a 100%);
+  border: 1px solid #6e5238;
+  padding: 8px 6px 6px;
+  box-shadow:
+    inset 0 0 10px rgba(110, 80, 40, 0.25),
+    inset 0 -2px 4px rgba(110, 80, 40, 0.25);
+}
+
+.cp-nurse-sprite {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.cp-nurse-caption {
+  margin-top: 4px;
+  text-align: center;
+  font-family: 'Limelight', serif;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: #8b2c2c;
+  text-shadow: 0 1px 0 rgba(255, 250, 230, 0.5);
+}
+
+@keyframes cp-nurse-sway {
+  0%, 100% { transform: rotate(-3.5deg); }
+  50%      { transform: rotate(-1.5deg); }
+}
+
+@media (max-width: 1000px) {
+  .cp-nurse { display: none; }
+}
+
+/* ----- Putt-putt overlay — hospital corridor ----- */
+
+.cp-putt-overlay {
+  position: fixed;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 36px,
+      rgba(0, 0, 0, 0.18) 36px 37px
+    ),
+    rgba(8, 12, 10, 0.86);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 14px;
+  animation: cp-putt-fade-in 0.25s ease-out;
+}
+.cp-putt-overlay[hidden] { display: none; }
+@keyframes cp-putt-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.cp-putt-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: min(640px, 100%);
+  padding: 14px 16px 16px;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 22px,
+      rgba(80, 100, 130, 0.08) 22px 23px
+    ),
+    linear-gradient(180deg, #ece1c4 0%, #c8baa0 100%);
+  border: 2px solid #6e5238;
+  border-top: 6px solid #8b2c2c;
+  border-radius: 3px;
+  color: #2a1f18;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.55),
+    inset 0 -2px 6px rgba(110, 82, 56, 0.4),
+    0 18px 50px rgba(0, 0, 0, 0.65);
+}
+
+.cp-putt-hud {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 6px 4px 10px;
+  border-bottom: 1px dashed rgba(110, 82, 56, 0.6);
+}
+.cp-putt-hud-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.cp-putt-hud-label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #8b2c2c;
+  font-family: 'Special Elite', monospace;
+  font-weight: 700;
+}
+.cp-putt-hud-value {
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  color: #2a1f18;
+  font-family: 'VT323', 'Courier New', monospace;
+}
+.cp-putt-hud-value.cp-putt-won {
+  color: #2a6a36;
+  text-shadow: 0 0 4px rgba(168, 232, 184, 0.55);
+}
+
+#cp-putt-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 600px;
+  margin: 0 auto;
+  background: #1a201c;
+  border: 1px solid #4a3a2a;
+  border-radius: 2px;
+  cursor: crosshair;
+  box-shadow:
+    inset 0 0 28px rgba(0, 0, 0, 0.7),
+    0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+.cp-putt-prompt {
+  min-height: 22px;
+  text-align: center;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: #2a1f18;
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+}
+
+.cp-putt-power {
+  position: relative;
+  height: 14px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  background: #1a201c;
+  border: 1px solid #4a3a2a;
+  border-radius: 2px;
+  overflow: hidden;
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+.cp-putt-power.cp-putt-power-active { opacity: 1; }
+.cp-putt-power-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #a8e8b8 0%, #e0c468 55%, #b8001f 100%);
+  box-shadow: 0 0 8px rgba(184, 0, 31, 0.4);
+  transition: width 0.04s linear;
+}
+
+.cp-putt-actions {
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+}
+.cp-putt-actions .cp-btn[hidden] { display: none; }
+
+@media (max-width: 560px) {
+  .cp-putt-hud { grid-template-columns: repeat(3, 1fr); }
+  h1 { font-size: 36px; }
+  h1::before, h1::after { margin: 0 10px; }
+}
+
+/* ───── Jackpot banner — fluorescent vitals strip over dried-blood trim.
+   Fed by losses (1% of wallet), drains on 1-1-1 or 6-6-6 in settleRoll.
+   Pulses .is-won when the trigger fires. ───── */
+.cp-jackpot-banner {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 18px;
+  padding: 10px 22px;
+  margin: 4px 0 12px;
+  background: linear-gradient(180deg, #2a2418 0%, #15110a 100%);
+  border: 2px solid #6a1818;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px #9c2424,
+    inset 0 -10px 22px rgba(0, 0, 0, 0.6),
+    0 0 18px rgba(120, 220, 140, 0.35),
+    0 4px 10px rgba(0, 0, 0, 0.55);
+  position: relative;
+  transition: box-shadow 0.4s ease, transform 0.4s ease;
+}
+
+.cp-jackpot-label {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #b8eea8;
+  text-shadow:
+    0 0 6px rgba(120, 220, 140, 0.85),
+    0 0 14px rgba(120, 220, 140, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+.cp-jackpot-amount {
+  font-family: 'Playfair Display', 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 36px;
+  line-height: 1;
+  color: #f8c8d0;
+  text-shadow:
+    0 0 6px rgba(248, 140, 170, 0.55),
+    0 0 16px rgba(248, 140, 170, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+.cp-jackpot-suffix {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #e6dabd;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.cp-jackpot-banner.is-won {
+  animation: cp-jackpot-burst 1.6s ease-out;
+}
+
+@keyframes cp-jackpot-burst {
+  0% {
+    transform: scale(1);
+    box-shadow:
+      inset 0 0 0 1px #9c2424,
+      inset 0 -10px 22px rgba(0, 0, 0, 0.6),
+      0 0 18px rgba(120, 220, 140, 0.35),
+      0 4px 10px rgba(0, 0, 0, 0.55);
+  }
+  20% {
+    transform: scale(1.05);
+    box-shadow:
+      inset 0 0 0 1px #ffffff,
+      inset 0 -10px 22px rgba(0, 0, 0, 0.3),
+      0 0 70px rgba(248, 180, 200, 1),
+      0 0 110px rgba(120, 220, 140, 0.6),
+      0 4px 14px rgba(0, 0, 0, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow:
+      inset 0 0 0 1px #9c2424,
+      inset 0 -10px 22px rgba(0, 0, 0, 0.6),
+      0 0 18px rgba(120, 220, 140, 0.35),
+      0 4px 10px rgba(0, 0, 0, 0.55);
+  }
+}

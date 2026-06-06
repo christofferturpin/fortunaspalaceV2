@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BOSSFIGHT · ZASHIKI-WARASHI — Hold'em (badge gold / moss / federal red)│
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │  For humans: FBI badges on soot. Quiet, watching from the rafters.     │
+  │  For AI: same shell — palette + BossConfig differ.                     │
+  │  routes out: debug-bosses.html                                         │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Zashiki-Warashi — Fortuna's Palace</title>
+  <script>
+    window.PAGE_VERSION = 'zashiki v0.3 · echo-koto';
+    console.log('%c[page version] ' + window.PAGE_VERSION,
+                'color:#c9a14a;background:#1a1208;padding:2px 6px;border-radius:3px;font-family:monospace');
+  </script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bossfight/holdem.css">
+  <link rel="stylesheet" href="../css/bossfight/zashiki-warashi.css">
+  <style>
+    body.bf-body {
+      /* Yellow + black palette for the emo-hair soot child. Caution-tape
+         yellow as accent, near-pure black for everything else. */
+      --bf-bg:          #0a0a08;
+      --bf-bg-grade:    #14140e;
+      --bf-fg:          #ffe14a;
+      --bf-fg-dim:      #8a8030;
+      --bf-accent:      #ffd700;       /* hazard / caution yellow */
+      --bf-accent-deep: #8a6a00;
+      --bf-felt:        #14140e;
+      --bf-felt-edge:   #3a3014;
+      --bf-card-face:   #ffeb88;       /* yellow legal pad */
+      --bf-card-back:   #0a0a08;
+      --bf-suit-black:  #0a0a08;
+      --bf-suit-red:    #ffb000;       /* amber-red (no actual red, keep palette) */
+    }
+    /* Under-board monologue — empty by default; fill LINES in the
+       inline script below to activate. Styling uses the page palette
+       so the line tints to the boss's accent automatically. */
+    .bf-monologue {
+      width: 100%;
+      max-width: 560px;
+      margin: -2px auto 0;
+      padding: 6px 14px 2px;
+      font-family: var(--font-body, serif);
+      font-size: 18px;
+      font-style: italic;
+      line-height: 1.45;
+      color: var(--bf-fg);
+      text-align: center;
+      text-shadow:
+        0 0 4px  color-mix(in srgb, var(--bf-accent) 70%, transparent),
+        0 0 14px color-mix(in srgb, var(--bf-accent) 50%, transparent);
+      pointer-events: none;
+      user-select: none;
+      min-height: 1.5em;
+      transition: opacity 420ms ease;
+    }
+    .bf-monologue.is-fading { opacity: 0; }
+  </style>
+</head>
+<body class="bf-body bf-zashiki">
+
+  <!-- Soot layers (z=-1, fixed, pointer-events:none). Two independently
+       marching tilings of soots.jpg painted as solid color (black /
+       white). A third intersection layer paints vermillion ONLY where
+       both soot tilings overlap (via mask-composite: intersect). All
+       three masks share a runtime-baked alpha PNG built from soots.jpg
+       by the inline script below — needed because jpg has no alpha. -->
+  <div class="bf-soot-bed" aria-hidden="true">
+    <div class="bf-soot-layer bf-soot-black"></div>
+    <div class="bf-soot-layer bf-soot-white"></div>
+    <div class="bf-soot-layer bf-soot-mix"></div>
+  </div>
+
+  <header class="bf-header">
+    <h1>
+      <span class="bf-zw-scroll">
+        <span class="bf-zw-vs">You vs.</span>
+        <span class="bf-zw-name">「 Agent Zashiki-Warashi 」</span>
+      </span>
+      <span class="bf-epithet">A welfare officer in the rafters</span>
+    </h1>
+    <a class="bf-back-link" href="debug-bosses.html">← hub</a>
+  </header>
+
+  <div class="bf-status">
+    <div class="bf-status-cell">Hand <b id="bf-hand">#1</b></div>
+    <div class="bf-status-cell">Blinds <b id="bf-blinds">1/2</b></div>
+    <div class="bf-status-cell">Street <b id="bf-street">—</b></div>
+  </div>
+
+  <div class="bf-seat bf-seat-opp" id="bf-opp-seat">
+    <div class="bf-boss-avatar-wrap" id="bf-boss-avatar-wrap">
+      <div class="bf-boss-avatar-title" id="bf-boss-avatar-title">Zashiki-Warashi</div>
+      <div class="bf-boss-avatar-frame">
+        <pre class="bf-boss-avatar" id="bf-boss-avatar"></pre>
+      </div>
+      <span class="bf-boss-tell" id="bf-boss-tell"></span>
+    </div>
+    <div class="bf-seat-info">
+      <span class="bf-seat-name" id="bf-opp-name">Zashiki-Warashi</span>
+      <span class="bf-seat-stack"><span id="bf-opp-stack">100</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-opp-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-opp-cards"></div>
+  </div>
+
+  <div class="bf-community-row">
+    <div class="bf-pot-display" id="bf-pot-display">
+      <span class="bf-pot-label">Pot</span>
+      <span class="bf-pot-value" id="bf-pot">0</span>
+    </div>
+    <div class="bf-community" id="bf-community"></div>
+  </div>
+
+  <!-- Boss monologue — one line per hand, under the board. LINES is
+       empty by default (see the inline script below); fill it in to
+       activate this boss's voice. -->
+  <div id="bf-zashiki-monologue" class="bf-monologue" aria-hidden="true"></div>
+
+  <div class="bf-seat bf-seat-player" id="bf-player-seat">
+    <div class="bf-seat-info">
+      <span class="bf-seat-name">You</span>
+      <span class="bf-seat-stack"><span id="bf-player-stack">100</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-player-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-player-cards"></div>
+  </div>
+
+  <div class="bf-log" id="bf-log">
+    <div class="bf-log-header">
+      Play Log
+      <button id="bf-log-clear" class="bf-log-clear" type="button">Clear</button>
+    </div>
+    <div class="bf-log-scroll" id="bf-log-scroll"></div>
+  </div>
+
+  <div class="bf-actions" id="bf-actions">
+    <button id="bf-act-fold" class="bf-act-fold" type="button">Fold</button>
+    <button id="bf-act-passive" type="button">Check</button>
+    <button id="bf-act-aggro" class="bf-act-aggro" type="button">Bet</button>
+    <div class="bf-sizing" id="bf-sizing">
+      <button class="bf-preset" data-preset="min" type="button">Min</button>
+      <button class="bf-preset" data-preset="half" type="button">½</button>
+      <button class="bf-preset" data-preset="pot" type="button">Pot</button>
+      <button class="bf-preset" data-preset="all" type="button">All</button>
+      <input id="bf-raise" type="range" min="0" max="0" value="0">
+      <span id="bf-raise-value" class="bf-raise-value">0</span>
+    </div>
+  </div>
+
+  <script>
+    /* Soot march — runs two independent wanderers, one per soot layer
+       (the black and white tilings). Each picks a new random direction
+       every 3–5s, constrained to differ from its prior heading by ≥ 60°.
+       Custom props --bf-soot-x/y (layer 1) and --bf-soot2-x/y (layer 2)
+       drive the masks; CSS transitions handle the smooth animation.
+
+       Also bakes soots.jpg into an alpha mask at runtime. JPG has no
+       alpha channel, so we draw it to a canvas, convert dark pixels →
+       opaque-white and light pixels → transparent, and stash the
+       resulting dataURL as --bf-soot-mask on body. The three masked
+       layers (.bf-soot-black, .bf-soot-white, .bf-soot-mix) all read
+       that single property. */
+    (function () {
+      var body = document.body;
+      function march(propX, propY, propDur) {
+        var x = 0, y = 0, prevAngle = null;
+        var SPEED = 28;
+        function step() {
+          var angle;
+          do { angle = Math.random() * Math.PI * 2; }
+          while (prevAngle !== null &&
+                 Math.abs(((angle - prevAngle + Math.PI) % (2 * Math.PI)) - Math.PI) < Math.PI / 3);
+          prevAngle = angle;
+          var dur = 3 + Math.random() * 2;
+          x += Math.cos(angle) * SPEED * dur;
+          y += Math.sin(angle) * SPEED * dur;
+          body.style.setProperty(propDur, dur + 's');
+          body.style.setProperty(propX, x.toFixed(1) + 'px');
+          body.style.setProperty(propY, y.toFixed(1) + 'px');
+          setTimeout(step, dur * 1000);
+        }
+        step();
+      }
+      march('--bf-soot-x',  '--bf-soot-y',  '--bf-soot-dur');
+      march('--bf-soot2-x', '--bf-soot2-y', '--bf-soot2-dur');
+
+      var img = new Image();
+      img.onload = function () {
+        var c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        var d = ctx.getImageData(0, 0, c.width, c.height);
+        var p = d.data;
+        for (var i = 0; i < p.length; i += 4) {
+          var lum = (p[i] + p[i+1] + p[i+2]) / 3;     // 0=black, 255=white
+          p[i+3] = 255 - lum;                          // dark → opaque
+          p[i] = p[i+1] = p[i+2] = 255;                // mask payload white
+        }
+        ctx.putImageData(d, 0, 0);
+        var url = "url('" + c.toDataURL('image/png') + "')";
+        body.style.setProperty('--bf-soot-mask', url);
+        /* Belt-and-braces: set mask-image directly on each layer too.
+           var()-containing-url() in mask-image is flaky cross-browser
+           (Chrome will sometimes drop the value entirely). Direct
+           assignment avoids the issue and keeps the layers visible. */
+        var black = document.querySelector('.bf-soot-black');
+        var white = document.querySelector('.bf-soot-white');
+        var mix   = document.querySelector('.bf-soot-mix');
+        if (black) { black.style.maskImage = url; black.style.webkitMaskImage = url; }
+        if (white) { white.style.maskImage = url; white.style.webkitMaskImage = url; }
+        if (mix)   { mix.style.maskImage   = url + ', ' + url;
+                     mix.style.webkitMaskImage = url + ', ' + url; }
+        var bed = document.querySelector('.bf-soot-bed');
+        if (bed) bed.classList.add('is-ready');
+      };
+      img.src = '../assets/images/soots.jpg';
+    })();
+  </script>
+  <script>
+    window.BossConfig = {
+      slug: 'zashiki-warashi',
+      name: 'Agent Zashiki-Warashi',
+      epithet: 'A welfare officer in the rafters',
+      startingStacks: { playerChips: 100, oppChips: 100 },
+      aiStyle: { tightness: 1.30, aggression: 0.80, bluffFreq: 0.55, loose: 0.85, mixedness: 1.40 },
+      // Emo hair (///) sweeping across the right eye. Soot-dude stays
+      // mostly still — frames change less than other bosses, fitting the
+      // watching-from-the-rafters mood. The CSWS badge is drawn beneath
+      // the face by zashiki-warashi.css §6 (yellow variant).
+      kaomoji: {
+        cap: '',
+        faces: {
+          broken:    ['///_x', '\\\\\\_x', '///_x', '\\\\\\_x'],
+          desperate: ['///_o', '///~o', '///_O', '///~o'],
+          pressured: ['///_o', '///_o', '///_•', '///_o'],
+          even:      ['///_o', '///_•', '///_o', '///_•'],
+          ahead:     ['///_◕', '///_•', '///_◕', '///_•'],
+          dominant:  ['///_✦', '///_•', '///_✦', '///_◕'],
+        },
+        tells: {
+          broken:    'gone quiet',
+          desperate: 'sniffling',
+          pressured: 'hair in face',
+          even:      'still',
+          ahead:     'unblinking',
+          dominant:  'ghost-grin',
+        },
+      },
+    };
+  </script>
+  <script>
+    /* Zashiki-Warashi's monologue — one line per hand. Empty LINES =
+       scaffold inert. To activate: fill LINES with what the boss says
+       to the player; each new hand swaps to the next entry. A
+       MutationObserver on #bf-hand (which page.js updates via
+       setText(refs.hand, '#'+state.handNumber)) drives advancement. */
+    (function () {
+      var el   = document.getElementById('bf-zashiki-monologue');
+      var hand = document.getElementById('bf-hand');
+      if (!el || !hand) return;
+      var LINES = [
+        "We all hurt. You pussy.",
+        "Cry harder. I'll wait.",
+        "Boo fuckin' hoo.",
+        "You think you're special? Get in line.",
+        "Everyone's got a story. You're the only one charging admission.",
+        "Grow up.",
+        "I lost more than you and I'm still at this table.",
+        "You're not deep. You're just loud.",
+        "Stop bleeding on the felt.",
+        "Some of us did the work. You decorated the room.",
+        "A palace? For that? Christ.",
+        "Put it down. Just put it down.",
+        "You're not the only one who got fucked. You're the only one bragging.",
+        "Cope. Like an adult.",
+        "We all hurt. Some of us shut up about it.",
+        "The work isn't a brochure. Do the work.",
+      ];
+      if (LINES.length === 0) return;
+      var i = 0;
+      el.textContent = LINES[0];
+      var last = hand.textContent;
+      new MutationObserver(function () {
+        if (hand.textContent === last) return;
+        last = hand.textContent;
+        el.classList.add('is-fading');
+        setTimeout(function () {
+          i = (i + 1) % LINES.length;
+          el.textContent = LINES[i];
+          el.classList.remove('is-fading');
+        }, 420);
+      }).observe(hand, { childList: true, characterData: true, subtree: true });
+    })();
+  </script>
+  <script>
+    /* Soot sprites — three little fuzzy thieves. Each sprite picks a
+       random eligible text-bearing element on the page, wraps one of
+       its glyphs in a .bf-soot-hole span (visibility:hidden so layout
+       doesn't shift), copies the glyph into itself, wanders for a
+       few seconds, then returns to the hole and restores the glyph.
+
+       Movement is transform-only with a CSS transition; the duration
+       per leg is set via the --bf-soot-sprite-dur custom property
+       right before the transform changes, so each leg can have its
+       own pace (approach quick, wander slow, return slow). */
+    (function () {
+      var TARGETS = [
+        '.bf-status-cell b',
+        '.bf-actions button',
+        '#bf-pot',
+        '#bf-opp-stack',
+        '#bf-player-stack',
+        '.bf-seat-name',
+        '.bf-zw-name',
+        '.bf-zw-vs',
+        '.bf-epithet',
+        '.bf-pot-label',
+        '.bf-seat-stack-coins',
+      ].join(', ');
+
+      function rand(a, b) { return a + Math.random() * (b - a); }
+
+      function firstTextNode(el) {
+        for (var i = 0; i < el.childNodes.length; i++) {
+          var n = el.childNodes[i];
+          if (n.nodeType === 3 && n.textContent.replace(/\s+/g, '').length > 0) return n;
+        }
+        return null;
+      }
+
+      function steal() {
+        var els = document.querySelectorAll(TARGETS);
+        if (!els.length) return null;
+        for (var tries = 0; tries < 20; tries++) {
+          var el = els[Math.floor(Math.random() * els.length)];
+          if (!el || el.offsetParent === null) continue;
+          var tn = firstTextNode(el);
+          if (!tn) continue;
+          var text = tn.textContent;
+          var nonspace = [];
+          for (var i = 0; i < text.length; i++) {
+            if (!/\s/.test(text.charAt(i))) nonspace.push(i);
+          }
+          if (!nonspace.length) continue;
+          var idx = nonspace[Math.floor(Math.random() * nonspace.length)];
+          var ch = text.charAt(idx);
+          var span = document.createElement('span');
+          span.className = 'bf-soot-hole';
+          span.textContent = ch;
+          var parent = tn.parentNode;
+          var beforeNode = document.createTextNode(text.slice(0, idx));
+          var afterNode  = document.createTextNode(text.slice(idx + 1));
+          parent.insertBefore(beforeNode, tn);
+          parent.insertBefore(span, tn);
+          parent.insertBefore(afterNode, tn);
+          parent.removeChild(tn);
+          return { span: span, ch: ch };
+        }
+        return null;
+      }
+
+      function restore(loot) {
+        if (!loot || !loot.span || !loot.span.parentNode) return;
+        var parent = loot.span.parentNode;
+        var prev = loot.span.previousSibling;
+        var next = loot.span.nextSibling;
+        // Re-merge surrounding text nodes if they exist, so the parent's
+        // childNodes stay tidy (the next steal() walks textNodes again).
+        var merged = (prev && prev.nodeType === 3 ? prev.textContent : '') +
+                     loot.span.textContent +
+                     (next && next.nodeType === 3 ? next.textContent : '');
+        var newText = document.createTextNode(merged);
+        parent.insertBefore(newText, loot.span);
+        if (prev && prev.nodeType === 3) parent.removeChild(prev);
+        parent.removeChild(loot.span);
+        if (next && next.nodeType === 3) parent.removeChild(next);
+      }
+
+      function centerOf(el) {
+        var r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2 - 15, y: r.top + r.height / 2 - 15 };
+      }
+
+      function move(sprite, x, y, dur) {
+        sprite.style.setProperty('--bf-soot-sprite-dur', dur + 'ms');
+        sprite.style.transform = 'translate(' + x.toFixed(1) + 'px, ' + y.toFixed(1) + 'px)';
+      }
+
+      function spawn(i) {
+        var sprite = document.createElement('div');
+        sprite.className = 'bf-soot-sprite';
+        document.body.appendChild(sprite);
+        // Start off-screen at a random edge.
+        var ex = rand(0, window.innerWidth);
+        var ey = -40;
+        move(sprite, ex, ey, 0);
+        sprite.getBoundingClientRect();  // force flush so the initial transform isn't transitioned
+        setTimeout(function () { sprite.classList.add('is-visible'); }, 40 + i * 600);
+        loop(sprite, i);
+      }
+
+      function loop(sprite, i) {
+        var carrying = null;
+        function next() {
+          // Approach: pick a target, animate to it.
+          var loot = steal();
+          if (!loot) { setTimeout(next, 1500); return; }
+          var t = centerOf(loot.span);
+          if (t.x === -15 && t.y === -15) { restore(loot); setTimeout(next, 800); return; }
+          move(sprite, t.x, t.y, rand(700, 1100));
+          setTimeout(function () {
+            // Pick up.
+            carrying = loot;
+            sprite.textContent = loot.ch;
+            sprite.classList.add('is-carrying');
+            // Wander somewhere on screen.
+            var wx = rand(60, window.innerWidth - 60);
+            var wy = rand(80, window.innerHeight - 80);
+            move(sprite, wx, wy, rand(1400, 2200));
+            setTimeout(function () {
+              // Return to the hole.
+              if (!carrying.span.parentNode) {
+                // Hole vanished (e.g. game engine re-rendered the cell).
+                // Drop the glyph and pick a new target.
+                sprite.textContent = '';
+                sprite.classList.remove('is-carrying');
+                carrying = null;
+                setTimeout(next, rand(800, 2500));
+                return;
+              }
+              var back = centerOf(carrying.span);
+              move(sprite, back.x, back.y, rand(900, 1300));
+              setTimeout(function () {
+                sprite.textContent = '';
+                sprite.classList.remove('is-carrying');
+                restore(carrying);
+                carrying = null;
+                setTimeout(next, rand(1500, 4500));
+              }, 1350);
+            }, rand(2000, 3500));
+          }, 1150);
+        }
+        // Stagger the first run so the three sprites don't act in lockstep.
+        setTimeout(next, 1200 + i * rand(800, 1600));
+      }
+
+      // Wait until layout settles + the game UI has its initial text.
+      window.addEventListener('load', function () {
+        setTimeout(function () { for (var i = 0; i < 8; i++) spawn(i); }, 600);
+      });
+    })();
+  </script>
+  <script>
+    /* Zashiki — anchor hat. Closed-hat 8ths with a touch of swing
+       (offbeat delayed ~12% of a beat) and a velocity accent on every
+       downbeat so the pulse reads. Single voice, single look-ahead
+       scheduler, lazy-boots on first click (browser autoplay policy).
+
+       Knobs at the top: BPM, SWING (0=straight, 0.15=light, 0.25=med,
+       0.33=triplet shuffle), ACCENT/GHOST gains. */
+    (function () {
+      var BPM    = 96;
+      var SWING  = 0.12;                 // 0..0.33; 0.12 = "touch"
+      var ACCENT = 0.18;                 // downbeat hat gain
+      var GHOST  = 0.10;                 // offbeat hat gain
+      var BEAT_S = 60 / BPM;             // 1 beat = 1 quarter
+      var EIGHTH = BEAT_S / 2;
+
+      var ctx = null, master = null;
+      var booted = false;
+
+      function hat(t, gain) {
+        var bufLen = Math.floor(ctx.sampleRate * 0.045);
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+        var src = ctx.createBufferSource(); src.buffer = buf;
+        var hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7200;
+        var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 9500; bp.Q.value = 0.6;
+        var g  = ctx.createGain();
+        g.gain.setValueAtTime(gain, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+        src.connect(hp).connect(bp).connect(g).connect(master);
+        src.start(t);
+      }
+
+      function startLoop() {
+        // Schedule eighth notes per beat. The second eighth of each
+        // beat (the "and") is pushed late by SWING * BEAT_S so the
+        // pattern shuffles. Beat count is just a step counter — no
+        // loop end, we stream forever.
+        var nextBeat = ctx.currentTime + 0.20;
+        var beatIdx = 0;
+        function scheduler() {
+          while (nextBeat < ctx.currentTime + 0.30) {
+            // Downbeat — accent.
+            hat(nextBeat, ACCENT);
+            // Offbeat — pushed by swing, softer.
+            hat(nextBeat + EIGHTH + SWING * BEAT_S, GHOST);
+            nextBeat += BEAT_S;
+            beatIdx++;
+          }
+        }
+        setInterval(scheduler, 80);
+        scheduler();
+      }
+
+      function boot() {
+        if (booted) return;
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        try { ctx = new AC(); } catch (e) { return; }
+        master = ctx.createGain();
+        master.gain.value = 0.55;
+        master.connect(ctx.destination);
+        if (ctx.state === 'suspended') ctx.resume();
+        booted = true;
+        startLoop();
+        document.removeEventListener('click',   boot, true);
+        document.removeEventListener('keydown', boot, true);
+      }
+      document.addEventListener('click',   boot, true);
+      document.addEventListener('keydown', boot, true);
+    })();
+  </script>
+  <script src="../js/bossfight/toast.js"></script>
+  <script src="../js/bossfight/holdem.js"></script>
+  <script src="../js/bossfight/ai.js"></script>
+  <script src="../js/bossfight/page.js"></script>
+
+  <script>
+    /* ─── Creepy Japanese boss music for Zashiki-Warashi ──────────────
+       Procedural koto + shakuhachi over taiko + woodblock + bell, all
+       in the In scale (the canonical sombre Japanese pentatonic with
+       semitone clusters — the "creepy/ghostly" register, not the
+       happier Yo). Regenerates pattern/tempo/root every 4 loops; never
+       repeats the same way twice.
+
+       Synth notes:
+         · koto pluck:   triangle wave + sharp decay envelope + soft
+                         highpass shimmer — sounds like a struck string
+         · shakuhachi:   sine wave with breath-noise overlay + slight
+                         vibrato pitch wobble — the woody flute hum
+         · taiko:        slow 80→25Hz sine drop with longer tail —
+                         heavy ceremonial drum boom
+         · woodblock:    sharp clipped noise burst with bandpass —
+                         the dry temple-block "clop"
+         · bell ting:    high sine ping with long exponential decay —
+                         the singing-bowl haunt note
+
+       Pacing is intentionally sparse — long held silences, individual
+       koto notes punctuated by held shakuhachi tones rather than a
+       continuous melody. Reads as a ritual ambient, not a dance tune. */
+    (function () {
+      var ctx = null, master = null, schedTimer = null;
+      var booted = false, muted = false;
+      var pattern = null, stepIdx = 0, nextTime = 0;
+      var LOOKAHEAD_MS = 100, AHEAD_S = 0.18;
+      var STEPS_PER_LOOP = 32;
+      var LOOPS_BEFORE_RESHUFFLE = 4;
+      var loopCount = 0;
+      // Echo bus — slap-tape delay with feedback. Built at boot; the
+      // koto routes through it for the trippy quarter-note arpeggio.
+      // echoDelay is kept module-scoped so the delay time can be
+      // retuned per pattern (dotted-eighth at the current tempo).
+      var echoBus = null, echoDelay = null;
+
+      // In scale (sombre Japanese pentatonic) — 1, ♭2, 4, 5, ♭6.
+      var SCALE = [0, 1, 5, 7, 8, 12, 13, 17];
+
+      function newPattern() {
+        // Slow ritual tempos — 58–82 BPM.
+        var bpm = 58 + Math.floor(Math.random() * 24);
+        // Root: A3 (220) up to D4 (294).
+        var rootHz = 220 * Math.pow(2, Math.floor(Math.random() * 6) / 12);
+        // Quarter-note arpeggio across the In scale. Steady, continuous,
+        // one note per beat (16 quarter-notes per 32-step loop). Each
+        // regen picks a fresh direction + speed + start position.
+        var arpDir = Math.random() < 0.6 ? 1 : -1;
+        var arpStep = [1, 1, 2][Math.floor(Math.random() * 3)];
+        var arpStart = Math.floor(Math.random() * SCALE.length);
+        // Shakuhachi sustained holds still happen — rare accent notes
+        // on bar starts, layered above the arp.
+        var flutes = [];
+        for (var b = 0; b < STEPS_PER_LOOP / 16; b++) {
+          flutes.push(Math.random() < 0.45 ? Math.floor(Math.random() * SCALE.length) : null);
+        }
+        var drumMode = ['minimal', 'ritual', 'temple'][Math.floor(Math.random() * 3)];
+        return {
+          bpm: bpm, rootHz: rootHz, drumMode: drumMode,
+          arpDir: arpDir, arpStep: arpStep, arpStart: arpStart,
+          flutes: flutes,
+        };
+      }
+
+      function scheduler() {
+        while (nextTime < ctx.currentTime + AHEAD_S) {
+          schedStep(stepIdx, nextTime);
+          var stepSec = (60 / pattern.bpm) / 4;
+          nextTime += stepSec;
+          stepIdx++;
+          if (stepIdx >= STEPS_PER_LOOP) {
+            stepIdx = 0;
+            loopCount++;
+            if (loopCount >= LOOPS_BEFORE_RESHUFFLE) {
+              pattern = newPattern();
+              retuneEcho();
+              loopCount = 0;
+            }
+          }
+        }
+      }
+      // Set the echo delay to a dotted-eighth of the current tempo —
+      // each koto note's first echo lands between beats for the
+      // trippy off-beat slip. Re-applied whenever the tempo changes.
+      function retuneEcho() {
+        if (!echoDelay || !pattern) return;
+        var quarter = 60 / pattern.bpm;
+        echoDelay.delayTime.setTargetAtTime(quarter * 0.75, ctx.currentTime, 0.1);
+      }
+
+      function schedStep(step, t) {
+        var stepSec = (60 / pattern.bpm) / 4;
+
+        // ── Voice 1: quarter-note arpeggio — fires only on each beat
+        // (inBeat === 0). Steady continuous figure through the In
+        // scale; routed through the echo bus for the slap-tape delay
+        // tail that drives the trippy feel.
+        if (step % 4 === 0) {
+          var beat = Math.floor(step / 4);
+          var idx = ((pattern.arpStart + beat * pattern.arpStep * pattern.arpDir)
+                      % SCALE.length + SCALE.length) % SCALE.length;
+          var arpHz = pattern.rootHz * Math.pow(2, SCALE[idx] / 12);
+          koto(arpHz, t, stepSec * 3.2, 0.24);
+          // Octave-up sympathetic shimmer
+          koto(arpHz * 2, t, stepSec * 1.6, 0.07);
+        }
+
+        // ── Voice 2: shakuhachi sustained flute on bar starts (only
+        // if the pattern's flutes[barNum] is non-null). Floats above
+        // the arp; dry signal (no echo) so it reads as a single held
+        // tone, not a delay cloud.
+        if (step % 16 === 0) {
+          var bar = Math.floor(step / 16);
+          var fDeg = pattern.flutes[bar];
+          if (fDeg != null) {
+            var fHz = pattern.rootHz * Math.pow(2, SCALE[fDeg] / 12);
+            shakuhachi(fHz, t, stepSec * 14, 0.16);
+          }
+        }
+
+        // Drums — sparse and ritual
+        var inBeat = step % 4;
+        var beatNum = Math.floor(step / 4) % 4;
+
+        // Taiko boom on downbeat 1 of every bar (every 16 steps)
+        if (step === 0 || step === 16) {
+          taiko(t);
+        }
+        // Second taiko hit on beat 3 only in ritual/temple
+        if (step === 8 && pattern.drumMode !== 'minimal') {
+          taiko(t, 0.7);
+        }
+
+        // Woodblock — clops on beats 2 & 4 in temple mode, only beat
+        // 4 in ritual, never in minimal
+        if (inBeat === 0) {
+          if (pattern.drumMode === 'temple' && (beatNum === 1 || beatNum === 3)) {
+            woodblock(t);
+          } else if (pattern.drumMode === 'ritual' && beatNum === 3) {
+            woodblock(t);
+          }
+        }
+
+        // Bell ting — rare, on bar starts, low chance
+        if ((step === 0 || step === 16) && Math.random() < 0.4) {
+          bell(pattern.rootHz * 2, t + stepSec * 0.5);
+        }
+      }
+
+      // Koto pluck — triangle wave with sharp decay, soft highpass
+      // shimmer makes it ring like a struck string.
+      function koto(hz, t, dur, gain) {
+        var osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(hz, t);
+        var hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = Math.min(hz * 0.7, 600);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(gain, t);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.001, gain * 0.3), t + dur * 0.25);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(hp).connect(g).connect(echoBus || master);
+        osc.start(t);
+        osc.stop(t + dur + 0.05);
+      }
+
+      // Shakuhachi — sine wave with breath noise overlay and a slight
+      // vibrato. Long sustained hold, slow attack.
+      function shakuhachi(hz, t, dur, gain) {
+        var osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(hz, t);
+        // Subtle vibrato via a slow LFO on the frequency
+        var lfo = ctx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = 5.2;
+        var lfoGain = ctx.createGain();
+        lfoGain.gain.value = hz * 0.012;
+        lfo.connect(lfoGain).connect(osc.frequency);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + 0.18);
+        g.gain.linearRampToValueAtTime(gain * 0.85, t + dur * 0.6);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        // Breath-noise — quiet highpassed noise the same duration
+        var bufLen = Math.max(1, Math.floor(ctx.sampleRate * dur));
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * 0.5;
+        var noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        var noiseHp = ctx.createBiquadFilter();
+        noiseHp.type = 'highpass';
+        noiseHp.frequency.value = 3500;
+        var noiseG = ctx.createGain();
+        noiseG.gain.setValueAtTime(0, t);
+        noiseG.gain.linearRampToValueAtTime(gain * 0.18, t + 0.18);
+        noiseG.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+        osc.connect(g).connect(master);
+        noise.connect(noiseHp).connect(noiseG).connect(master);
+        osc.start(t);
+        lfo.start(t);
+        noise.start(t);
+        osc.stop(t + dur + 0.1);
+        lfo.stop(t + dur + 0.1);
+      }
+
+      // Taiko — heavy ceremonial drum boom, slow pitch drop, long tail.
+      function taiko(t, gainScale) {
+        gainScale = gainScale || 1;
+        var osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(80, t);
+        osc.frequency.exponentialRampToValueAtTime(25, t + 0.18);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.6 * gainScale, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.50);
+        osc.connect(g).connect(master);
+        osc.start(t);
+        osc.stop(t + 0.55);
+      }
+
+      // Woodblock — sharp clipped noise burst with a tight bandpass.
+      function woodblock(t) {
+        var bufLen = ctx.sampleRate * 0.05;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        var bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 2400;
+        bp.Q.value = 3.5;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.32, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+        src.connect(bp).connect(g).connect(master);
+        src.start(t);
+      }
+
+      // Bell — high sine ping with very long exponential decay; the
+      // singing-bowl haunt note. Quiet, just a far-away ting.
+      function bell(hz, t) {
+        var osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(hz, t);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.18, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+        osc.connect(g).connect(master);
+        osc.start(t);
+        osc.stop(t + 2.3);
+      }
+
+      function boot() {
+        if (booted) return;
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC();
+        master = ctx.createGain();
+        master.gain.value = 0.42;
+        master.connect(ctx.destination);
+
+        // ── Echo bus — slap-tape delay with feedback. Koto routes
+        // here for the quarter-note arpeggio's delay tail. Delay
+        // length is just under a dotted-quarter so each note echoes
+        // off the beat for the classic trippy slip; feedback at 0.42
+        // gives ~3 audible repeats before fading.
+        echoBus = ctx.createGain();
+        echoDelay = ctx.createDelay(2.0);
+        echoDelay.delayTime.value = 0.42;        // retuned per-pattern below
+        var fb = ctx.createGain();
+        fb.gain.value = 0.42;
+        var wet = ctx.createGain();
+        wet.gain.value = 0.55;
+        // Slight highpass on the wet signal — keeps the delay tail
+        // bright (the koto's transient lingers, not its body thump).
+        var hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 400;
+        echoBus.connect(echoDelay);
+        echoDelay.connect(fb).connect(echoDelay);   // feedback loop
+        echoDelay.connect(hp).connect(wet).connect(master);
+        // Dry pass-through so the original koto hit lands clean
+        echoBus.connect(master);
+
+        pattern = newPattern();
+        retuneEcho();
+        stepIdx = 0;
+        loopCount = 0;
+        nextTime = ctx.currentTime + 0.1;
+        schedTimer = setInterval(scheduler, LOOKAHEAD_MS);
+        booted = true;
+        updateToggleLabel();
+      }
+      function setMuted(m) {
+        muted = m;
+        if (master) master.gain.value = muted ? 0 : 0.42;
+        updateToggleLabel();
+      }
+      function updateToggleLabel() {
+        var t = document.getElementById('bf-zashiki-toggle');
+        if (t) t.textContent = (booted && !muted) ? '♪ on' : '♪ off';
+      }
+
+      // Toggle pill — caution-yellow on black to match Zashiki's palette.
+      var pill = document.createElement('button');
+      pill.id = 'bf-zashiki-toggle';
+      pill.type = 'button';
+      pill.textContent = '♪ off';
+      pill.style.cssText = [
+        'position: fixed',
+        'bottom: 10px',
+        'left: 10px',
+        'z-index: 90',
+        'padding: 4px 10px',
+        'background: rgba(0,0,0,0.78)',
+        'color: #ffd700',
+        'border: 1px solid #ffd700',
+        'border-radius: 999px',
+        'font-family: monospace',
+        'font-size: 11px',
+        'letter-spacing: 0.16em',
+        'cursor: pointer',
+        'text-transform: uppercase'
+      ].join(';');
+      pill.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!booted) boot(); else setMuted(!muted);
+      });
+      document.body.appendChild(pill);
+
+      // Auto-boot on first non-toggle click (browser autoplay gesture).
+      function bootOnGesture() {
+        if (!booted) boot();
+        document.removeEventListener('click', bootOnGesture, true);
+      }
+      document.addEventListener('click', bootOnGesture, true);
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\turpincj1\\\\Desktop\\\\sinnerbox\\\\pages\\\\rpgTest.html\" | Measure-Object -Line\\).Lines)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\turpincj1\\\\Desktop\\\\sinnerbox\" -Directory -Force | ForEach-Object { $_.Name })",
+      "PowerShell(Start-Sleep -Milliseconds 600; $r = Invoke-WebRequest -Uri 'http://localhost:8765/pages/opossumer.html' -UseBasicParsing; \"STATUS=$\\($r.StatusCode\\) LEN=$\\($r.Content.Length\\)\")",
+      "PowerShell(node --check js/opossumer/page.js 2>&1)",
+      "PowerShell(if \\($?\\) { \"JS_OK\" })",
+      "PowerShell(python -c \"import py_mini_racer\" 2>&1)",
+      "PowerShell(\"DONE\")",
+      "PowerShell(\\(Get-Content c:\\\\Users\\\\turpincj1\\\\Desktop\\\\sinnerbox\\\\js\\\\craps\\\\putt.js\\).Length)"
+    ]
+  }
+}

@@ -1,0 +1,715 @@
+/*
+  MINIGAME-CLOSENESS — minimal styling
+  ─────────────────────────────────────────────────────────────────────────
+  Reset. Three things only:
+    1. THE WHEEL      .reel-window + .reel-strip + .reel-plinker
+    2. THE BAR        .power-meter (vertical, left of the wheel)
+    3. YOUR CHILD     .lcd-screen with housing emoji + kaomoji face
+
+  Everything else page.js / wheel.js inject — title, rules drawer, meter
+  bar (closeness/strikes pips), status text, coins-bar, snow canvas — is
+  display:none here so the layout is exactly those three elements.
+  Consumed by: pages/minigame-closeness.html
+*/
+
+* { box-sizing: border-box; }
+
+body.nursery {
+  margin: 0;
+  background: #000;
+  color: #fff;
+  font-family: 'Special Elite', 'Courier New', monospace;
+  min-height: 100vh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Hide only the truly dead pieces — the rest of the UI is restyled below
+   to match the CRT/dither aesthetic. */
+.wallpaper-stains,
+.rules-drawer,
+.lcd-house .tama-tells,
+.reel-band-top,
+.reel-band-bottom,
+.lcd-scanlines,
+#cls-snow                       { display: none; }
+
+main { width: 100%; max-width: 800px; }
+
+/* ─── HEADER ──────────────────────────────────────────────────────── */
+header {
+  text-align: center;
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+header h1 {
+  display: block;
+  width: 100%;
+  margin: 0;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  letter-spacing: 0.08em;
+  color: #fff;
+  text-shadow:
+    0 0 8px rgba(255, 255, 255, 0.55),
+    0 0 18px rgba(120, 200, 255, 0.35);
+}
+.minigame-subtitle {
+  margin: 2px 0 0;
+  font-family: 'Special Elite', monospace;
+  font-style: italic;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #c8a0c0;
+  text-shadow: 0 0 6px rgba(160, 100, 200, 0.5);
+}
+.coins-bar {
+  /* base.css ships `position: absolute; top: 18px; right: 14px;` — override
+     so the coins display flows in the flex header column instead of pinning
+     to the corner and overlapping the title. */
+  position: static;
+  top: auto;
+  right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 3px 12px;
+  font-family: 'Special Elite', monospace;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  background: #000;
+  border: 1px solid #fff;
+  box-shadow:
+    0 0 6px rgba(255, 255, 255, 0.25),
+    inset 0 0 8px rgba(0, 0, 0, 0.6);
+}
+.coins-bar .coins-label { color: #888; text-transform: uppercase; font-size: 10px; }
+.coins-bar #balance {
+  color: #40ff90;
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(64, 255, 144, 0.65);
+}
+.header-nav {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  font-family: 'Special Elite', monospace;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.header-nav a {
+  color: #c8a0c0;
+  text-decoration: none;
+  text-shadow: 0 0 4px rgba(160, 100, 200, 0.45);
+}
+.header-nav a:hover { color: #fff; }
+
+.closeness-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ─── METER BAR (closeness + strikes) ─────────────────────────────── */
+.meter-bar {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  padding: 10px 18px;
+  background: #000;
+  border: 1px solid #fff;
+  box-shadow:
+    0 0 8px rgba(255, 255, 255, 0.18),
+    inset 0 0 12px rgba(0, 0, 0, 0.7);
+}
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.meter-label {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.16em;
+  color: #fff;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+.meter-target {
+  font-family: 'Special Elite', monospace;
+  font-size: 11px;
+  color: #888;
+}
+.meter-pips {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* empty pip — thin glowing ring */
+.meter-pip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #fff;
+  background: #000;
+  font-family: 'Special Elite', monospace;
+  font-size: 12px;
+  line-height: 1;
+  box-shadow:
+    inset 0 0 4px rgba(0, 0, 0, 0.8),
+    0 0 4px rgba(255, 255, 255, 0.25);
+}
+.meter-pip.pip-close { border-radius: 50%; }
+.meter-pip.pip-strike { border-radius: 2px; }
+
+/* filled pip — bright accent fill + matching halo */
+.meter-pip.pip-close.on {
+  background: #ff2080;
+  border-color: #ff80b0;
+  box-shadow:
+    inset 0 0 6px rgba(255, 255, 255, 0.5),
+    0 0 8px rgba(255, 32, 128, 0.9),
+    0 0 18px rgba(255, 32, 128, 0.5);
+}
+.meter-pip.pip-strike.on {
+  background: #ff2030;
+  border-color: #ff8090;
+  color: #fff;
+  box-shadow:
+    inset 0 0 6px rgba(255, 255, 255, 0.4),
+    0 0 8px rgba(255, 32, 48, 0.9),
+    0 0 18px rgba(255, 32, 48, 0.45);
+  text-shadow: 0 0 4px #fff;
+}
+/* meter flash when the bar fills (set briefly by JS) */
+.meter-pips.meter-flash {
+  animation: meterFlash 0.6s ease-out;
+}
+@keyframes meterFlash {
+  0%   { filter: brightness(1); }
+  30%  { filter: brightness(2.2); }
+  100% { filter: brightness(1); }
+}
+
+/* ─── STATUS LINE (narrative under the wheel) ─────────────────────── */
+.closeness-status {
+  font-family: 'Special Elite', monospace;
+  font-style: italic;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: #d8c8a8;
+  text-align: center;
+  max-width: 480px;
+  min-height: 1.4em;
+  text-shadow: 0 0 6px rgba(216, 200, 168, 0.4);
+}
+
+/* ─── LCD HOUSING LABEL ───────────────────────────────────────────── */
+.lcd-housing-label {
+  display: block;
+  margin-top: 8px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  color: #ff9020;
+  text-shadow: 0 0 6px rgba(255, 144, 32, 0.6);
+}
+
+.arena {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+}
+
+/* ─── CLOSENESS + STRIKE METER ────────────────────────────────────── */
+.meter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 8px 18px;
+  margin: 0 auto;
+  background: #000;
+  border: 1px solid #fff;
+  box-shadow:
+    0 0 8px rgba(255, 255, 255, 0.25),
+    0 0 18px rgba(120, 200, 255, 0.18);
+}
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.14em;
+  color: #fff;
+}
+.meter-label { font-weight: 400; text-shadow: 0 0 6px rgba(255,255,255,0.4); }
+.meter-pips  { display: flex; align-items: center; gap: 6px; }
+.meter-target {
+  font-family: 'Special Elite', monospace;
+  font-size: 11px;
+  color: #888;
+  margin-left: 2px;
+}
+/* Pips: hollow circle/square when off; bright phosphor when on. */
+.meter-pip {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #fff;
+  background: transparent;
+  display: inline-block;
+}
+.meter-pip.pip-close            { border-radius: 50%; }
+.meter-pip.pip-strike           { border-radius: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: transparent; }
+.meter-pip.pip-close.on {
+  background: #ff4080;
+  border-color: #ff80b8;
+  box-shadow:
+    0 0 6px #ff4080,
+    0 0 14px rgba(255, 64, 128, 0.55);
+}
+.meter-pip.pip-strike.on {
+  background: #ff2040;
+  border-color: #ff6080;
+  color: #fff;
+  box-shadow:
+    0 0 6px #ff2040,
+    0 0 14px rgba(255, 32, 64, 0.55);
+}
+.meter-flash { animation: meterFlash 0.55s ease-out; }
+@keyframes meterFlash {
+  0%   { filter: brightness(1) drop-shadow(0 0 0 transparent); transform: scale(1); }
+  30%  { filter: brightness(1.6) drop-shadow(0 0 10px rgba(255, 200, 100, 0.9)); transform: scale(1.18); }
+  100% { filter: brightness(1) drop-shadow(0 0 0 transparent); transform: scale(1); }
+}
+
+/* ─── 1. THE WHEEL ────────────────────────────────────────────────── */
+.reel-rig {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reel-window {
+  position: relative;
+  width: 240px;
+  height: 400px;          /* 5 rows */
+  overflow: hidden;
+  background: #000;
+  border: 2px solid #fff;
+  /* CRT phosphor glow halo around the whole screen edge */
+  box-shadow:
+    0 0 0 1px #fff inset,
+    0 0 12px rgba(255, 255, 255, 0.18),
+    0 0 28px rgba(120, 200, 255, 0.15),
+    0 0 52px rgba(40, 120, 220, 0.10);
+}
+/* CRT scanlines overlaid on the wheel — fine horizontal dark stripes
+   every other pixel that don't intercept clicks. */
+.reel-window::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.22) 2px,
+    rgba(0, 0, 0, 0.22) 3px
+  );
+  /* faint vignette so the corners go a touch dimmer like an old tube */
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.45);
+}
+
+.reel-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+
+.reel-item {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-bottom: 1px solid #000;
+  /* Obra Dinn dither tiles need pixel-perfect rendering — no smoothing. */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  --accent: #fff;
+}
+
+.reel-item::before { display: none; }
+/* Per-row accent-color overlay multiplied over the dither — turns the
+   white pixels accent-colored while black gaps stay black, giving each
+   row a unique colored-dither texture on top of the same B&W pattern. */
+.reel-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Label + icon as STICKER CHIPS — solid black backdrop, bold condensed
+   Bebas Neue text in white. Pops cleanly against any dither density +
+   any accent color overlay underneath. */
+.reel-item .reel-icon,
+.reel-item .reel-label {
+  position: relative;
+  z-index: 2;
+  background: #000;
+  color: #fff;
+  font-weight: 400;
+  text-shadow: none;
+}
+.reel-item .reel-icon {
+  font-family: 'Special Elite', 'Segoe UI Symbol', monospace;
+  font-size: 22px;
+  padding: 2px 7px;
+  line-height: 1.1;
+  /* phosphor bleed on the chip edge */
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+}
+.reel-item .reel-label {
+  font-family: 'Bebas Neue', 'Special Elite', sans-serif;
+  font-size: 22px;
+  letter-spacing: 0.12em;
+  padding: 3px 9px;
+  line-height: 1.05;
+  /* phosphor bleed on the chip edge + slight text-glow on the white type */
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+.reel-plinker {
+  position: relative;
+  width: 28px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+}
+.reel-plinker-tip {
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  clip-path: polygon(0% 50%, 100% 0%, 100% 100%);
+  transform-origin: 100% 50%;
+}
+
+/* Physical pegs — bright knobs sticking off the right edge of every row,
+   straddling the boundary so as they scroll past the plinker tip you see
+   exactly what's being hit. White with a hard black outline + CRT
+   phosphor glow halo for max visibility against any dither pattern. */
+.reel-item .reel-peg {
+  position: absolute;
+  right: 0;
+  top: -4px;
+  width: 9px;
+  height: 9px;
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 50%;
+  box-shadow:
+    inset -1px -1px 0 rgba(0, 0, 0, 0.35),
+    0 0 0 1px #000,
+    0 0 6px rgba(255, 255, 255, 0.7),
+    0 0 12px rgba(160, 220, 255, 0.45);
+  z-index: 6;
+  pointer-events: none;
+}
+
+/* ═══ SPARKS ═══ */
+/* Bright white grinder sparks that fire from the plinker tip on every
+   peg-strike. The body.nursery > * { position: relative; z-index: 1 }
+   rule would otherwise hijack our fixed positioning, so .wheel-spark is
+   explicitly listed in the exception below the body rule. */
+.wheel-spark {
+  position: fixed;
+  width: 5px;
+  height: 5px;
+  background: #fff;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  --vx: 0px;
+  --vy: -60px;
+  transform: translate(-50%, -50%);
+  /* The FORCE — hot-white core with three layered halos: tight glow, mid
+     yellow bleed, far-orange wash. Reads as a real shower of sparks. */
+  box-shadow:
+    0 0 0 1px #fff,
+    0 0 6px #fff,
+    0 0 14px #ffe040,
+    0 0 28px rgba(255, 160, 40, 0.6);
+  animation: sparkFly 480ms cubic-bezier(0.15, 0.7, 0.35, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes sparkFly {
+  0%   { transform: translate(-50%, -50%) scale(1.6); opacity: 1; }
+  82%  { opacity: 1; }
+  100% {
+    transform:
+      translate(calc(-50% + var(--vx)), calc(-50% + var(--vy) + 90px))
+      scale(0.25);
+    opacity: 0;
+  }
+}
+
+/* ─── 2. THE BAR (power meter, vertical) ──────────────────────────── */
+.power-meter {
+  position: relative;
+  width: 24px;
+  height: 400px;
+  background:
+    /* one big smooth gradient from FULL (top, green) → STRIKE (bottom, red) */
+    linear-gradient(180deg,
+      #20e040 0%,
+      #80ff20 18%,
+      #ffe000 40%,
+      #ff7000 70%,
+      #c00020 85%,
+      #600010 100%);
+  border: 2px solid #fff;
+  overflow: hidden;
+}
+.power-meter[data-state="armed"] {
+  outline: 2px solid #ff0;
+  box-shadow: 0 0 12px rgba(255, 240, 60, 0.85);
+}
+
+/* Zone labels still exist for the boundaries (STRIKE at the bottom etc.)
+   but they're transparent so the gradient shows through. */
+.power-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.power-zone        { flex: 0 0 auto; width: 100%; font-size: 0; background: transparent; }
+.power-zone-high   { flex-basis: 25%; }
+.power-zone-mid    { flex-basis: 30%; }
+.power-zone-low    { flex-basis: 25%; }
+.power-zone-strike { flex-basis: 20%; }
+
+.power-needle {
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  top: 0;
+  height: 3px;
+  background: #fff;
+  z-index: 3;
+  pointer-events: none;
+}
+.power-needle::before,
+.power-needle::after { display: none; }
+
+/* ─── 3. YOUR CHILD AREA ──────────────────────────────────────────── */
+.lcd-house {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.lcd-screen {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  overflow: hidden;
+  background: #000;
+  border: 2px solid #fff;
+  /* matching CRT-style phosphor glow */
+  box-shadow:
+    0 0 0 1px #fff inset,
+    0 0 12px rgba(255, 200, 100, 0.20),
+    0 0 28px rgba(64, 144, 255, 0.18),
+    0 0 52px rgba(40, 120, 220, 0.12);
+}
+.lcd-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.22) 2px,
+    rgba(0, 0, 0, 0.22) 3px
+  );
+  box-shadow: inset 0 0 36px rgba(0, 0, 0, 0.4);
+}
+/* LITE BRITE rendering of the housing emoji. background-clip: text clips
+   a CSS background — a grid of bright glowing colored pegs on a black
+   field — to the emoji glyph shape. The emoji becomes a constellation of
+   lit-up pegs, like a child's Lite Brite toy: dark pegboard with bright
+   plastic pegs poking through. Each peg has a soft halo that bleeds into
+   the next so adjacent pegs feel "lit". */
+.lcd-symbol {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 200px;
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+  filter: none;
+  opacity: 1;
+  background:
+    /* Bright blue peg with a hot center fading to transparent → soft halo. */
+    radial-gradient(circle 3px at 50% 50%,
+      #c0e0ff  0%,
+      #60a0ff  35%,
+      #2050d0  60%,
+      transparent 78%) 0 0 / 9px 9px,
+    /* Black pegboard backing. */
+    #000;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+/* Kaomoji is rendered in the COMPLEMENTARY color to the housing emoji —
+   the truck is blue Lite-Brite pegs, so the face is a solid bright orange
+   that pops against it. Tiny glow halo to match the Lite-Brite aesthetic
+   (the kaomoji reads like its own constellation of lit pegs sitting over
+   the truck). */
+.lcd-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: 'VT323', monospace;
+  font-size: 56px;
+  font-weight: 700;
+  color: #ff9020;               /* complement of the blue truck */
+  z-index: 5;
+  pointer-events: none;
+  white-space: nowrap;
+  text-shadow:
+    0 0 4px #ff9020,
+    0 0 10px rgba(255, 144, 32, 0.55);
+}
+.lcd-toys {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 7;
+  overflow: hidden;
+}
+
+/* ─── Controls (the button) ───────────────────────────────────────── */
+.closeness-controls {
+  display: flex;
+  justify-content: center;
+}
+.closeness-btn {
+  font-family: 'Special Elite', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 10px 28px;
+  background: #fff;
+  color: #000;
+  border: 2px solid #fff;
+  cursor: pointer;
+}
+.closeness-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.closeness-btn-hint { display: none; }
+
+/* ─── 1×3 MINI-SLOT overlay ───────────────────────────────────────────
+   Appears centred in the viewport when a row lands on MINI-SLOT. Three
+   reels cycle through 4 faces (♥ ✕ $ ↻), each lands ~200 ms after the
+   last with a Sound.tick clack, and the effect of each lands at that
+   moment via playMiniSlot() in page.js. */
+.minislot-overlay {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #000;
+  border: 2px solid #fff;
+  box-shadow:
+    0 0 12px rgba(0, 208, 255, 0.7),
+    0 0 30px rgba(0, 208, 255, 0.35),
+    0 0 60px rgba(0, 64, 200, 0.25);
+  font-family: 'Special Elite', monospace;
+  z-index: 9990;
+  pointer-events: none;
+}
+.minislot-overlay.is-active { display: flex; }
+
+.minislot-reel {
+  width: 56px;
+  height: 64px;
+  background: #000;
+  border: 1px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  color: #00d0ff;
+  text-shadow: 0 0 6px #00d0ff;
+}
+.minislot-reel.is-landed {
+  background: #fff;
+  color: #000;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  animation: miniLand 0.18s ease-out;
+}
+@keyframes miniLand {
+  0%   { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+
+/* ─── Event particles in the LCD ──────────────────────────────────── */
+.house-evt {
+  position: absolute;
+  font-family: 'Special Elite', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  bottom: 110px;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.house-evt.evt-float   { animation: evtFloat   1.6s ease-out forwards; }
+.house-evt.evt-fall    { top: -16px; bottom: auto; animation: evtFall 1.5s linear forwards; }
+.house-evt.evt-bounce  { animation: evtBounce  1.6s ease-out forwards; }
+.house-evt.evt-shake   { animation: evtShake   0.9s ease-in-out forwards; }
+.house-evt.evt-splash  { animation: evtSplash  1.0s ease-out forwards; }
+.house-evt.evt-spin    { top: 50px; bottom: auto; animation: evtSpin 1.3s ease-out forwards; }
+@keyframes evtFloat   { 0%{transform:translateY(0) scale(0.5);opacity:0} 15%{opacity:1} 100%{transform:translateY(-220px) scale(0.7);opacity:0} }
+@keyframes evtFall    { 0%{transform:translateY(0) rotate(0);opacity:0} 10%{opacity:1} 100%{transform:translateY(340px) rotate(540deg);opacity:0.2} }
+@keyframes evtBounce  { 0%{transform:translateY(-80px) scale(0.3);opacity:0} 35%{transform:translateY(0) scale(1.2);opacity:1} 100%{transform:translateY(0) scale(0.7);opacity:0} }
+@keyframes evtShake   { 0%{transform:translateX(0) scale(0.4);opacity:0} 15%{transform:translateX(0) scale(1.3);opacity:1} 50%{transform:translateX(6px)} 100%{transform:translateX(0) scale(0.8);opacity:0} }
+@keyframes evtSplash  { 0%{transform:scale(0);opacity:0} 18%{transform:scale(1.5);opacity:1} 100%{transform:scale(0.8) translateY(40px);opacity:0} }
+@keyframes evtSpin    { 0%{transform:scale(0) rotate(0);opacity:0} 30%{transform:scale(1.2) rotate(360deg);opacity:1} 100%{transform:scale(0.4) rotate(720deg);opacity:0} }

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — POKERCHIP (St. Mary's Summer Festival, 100,000 coins)       │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item page for a red clay poker chip from St. Mary's Summer Festival,  │
+  │    Oak Ridge. Two faces: the festival logo (sun + banner) on the front,  │
+  │    the child's current kaomoji (from Child.describeFace) on the back.    │
+  │    The player clicks the chip to flip it; each flip reveals the next     │
+  │    line of prose beneath. Five lines total. After the last line, the     │
+  │    chip still flips but the prose stays settled on the final beat. The   │
+  │    whole gesture is one of putting something small in your palm and      │
+  │    turning it over and over.                                             │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/child.js (for Child.describeFace + kc toggle)         │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death   │
+  │    DOM: .pc-felt + .pc-scene > .pc-chip-wrap > .pc-chip (.pc-face-front  │
+  │      [.pc-sun, .pc-banner, .pc-sub], .pc-face-back [#pc-komoji = live    │
+  │      kc preview, .pc-child-label]), .pc-line, .pc-hint,                  │
+  │      .kc-bay > .kc-toggle, .pc-back                                      │
+  │    flow: setInterval 420ms ticks #pc-komoji through describeFace frames  │
+  │      (picks up cosmetic decorations live); click .pc-chip → toggle       │
+  │      .is-flipped (3D rotateY); on flip, advance lineIdx (capped at       │
+  │      LINES.length-1); render LINES[lineIdx] into .pc-line w/ fade        │
+  │      transition; hide .pc-hint after first flip.                         │
+  │      Second IIFE: .kc-toggle click → Child.setCosmetic('pokerchip',!).   │
+  │    storage R/W: reads wendys_palace_child (via Child); writes            │
+  │      wendys_palace_child.cosmetics.pokerchip via Child.setCosmetic;      │
+  │      ownership tracked in wendys_palace_giftshop by index                │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)              │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>St. Mary's Summer Festival</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=Special+Elite&family=Cormorant+Garamond:ital,wght@0,400;1,400&family=Limelight&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 50% 30%, #1a2814 0%, #0a1408 70%, #050808 100%);
+      color: #d8c8a8;
+      font-family: 'Cormorant Garamond', serif;
+      overflow-x: hidden;
+    }
+    .pc-felt {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(180, 60, 60, 0.06) 0%, transparent 50%),
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0 2px, transparent 2px 5px);
+      pointer-events: none;
+    }
+    .pc-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 22px;
+      gap: 28px;
+      position: relative;
+    }
+
+    /* ===== Chip (3D flip) ===== */
+    .pc-chip-wrap {
+      width: 260px;
+      height: 260px;
+      perspective: 1100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pc-chip {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 900ms cubic-bezier(0.5, 0.1, 0.3, 1);
+      cursor: pointer;
+      animation: pc-bob 6s ease-in-out infinite;
+    }
+    .pc-chip.is-flipped { transform: rotateY(180deg); }
+    @keyframes pc-bob {
+      0%, 100% { translate: 0 0; }
+      50%      { translate: 0 -4px; }
+    }
+
+    .pc-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        inset 0 -10px 26px rgba(0,0,0,0.55),
+        inset 0 4px 10px rgba(255, 200, 200, 0.30),
+        0 18px 50px rgba(0,0,0,0.7),
+        0 0 50px rgba(200, 60, 60, 0.13);
+    }
+    .pc-face-front {
+      background: radial-gradient(circle at 32% 28%, #e85858 0%, #b03030 40%, #8a1818 75%, #4a0808 100%);
+    }
+    .pc-face-back {
+      background: radial-gradient(circle at 32% 28%, #c84040 0%, #8a1818 50%, #4a0808 100%);
+      transform: rotateY(180deg);
+    }
+    .pc-edge {
+      position: absolute;
+      inset: 12px;
+      border-radius: 50%;
+      border: 4px dashed rgba(255, 240, 220, 0.55);
+      pointer-events: none;
+    }
+    .pc-inlay {
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #f4e0c0 0%, #c8a878 60%, #8a6840 100%);
+      border: 2px solid #4a2808;
+      box-shadow:
+        inset 0 -6px 12px rgba(0,0,0,0.3),
+        inset 0 4px 8px rgba(255, 240, 200, 0.4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 10px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ===== Front face — Summer Festival logo ===== */
+    .pc-sun {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #f8d878 0%, #d89838 60%, #8a4a08 100%);
+      box-shadow: 0 0 12px rgba(232, 168, 56, 0.55);
+      margin-bottom: 6px;
+    }
+    .pc-sun::before,
+    .pc-sun::after {
+      content: "";
+      position: absolute;
+      inset: -10px;
+      border-radius: 50%;
+      background:
+        conic-gradient(from 0deg,
+          rgba(232, 168, 56, 0.85) 0deg 8deg, transparent 8deg 30deg,
+          rgba(232, 168, 56, 0.85) 30deg 38deg, transparent 38deg 60deg,
+          rgba(232, 168, 56, 0.85) 60deg 68deg, transparent 68deg 90deg,
+          rgba(232, 168, 56, 0.85) 90deg 98deg, transparent 98deg 120deg,
+          rgba(232, 168, 56, 0.85) 120deg 128deg, transparent 128deg 150deg,
+          rgba(232, 168, 56, 0.85) 150deg 158deg, transparent 158deg 180deg,
+          rgba(232, 168, 56, 0.85) 180deg 188deg, transparent 188deg 210deg,
+          rgba(232, 168, 56, 0.85) 210deg 218deg, transparent 218deg 240deg,
+          rgba(232, 168, 56, 0.85) 240deg 248deg, transparent 248deg 270deg,
+          rgba(232, 168, 56, 0.85) 270deg 278deg, transparent 278deg 300deg,
+          rgba(232, 168, 56, 0.85) 300deg 308deg, transparent 308deg 330deg,
+          rgba(232, 168, 56, 0.85) 330deg 338deg, transparent 338deg 360deg);
+      -webkit-mask: radial-gradient(circle, transparent 36px, #000 36px);
+              mask: radial-gradient(circle, transparent 36px, #000 36px);
+      z-index: -1;
+    }
+    .pc-banner {
+      font-family: 'Limelight', serif;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      color: #2a1018;
+      line-height: 1.15;
+    }
+    .pc-sub {
+      font-family: 'Special Elite', monospace;
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: #4a1828;
+      margin-top: 3px;
+      padding-top: 4px;
+      border-top: 1px dashed rgba(74, 40, 8, 0.55);
+      width: 80%;
+    }
+
+    /* ===== Back face — child's komoji ===== */
+    .pc-komoji {
+      font-family: 'Special Elite', monospace;
+      font-size: 30px;
+      line-height: 1.05;
+      color: #2a1018;
+      letter-spacing: -0.02em;
+      white-space: pre;
+      text-align: center;
+    }
+    .pc-child-label {
+      position: absolute;
+      bottom: 12px;
+      left: 0;
+      right: 0;
+      font-family: 'Special Elite', monospace;
+      font-size: 8px;
+      letter-spacing: 0.24em;
+      color: rgba(42, 16, 24, 0.7);
+      text-align: center;
+    }
+
+    /* ===== Prose line beneath the chip ===== */
+    .pc-line-wrap {
+      min-height: 80px;
+      max-width: 540px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+    }
+    .pc-line {
+      font-size: 20px;
+      line-height: 1.55;
+      color: rgba(232, 216, 184, 0.94);
+      text-align: center;
+      font-style: italic;
+      opacity: 1;
+      transition: opacity 320ms ease;
+    }
+    .pc-line.is-fading { opacity: 0; }
+    .pc-hint {
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      color: rgba(216, 200, 168, 0.45);
+      text-transform: uppercase;
+      transition: opacity 320ms ease;
+    }
+    .pc-hint.is-gone { opacity: 0; pointer-events: none; }
+
+    .kc-bay {
+      display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px;
+    }
+    .kc-toggle {
+      font-family: 'Special Elite', monospace; font-size: 14px;
+      letter-spacing: 0.26em; text-transform: uppercase; color: #d8c8a8;
+      padding: 12px 26px; background: rgba(20,14,10,0.6);
+      border: 1px solid rgba(201,161,74,0.5); border-radius: 4px;
+      cursor: pointer; min-width: 240px;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .kc-toggle:hover { background: rgba(201,161,74,0.18); border-color: #c9a14a; }
+    .kc-toggle.on { background: rgba(201,161,74,0.22); border-color: #d4b46a; color: #f0d890; }
+
+    .pc-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8a8;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+      z-index: 2;
+    }
+    .pc-back:hover {
+      background: rgba(201, 161, 74, 0.15);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="pc-felt"></div>
+  <div class="pc-scene">
+    <div class="pc-chip-wrap">
+      <div class="pc-chip" id="pc-chip" role="button" tabindex="0" aria-label="Flip the chip">
+        <div class="pc-face pc-face-front">
+          <div class="pc-edge"></div>
+          <div class="pc-inlay">
+            <div class="pc-sun" aria-hidden="true"></div>
+            <div class="pc-banner">SUMMER<br>FESTIVAL</div>
+            <div class="pc-sub">ST · MARY'S · 2024</div>
+          </div>
+        </div>
+        <div class="pc-face pc-face-back">
+          <div class="pc-edge"></div>
+          <div class="pc-inlay">
+            <div class="pc-komoji" id="pc-komoji" aria-label="your child">(•_•)</div>
+            <div class="pc-child-label">YOUR CHILD</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pc-line-wrap">
+      <p class="pc-line" id="pc-line"></p>
+    </div>
+    <div class="pc-hint" id="pc-hint">Flip the chip</div>
+
+    <div class="kc-bay">
+      <button class="kc-toggle" type="button" aria-pressed="false">Ante them in</button>
+    </div>
+
+    <a class="pc-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/child.js"></script>
+  <script>
+    (function () {
+      var komoji = document.getElementById('pc-komoji');
+      if (komoji && window.Child && Child.describeFace) {
+        var k = 0;
+        function ktick() {
+          var d = Child.describeFace();
+          komoji.textContent = d.frames[k % d.frames.length];
+          k++;
+        }
+        ktick();
+        setInterval(ktick, 420);
+      }
+
+      var kbtn = document.querySelector('.kc-toggle');
+      if (kbtn && window.Child) {
+        var KID = 'pokerchip';
+        var KOFF = 'Ante them in';
+        var KON  = 'Cash them out';
+        function krefresh() {
+          var on = Child.getCosmetic(KID);
+          kbtn.classList.toggle('on', on);
+          kbtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          kbtn.textContent = on ? KON : KOFF;
+        }
+        kbtn.addEventListener('click', function () { Child.setCosmetic(KID, !Child.getCosmetic(KID)); });
+        Child.onChange(krefresh);
+        krefresh();
+      }
+
+      var LINES = [
+        "You met at the basement of the church.",
+        "You'd never been to a Catholic church before, or a church that played poker.",
+        "He was friendly. He felt he was failing his flock. He made you laugh and think.",
+        "One thing turned into another.",
+        "He was reassigned to Montana eight months ago."
+      ];
+      var chip = document.getElementById('pc-chip');
+      var line = document.getElementById('pc-line');
+      var hint = document.getElementById('pc-hint');
+      var idx = -1;
+      var busy = false;
+
+      function flip() {
+        if (busy) return;
+        busy = true;
+        chip.classList.toggle('is-flipped');
+        if (idx < LINES.length - 1) idx++;
+        if (hint && !hint.classList.contains('is-gone')) hint.classList.add('is-gone');
+        line.classList.add('is-fading');
+        setTimeout(function () {
+          line.textContent = LINES[idx];
+          line.classList.remove('is-fading');
+        }, 320);
+        setTimeout(function () { busy = false; }, 900);
+      }
+
+      chip.addEventListener('click', flip);
+      chip.addEventListener('keydown', function (e) {
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
+      });
+    })();
+  </script>
+</body>
+</html>

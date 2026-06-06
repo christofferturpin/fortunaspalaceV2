@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <!-- Creepy tendrils reaching out from a center "card" rectangle.
+       Used as a background-image on .bf-card.is-best::before. The card
+       sits centered in the SVG (approx x:100 y:85 w:100 h:130) and the
+       paths originate from its edges, curving organically into the
+       viewport bounds. -->
+
+  <!-- main tendrils — thick black -->
+  <g stroke="#000" stroke-width="2.4" stroke-linecap="round" fill="none" opacity="0.92">
+    <!-- top -->
+    <path d="M120,85 C115,55 135,40 122,10  C118,4 130,2 128,18" />
+    <path d="M150,85 C155,55 142,40 165,12  C172,6 162,2 172,16" />
+    <path d="M180,85 C175,60 195,45 188,16  C192,8 200,12 196,22" />
+    <!-- right -->
+    <path d="M200,108 C235,104 250,132 282,124 C292,122 286,134 296,128" />
+    <path d="M200,142 C242,146 232,170 286,165 C298,164 288,176 296,176" />
+    <path d="M200,176 C238,184 252,206 282,200 C290,198 286,214 296,210" />
+    <!-- bottom -->
+    <path d="M120,215 C112,248 138,262 124,290 C120,296 132,292 126,300" />
+    <path d="M150,215 C155,248 145,266 162,292 C166,300 158,300 168,298" />
+    <path d="M180,215 C190,250 174,270 196,294 C202,300 192,300 200,296" />
+    <!-- left -->
+    <path d="M100,108 C66,104 52,132 18,124  C8,122 14,134 4,128" />
+    <path d="M100,142 C58,146 68,170 14,165  C2,164 12,176 4,176" />
+    <path d="M100,176 C62,184 48,206 18,200  C10,198 14,214 4,210" />
+  </g>
+
+  <!-- thinner branching fingers — softer black -->
+  <g stroke="#000" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.7">
+    <path d="M128,18 C122,12 134,8 126,2" />
+    <path d="M172,16 C166,8 178,6 170,0" />
+    <path d="M196,22 C204,12 214,18 208,4" />
+
+    <path d="M296,128 C286,124 292,140 280,134" />
+    <path d="M296,176 C284,170 290,184 282,180" />
+    <path d="M296,210 C286,206 292,222 280,214" />
+
+    <path d="M126,300 C120,294 134,294 128,288" />
+    <path d="M168,298 C160,292 174,290 168,284" />
+    <path d="M200,296 C194,288 206,290 202,284" />
+
+    <path d="M4,128 C12,124 6,140 18,132" />
+    <path d="M4,176 C16,170 8,184 18,180" />
+    <path d="M4,210 C16,206 8,222 20,214" />
+  </g>
+
+  <!-- a few darker droplets / thorns at the tendril tips -->
+  <g fill="#000" opacity="0.85">
+    <circle cx="126" cy="2" r="2.2"/>
+    <circle cx="170" cy="0" r="2"/>
+    <circle cx="208" cy="4" r="2.2"/>
+    <circle cx="296" cy="128" r="2"/>
+    <circle cx="296" cy="176" r="2.2"/>
+    <circle cx="280" cy="214" r="2"/>
+    <circle cx="128" cy="288" r="2.2"/>
+    <circle cx="168" cy="284" r="2"/>
+    <circle cx="202" cy="284" r="2"/>
+    <circle cx="4" cy="128" r="2"/>
+    <circle cx="4" cy="176" r="2.2"/>
+    <circle cx="20" cy="214" r="2"/>
+  </g>
+</svg>

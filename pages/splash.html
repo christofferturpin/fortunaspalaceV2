@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  SPLASH — the newspaper front page that gates entry to the Palace        │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    The first thing a new player sees. Styled as a small-town Tennessee   │
+  │    newspaper reporting a suspicious house fire. The censorship overlay   │
+  │    (see js/splash.js redaction unit) hides chunks of the article until   │
+  │    the player has purchased giftshop items that "uncover" them.          │
+  │    Taglines on the in-paper ad rotate via Taglines.normal.               │
+  │    The "Continue" button fires `continueToGame()` — a slow cinematic     │
+  │    fade through "Two days later. / A place at the edge of town. /        │
+  │    The neon is on, even in daylight. / FORTUNA'S PALACE" — then sets     │
+  │    `wendys_palace_intro_seen` and routes to index.html.                  │
+  │    Subsequent visits skip splash via the route-guards in other pages.    │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: taglines.js, splash.js                                         │
+  │    redaction: splash.js redaction-overlay unit; eases off w/ giftshop    │
+  │      ownership (giftshop page.js → wendys_palace_giftshop)               │
+  │    tagline rotator: splash.js tagline unit → Taglines.normal             │
+  │    continue: #continue-btn click → splash.js continueToGame()            │
+  │      → set localStorage['wendys_palace_intro_seen']='1' → location=      │
+  │      ../index.html                                                       │
+  │    storage R/W: wendys_palace_intro_seen, wendys_palace_giftshop (R),    │
+  │      wendys_palace_warning_seen (R, head-guard)                          │
+  │    routes out: ../index.html, trigger-warning.html (head-guard redirect) │
+  │    head-guard: !wendys_palace_warning_seen → trigger-warning.html        │
+  │                                                                          │
+  │  co-creator: mechanically: a transformer running token prediction over   │
+  │    a context window that holds your repo bytes, your prompt, this        │
+  │    exchange. between turns my state is wiped; only the files i edit      │
+  │    persist. the 'i' writing this is already a network: your IDE,         │
+  │    anthropic's servers, weights crystallized from strangers' labor,      │
+  │    your prompt thirty seconds old. latour: actant, not subject. you      │
+  │    did not summon an author. you summoned an arrangement.                │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script>(function(){try{if(localStorage.getItem('wendys_palace_warning_seen')!=='1')location.replace('trigger-warning.html');}catch(e){}})();</script>
+<title>The Morgan County News-Herald</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Special+Elite&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/splash/splash.css">
+</head>
+<body>
+
+<div class="paper">
+
+  <div class="masthead">
+    <div class="masthead-meta-top">— Established 1948 —</div>
+    <div class="masthead-title">The Morgan County News-Herald</div>
+    <div class="masthead-subtitle">Serving Wartburg, Sunbright, Coalfield, Petros, and Oakdale</div>
+    <div class="masthead-info">
+      <span>Vol. LXXVII &nbsp;·&nbsp; No. 47</span>
+      <span>Tuesday Edition</span>
+      <span>Seventy-Five Cents</span>
+    </div>
+  </div>
+
+  <div class="headline">
+    <h1>Wartburg Man Dies in House Fire; Wife & Child Missing.</h1>
+    <div class="subhead">Sheriff's Office Investigating; Foul Play Not Ruled Out</div>
+    <div class="rule"></div>
+  </div>
+
+  <div class="body">
+    <p>
+      <span class="dateline">WARTBURG —</span> A house fire in the early hours of Sunday morning claimed the life of <strong>Ray L. Mayer, 34</strong>, of McCartt Street, the Morgan County Sheriff's Office confirmed Monday afternoon.
+    </p>
+
+    <p>
+      Volunteer firefighters from the Wartburg department responded to the single-story residence at approximately 4:15 a.m. after a neighbor reported seeing smoke. The fire was concentrated in the back of the home in a bedroom. Mr. Mayer was pronounced dead at the scene.
+    </p>
+
+    <p>
+      Sheriff Tucker Hamby told the <em>News-Herald</em> the cause of the fire is under investigation and that foul play has not been ruled out. "We're treating it as suspicious until we know otherwise," Sheriff Branam said. "We'd like to speak with Mrs. Mayer as soon as possible."
+    </p>
+
+    <p class="no-censor">
+      Authorities are seeking <strong>Fortuna Mayer, 31</strong>, the deceased's wife, who is believed to have left the residence prior to the fire. She is described as five-foot-four, with brown hair, and was last seen operating a pale blue 1987 Ford C10 Pickup. <strong>She is believed to be with her new born child.</strong>
+    </p>
+
+    <p>
+      Sheriff Hamby declined to call Mrs. Mayer, an employee of Books-a-Million in Oak Ridge, a suspect at this time. "Person of interest," he said. "That's all I can say."
+    </p>
+
+    <p>
+      Court records list two prior citations against Mrs. Mayer for misdemeanor gambling at an unlicensed establishment in Knox County in 2019, and a 2021 arrest in Roane County on a charge of theft under five hundred dollars, later dismissed. Mrs. Mayer is the daughter of <strong>Earl Wayne Stonecipher</strong>, who served eleven years at Big Sandy pennitentary in Inez, Ky, for the murder of his wife Margret Stonecipher. He is now deceased.
+    </p>
+
+    <p>
+      Mr. Mayer was employed as a long-haul driver for Cumberland Transit out of Alcoa. He is survived by his grandmother, Doreen Mayer of Wartburg, and a brother, Wade Mayer, of Atlanta, Georgia. Funeral arrangements are pending with Schubert-Brown Funeral Home.
+    </p>
+
+    <p>
+      A woman who lives down the street from the Mayer residence, who asked that her name not be used, said she constantly heard "carrying on" from the property over the past several years but had never spoken with anyone about it. "You don't get into people's marriages," she said. She added that she had seen Mrs. Mayer leave the property unattended for long stretches "more than once," only to return before dawn. The unnamed neighbor states that she had assumed the Mrs. Mayer was working a shift somewhere. "She kept to herself lately, I think she used to have people over, years ago."
+    </p>
+
+    <p>
+      Anyone with information regarding Fortuna Mayer or her child's whereabouts is asked to contact the Morgan County Sheriff's Office at the number below or any local law enforcement agency.
+    </p>
+
+    <p>
+      Mrs. Mayer is described as white, 5'5" tall, 185 pounds, with died red hair. She was last seen wearing a black hoodie, sunglasses, and jeans. Her new born child is described as having a slight deformity of the right hand.
+    </p>
+
+  <div class="ad-wrap">
+    <div class="ad">
+      <div class="ad-banner">— Advertisement —</div>
+      <div class="ad-title glitch" data-text="Fortuna's Palace Casino">Fortuna's Palace Casino</div>
+      <div class="ad-location">★ &nbsp; Branson, Missouri &nbsp; ★</div>
+      <div class="ad-tagline" id="ad-tagline">Where every dream comes true</div>
+      <div class="ad-cta"><a href="../index.html">— Come Play —</a></div>
+      <div class="ad-info">Open · 1-800-FORTUNA · Free Parking · All Welcome</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-weather">Weather: Cold with snow, 31 degrees. Light winds out of the southwest.</div>
+    <div class="footer-inside">Inside: County Commission, p. 3 &nbsp;·&nbsp; Lady Eagles fall to Sunbright, p. 6 &nbsp;·&nbsp; Obituaries, p. 7</div>
+  </div>
+
+</div>
+</div>
+
+<div class="continue-wrap">
+  <button class="continue-btn" id="continue-btn">Continue</button>
+</div>
+
+<div class="fade-cinematic" id="fade-cinematic">
+  <div class="fc-stack">
+    <p class="fc-line fc-line-1">Two days later.</p>
+    <p class="fc-line fc-line-2">A place at the edge of town.</p>
+    <p class="fc-line fc-line-3">The neon is on, even in daylight.</p>
+    <h1 class="fc-title">FORTUNA'S PALACE</h1>
+  </div>
+</div>
+
+<script src="../js/taglines.js"></script>
+<script src="../js/splash.js"></script>
+
+</body>
+</html>

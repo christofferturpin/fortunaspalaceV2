@@ -1,0 +1,46 @@
+{
+  "_comment": "Letters left in the home by outside authority. Edit freely. The runtime mirrors this in js/letters.js (INLINE constant) because file:// can't fetch — keep both in sync, or run the site via a local server and the JSON becomes live.",
+  "letters": [
+    {
+      "id": "note_001_welfare_visit",
+      "trigger": { "type": "lifetimeEarned", "min": 500 },
+      "preface": "There is a paper next to YOUR CHILD.",
+      "body": "NOTICE OF WELFARE VISIT\nCase file pending. Reference number to follow.\n\nThe minor identified as YOUR CHILD was observed unattended for the duration my visit (approx. 18 minutes). No legal guardian present.\n\nThe premises were entered under authority of §4.966.3 (Childrens' Spiritual & Wellness Services). YOUR CHILD did not cry. I do not know what to do with that.\n\nA follow-up will be scheduled with you degenerates.\nI recommend you leave.\n\n - Agent Gabriel, CSWS."
+    },
+    {
+      "id": "note_002_chavez_invitation",
+      "trigger": { "type": "lifetimeEarned", "min": 1000 },
+      "thresholdKey": "wendys_palace_chavez_threshold",
+      "preface": "Somone has written on YOUR CHILD with a Sharpie marker.",
+      "body": "NOTICE OF WELFARE VISIT\nYOU FUCKING BITCH!.\n\nI told you to leave!\n\nPlease be advised THIS matter remains open.\n\nDegenerate behavior will be punished.\n\n - Agent Gabriel, CSWS.",
+      "onClose": { "type": "queueBoss", "boss": "chavez", "page": "child.html" }
+    },
+    {
+      "id": "note_pre_fight_2",
+      "trigger": { "type": "lifetimeEarned", "min": 3000 },
+      "preface": "There is a black sedan parked across the street.",
+      "body": "It has been there since Tuesday.\n\nThe plates are obscured by what looks like deliberate damage. He has not gotten out.\n\nWhen you wave he does not wave back. The engine has been running the whole time.",
+      "onClose": { "type": "queueBoss", "boss": "malechstone", "page": "child.html" }
+    },
+    {
+      "id": "note_pre_fight_3",
+      "trigger": { "type": "lifetimeEarned", "min": 7500 },
+      "preface": "A deck of cards on the porch.",
+      "body": "Sealed. But the wrapper is torn at the corner and the deck has already been cut.\n\nWhoever shuffled it knew what they were doing.\n\nYou put it in the drawer with the others. There are others now.",
+      "onClose": { "type": "queueBoss", "boss": "zashiki-warashi", "page": "child.html" }
+    },
+    {
+      "id": "note_pre_fight_4",
+      "trigger": { "type": "lifetimeEarned", "min": 30000 },
+      "preface": "The phone rang at 3:14.",
+      "body": "When you picked up there was breathing.\n\nHe waited. Then he hung up.\n\nThe number was unlisted. The carrier has no record of the call. The child asked who it was. You said nobody.",
+      "onClose": { "type": "queueBoss", "boss": "nahual", "page": "child.html" }
+    },
+    {
+      "id": "note_pre_fight_5",
+      "trigger": { "type": "lifetimeEarned", "min": 75000 },
+      "preface": "A chair pulled up to the kitchen table.",
+      "body": "You did not put it there.\n\nThe chair is still warm. Someone sat in it long enough for the wood to take their body heat.\n\nThe deck of cards is on the table in front of it. Shuffled. Cut. Waiting."
+    }
+  ]
+}

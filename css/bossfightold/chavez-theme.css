@@ -1,0 +1,302 @@
+/*
+  BOSSFIGHT/CHAVEZ-THEME — boss-1 theme (Christian Angel) on shared base
+  ─────────────────────────────────────────────────────────────────────────
+  Visual brief: Chavez's heavenly register — pale parchment ivory, gold-
+  leaf accents, a large central ophanim wheel rotating slow behind the
+  felt, scattered eye glyphs feathering across the page. Cold lapis blue
+  on the opponent seat (institutional cubicle palette set against the
+  cream-and-gold of the table). Cards are ivory with seraph-red on the
+  hearts/diamonds; card backs carry an eye-on-wheel motif in lapis.
+
+  This file replaces the heavier [chavez.css](chavez.css) layout. The
+  original file is preserved unreferenced as a backup; new HTML loads
+  poker-base.css + this file. Scoped to .bf-theme-chavez.
+
+  Sections:
+    1. Palette overrides for poker-base vars (cream/gold/lapis)
+    2. Page background — parchment + halo glow + ophanim wheel
+    3. Title — illuminated capital flavour
+    4. Card back — eye-on-wheel in lapis
+    5. Card face — ivory with subtle gold rule
+    6. Seat tweaks — chavez seat in lapis, player in gold
+  Owns selectors: .bf-theme-chavez (and pseudo-elements + descendants)
+  CSS vars (override): all --bf-* from poker-base.css
+  Consumed by: pages/bossfight-chavez.html
+  External deps: poker-base.css
+*/
+
+/* ─── 1. Palette ─── */
+.bf-theme-chavez {
+  --bf-bg:           #f6efe0;   /* ivory parchment */
+  --bf-bg-grade:     #fff5d0;   /* halo-bright */
+  --bf-fg:           #1a1410;   /* ink */
+  --bf-fg-dim:       #8a6e1e;   /* gold-deep */
+  --bf-accent:       #c9a14a;   /* gold leaf */
+  --bf-accent-deep:  #8a6e1e;
+  --bf-felt:         #ece3cf;   /* cream */
+  --bf-felt-edge:    #c9a14a;
+  --bf-card-face:    #fff8df;   /* halo-light cream */
+  --bf-card-back:    #2a4870;   /* lapis institutional blue */
+  --bf-suit-black:   #1a1410;
+  --bf-suit-red:     #9b1d20;   /* seraph red */
+  --bf-button:       #ece3cf;
+  --bf-button-hi:    #fff5d0;
+  --bf-button-text:  #1a1410;
+  --bf-danger:       #9b1d20;
+  --bf-frame:        #c9a14a;
+  --bf-frame-light:  #ddd0ad;   /* vellum */
+}
+
+/* ─── 2. Page background — parchment + halo + slow ophanim ─── */
+.bf-theme-chavez {
+  background:
+    /* radial halo glow from above the felt */
+    radial-gradient(ellipse at 50% -10%, rgba(255, 245, 200, 0.95) 0%, rgba(255, 240, 180, 0.6) 30%, transparent 70%),
+    /* warm parchment base */
+    radial-gradient(ellipse at 50% 100%, #ddd0ad, #f6efe0) fixed,
+    var(--bf-bg);
+}
+
+/* Single huge ophanim wheel rotating slowly behind the table. SVG data
+   URI — no JS spawners, no GIF frame-buffers. */
+.bf-theme-chavez::before {
+  content: '';
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 720px;
+  height: 720px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.16;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23c9a14a' stroke-width='1.2'><circle cx='100' cy='100' r='95'/><circle cx='100' cy='100' r='80'/><circle cx='100' cy='100' r='62'/><circle cx='100' cy='100' r='42'/><circle cx='100' cy='100' r='22'/><circle cx='100' cy='100' r='6' fill='%23c9a14a'/></g><g fill='%23c9a14a'><!-- eye ring on the outer wheel --><ellipse cx='100' cy='8'  rx='5' ry='3'/><ellipse cx='100' cy='192' rx='5' ry='3'/><ellipse cx='8'   cy='100' rx='3' ry='5'/><ellipse cx='192' cy='100' rx='3' ry='5'/><ellipse cx='30'  cy='30'  rx='4' ry='3' transform='rotate(45 30 30)'/><ellipse cx='170' cy='30'  rx='4' ry='3' transform='rotate(-45 170 30)'/><ellipse cx='30'  cy='170' rx='4' ry='3' transform='rotate(-45 30 170)'/><ellipse cx='170' cy='170' rx='4' ry='3' transform='rotate(45 170 170)'/></g><g fill='none' stroke='%238a6e1e' stroke-width='0.8' opacity='0.7'><path d='M100 5 L100 195'/><path d='M5 100 L195 100'/><path d='M30 30 L170 170'/><path d='M170 30 L30 170'/></g></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  animation: bf-chz-wheel-spin 120s linear infinite;
+}
+@keyframes bf-chz-wheel-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Scattered eye glyphs feathering across the page — CSS data-URI tile so
+   we don't ship 14 animated GIFs. */
+.bf-theme-chavez::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.10;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 360 360'><g fill='none' stroke='%238a6e1e' stroke-width='1'><ellipse cx='60'  cy='80'  rx='10' ry='5'/><circle  cx='60'  cy='80'  r='2' fill='%23c9a14a'/><ellipse cx='280' cy='130' rx='8'  ry='4'/><circle  cx='280' cy='130' r='1.6' fill='%23c9a14a'/><ellipse cx='160' cy='240' rx='12' ry='6'/><circle  cx='160' cy='240' r='2.4' fill='%23c9a14a'/><ellipse cx='320' cy='300' rx='7'  ry='3.5'/><circle  cx='320' cy='300' r='1.4' fill='%23c9a14a'/><ellipse cx='40'  cy='320' rx='6'  ry='3'/><circle  cx='40'  cy='320' r='1.2' fill='%23c9a14a'/><ellipse cx='220' cy='40'  rx='9'  ry='4.5'/><circle  cx='220' cy='40'  r='1.8' fill='%23c9a14a'/></g></svg>");
+  background-size: 360px 360px;
+  background-repeat: repeat;
+}
+
+/* Make sure the table and content sit above the wheel/eyes. */
+.bf-theme-chavez .bf-header,
+.bf-theme-chavez .bf-table,
+.bf-theme-chavez .bf-log { position: relative; z-index: 2; }
+
+/* ─── 3. Title — illuminated capital ─── */
+.bf-theme-chavez .bf-title {
+  font-family: 'Cinzel', 'IM Fell English', serif;
+  font-weight: 700;
+  color: var(--bf-fg);   /* black on cream — old chavez aesthetic */
+  text-shadow:
+    0 0 6px  rgba(0, 0, 0, 0.6),
+    0 0 14px rgba(0, 0, 0, 0.4),
+    0 0 28px rgba(0, 0, 0, 0.25);
+}
+.bf-theme-chavez .bf-vs {
+  color: var(--bf-fg);
+  font-style: italic;
+  font-family: 'IM Fell English', serif;
+}
+.bf-theme-chavez .bf-meta {
+  font-family: 'Cinzel', serif;
+  color: var(--bf-fg-dim);
+  text-shadow: 0 0 6px rgba(255, 245, 200, 0.85);
+}
+
+/* ─── 4. Card face — ivory with subtle gold inner rule ─── */
+.bf-theme-chavez .bf-card:not(.bf-card-back) {
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.85), transparent 70%),
+    linear-gradient(180deg, #ffffff 0%, var(--bf-card-face) 100%);
+  border-color: var(--bf-accent-deep);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 0 10px rgba(255, 245, 200, 0.6),
+    0 2px 6px rgba(120, 90, 30, 0.25);
+}
+.bf-theme-chavez .bf-card-rank { font-family: 'Cinzel', serif; font-weight: 700; }
+
+/* ─── 5. Card back — eye-on-wheel in lapis ─── */
+.bf-theme-chavez .bf-card-back {
+  background:
+    linear-gradient(135deg, var(--bf-card-back) 0%, color-mix(in srgb, var(--bf-card-back) 70%, #0a0c14) 100%);
+  border-color: var(--bf-accent-deep);
+  box-shadow:
+    inset 0 0 0 2px rgba(248, 233, 176, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.bf-theme-chavez .bf-card-back .bf-card-eye {
+  width: 56%;
+  height: 28%;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow:
+    0 0 6px rgba(255, 255, 255, 0.9),
+    0 0 12px rgba(248, 233, 176, 0.6);
+}
+.bf-theme-chavez .bf-card-back .bf-card-eye::after {
+  inset: 22% 36%;
+  background: #14223a;   /* lapis-deep pupil */
+  border-radius: 50%;
+}
+
+/* ─── 6. Seat tweaks — opponent lapis, player gold ─── */
+.bf-theme-chavez .bf-seat {
+  background:
+    linear-gradient(180deg, rgba(255, 252, 230, 0.7), rgba(220, 200, 156, 0.45));
+}
+.bf-theme-chavez .bf-seat-chavez {
+  border-color: var(--bf-card-back);   /* lapis edge — institutional */
+}
+.bf-theme-chavez .bf-seat-chavez::before {
+  content: 'CASE FILE · LIVE';
+  position: absolute;
+  top: -10px;
+  left: 12px;
+  font-family: 'VT323', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--bf-card-back);
+  background: var(--bf-bg);
+  padding: 1px 8px;
+  border: 1px solid var(--bf-card-back);
+}
+.bf-theme-chavez .bf-seat-chavez .bf-seat-name {
+  color: #14223a;   /* lapis-deep */
+  font-family: 'Cinzel', serif;
+}
+.bf-theme-chavez .bf-seat-chavez .bf-seat-tag {
+  border-color: var(--bf-card-back);
+  color: var(--bf-card-back);
+}
+.bf-theme-chavez .bf-seat-chavez .bf-last-move {
+  color: var(--bf-danger);
+}
+.bf-theme-chavez .bf-seat-player {
+  border-color: var(--bf-accent);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 0 22px rgba(255, 245, 200, 0.45);
+}
+.bf-theme-chavez .bf-seat-player .bf-seat-name {
+  color: var(--bf-accent-deep);
+  font-family: 'Cinzel', serif;
+}
+
+/* Felt — heavenly cream with halo glow */
+.bf-theme-chavez .bf-felt {
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.6), transparent 70%),
+    radial-gradient(ellipse at 50% 50%, var(--bf-felt) 0%, var(--bf-bg) 90%);
+  border-color: var(--bf-accent);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    inset 0 0 40px rgba(255, 245, 200, 0.5),
+    0 0 30px rgba(255, 235, 160, 0.35);
+}
+.bf-theme-chavez .bf-turn-status {
+  font-family: 'Cinzel', serif;
+  color: var(--bf-accent-deep);
+  letter-spacing: 0.18em;
+}
+
+/* Stakes bar + actions + log — keep them legible on cream */
+.bf-theme-chavez .bf-stakes {
+  background: linear-gradient(180deg, rgba(255, 252, 230, 0.85), rgba(220, 200, 156, 0.55));
+  border-color: var(--bf-accent);
+}
+.bf-theme-chavez .bf-stakes-label { color: var(--bf-accent-deep); }
+.bf-theme-chavez .bf-stakes-value { color: var(--bf-fg); }
+.bf-theme-chavez .bf-actions {
+  background: linear-gradient(180deg, rgba(255, 252, 230, 0.7), rgba(220, 200, 156, 0.45));
+  border-color: var(--bf-accent);
+}
+.bf-theme-chavez .bf-action {
+  background: linear-gradient(180deg, #ffffff, var(--bf-button));
+  text-shadow: 0 0 6px rgba(255, 245, 200, 0.6);
+}
+.bf-theme-chavez .bf-action-aggro {
+  background: linear-gradient(180deg, #fff5d0, var(--bf-accent));
+  color: var(--bf-fg);
+}
+.bf-theme-chavez .bf-log {
+  color: var(--bf-fg-dim);
+  border-color: var(--bf-accent);
+}
+.bf-theme-chavez .bf-log-line.is-player  { color: #14223a; }
+.bf-theme-chavez .bf-log-line.is-opp     { color: var(--bf-danger); }
+.bf-theme-chavez .bf-log-line.is-summary { color: var(--bf-accent-deep); }
+
+/* End splash on cream */
+.bf-theme-chavez .bf-end-card {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 245, 200, 0.6), transparent 70%),
+    linear-gradient(180deg, #fff8df 0%, var(--bf-felt) 100%);
+  border-color: var(--bf-accent);
+  color: var(--bf-fg);
+}
+.bf-theme-chavez .bf-end-title {
+  color: var(--bf-accent-deep);
+  font-family: 'Cinzel', serif;
+}
+.bf-theme-chavez .bf-end-body { color: var(--bf-fg); }
+.bf-theme-chavez .bf-end-stats { color: var(--bf-fg); }
+.bf-theme-chavez .bf-end-stats strong { color: var(--bf-accent-deep); }
+.bf-theme-chavez .bf-end-button {
+  background: linear-gradient(180deg, #fff5d0, var(--bf-accent));
+  color: var(--bf-fg);
+  border-color: var(--bf-accent-deep);
+}
+
+/* Audio mute button — dark on cream looks better */
+.bf-theme-chavez .bf-audio-btn {
+  background: rgba(255, 252, 230, 0.85);
+  color: var(--bf-accent-deep);
+}
+.bf-theme-chavez .bf-audio-btn:hover {
+  color: var(--bf-fg);
+  background: var(--bf-accent);
+}
+
+/* ─── 7. Avatar decoration — cross earrings ─────────────────────────────
+   Two small Latin crosses (✝) hang on each side of the institutional
+   cubicle face. Christian-angel signal. Slightly dimmer than the face
+   so they read as accessory, not face. */
+.bf-theme-chavez .bf-boss-avatar {
+  padding: 0 1.4em;
+}
+.bf-theme-chavez .bf-boss-avatar::before,
+.bf-theme-chavez .bf-boss-avatar::after {
+  content: '✝';
+  position: absolute;
+  top: 50%;
+  font-size: 0.65em;
+  color: var(--bf-accent-deep);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--bf-accent) 65%, transparent);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.bf-theme-chavez .bf-boss-avatar::before { left:  0.2em; }
+.bf-theme-chavez .bf-boss-avatar::after  { right: 0.2em; }
+.bf-theme-chavez .bf-boss-avatar.is-thinking::before,
+.bf-theme-chavez .bf-boss-avatar.is-thinking::after {
+  color: var(--bf-danger);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--bf-danger) 60%, transparent);
+}

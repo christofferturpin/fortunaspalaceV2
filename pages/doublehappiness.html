@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  DOUBLE HAPPINESS — pick-the-more-watched-video push-your-luck game      │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A strip-mall Chinese restaurant rendered around two old CRTs. Each    │
+  │    round the lazy susan presents two YouTube videos — autoplaying,       │
+  │    muted, drained to black-and-white — and the player picks which one    │
+  │    has more views. First correct guess pays 0.15× wager into the pot;    │
+  │    each subsequent correct guess multiplies the pot by 1.75× along a     │
+  │    12-rung zodiac ladder (Rat → Ox → ... → Pig). After each right        │
+  │    answer the player chooses CASH OUT or PUSH IT. One wrong       │
+  │    guess wipes the pot. A fortune-cookie slip in the corner cycles       │
+  │                              │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js,                              │
+  │      doublehappiness/videos.generated.js (optional; 404 ok),             │
+  │      doublehappiness/data.js, doublehappiness/audio.js,                  │
+  │      doublehappiness/page.js, header.js                                  │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #dh-iframe-a, #dh-iframe-b, #dh-pick-a, #dh-pick-b,│
+  │      #dh-meta-a, #dh-meta-b, #dh-pot-value, #dh-rung-value, #dh-wager,   │
+  │      #dh-max, #dh-cash, #dh-next, #dh-restart, #dh-result, #dh-verdict,  │
+  │      #dh-fortune, #dh-mute, #debug-reset                                 │
+  │    flow: page.js init → bind pick A/B/cash/next/restart/max/mute →       │
+  │      paintZodiac → paintFortune → startNewRun → loadPair (pickPair →     │
+  │      setSrc on both iframes → susan-spin 600ms → state='guess') →        │
+  │      answer(side): 1st→Wallet.spend + Child.recordPlay; evaluateGuess →  │
+  │      correct?rung++,pot=floor(0.15·1.75^(rung-1)·wager),state='climb' :  │
+  │      pot=0,rung=0,state='busted'; cashOut→Wallet.add(pot); pushIt→       │
+  │      loadPair; setInterval paintFortune 9000ms                           │
+  │    storage R/W: sinnerbox (Wallet), wendys_palace_child (R/W via         │
+  │      Child.recordPlay), wendys_palace_intro_seen (R),                    │
+  │      wendys_palace_death (R); embeds YouTube via iframe (no fetch)       │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Double Happiness</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/doublehappiness/doublehappiness.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+  <!-- Page-local readable mono — replaces VT323 for small UI text without
+       touching the Palace-wide --font-ui token. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body class="dh-body">
+  <header class="dh-header">
+    <div class="dh-title-block">
+      <div class="dh-title-preline">
+        <span class="dh-title-shuangxi">囍</span>
+        Fortuna Garden Presents
+        <span class="dh-title-shuangxi">囍</span>
+      </div>
+      <h1 class="dh-title">Double Happiness</h1>
+      <p class="dh-subtitle">— Only Chinese Theater in Town Since 1987 · Bet on the More Popular Video —</p>
+    </div>
+    <div class="coins-bar">
+      <span class="coins-label">¥</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <!--
+    Access gate. Honor system — we can't dodge YouTube ads on a third-party
+    host, so seating requires the player to confirm they're running an ad
+    blocker. One button, one promise. Gated by sessionStorage so re-entries
+    skip. No detection: if they lie they just sit through ads.
+  -->
+  <div id="dh-gate-overlay" class="dh-gate-overlay" aria-hidden="false" hidden>
+    <div class="dh-gate-card">
+      <div class="dh-gate-stars" aria-hidden="true">囍 ✦ 囍</div>
+      <h2 class="dh-gate-title">House Rules</h2>
+      <p class="dh-gate-subtitle">
+        The cook cannot tolerate sponsors. Before we seat you, confirm
+        you've shown up with an ad blocker installed.
+      </p>
+      <p class="dh-gate-recs">
+        Recommended: <a class="dh-gate-link-inline"
+          href="https://www.mozilla.org/firefox/new/" target="_blank"
+          rel="noopener noreferrer">Firefox</a> +
+        <a class="dh-gate-link-inline"
+          href="https://ublockorigin.com/" target="_blank"
+          rel="noopener noreferrer">uBlock Origin</a>.
+      </p>
+      <button id="dh-gate-accept" class="dh-gate-accept" type="button">
+        I Promise — Sit Me Down
+      </button>
+      <p class="dh-gate-note">
+        <a href="../index.html" class="dh-gate-back">← back to lobby</a>
+      </p>
+    </div>
+  </div>
+
+  <main class="dh-main">
+    <!-- Lazy susan: DISH A · 囍 · DISH B -->
+    <section class="dh-susan" aria-label="Lazy susan with two video dishes">
+      <div class="dh-dish" data-side="A">
+        <div class="dh-dish-frame">
+          <iframe
+            id="dh-iframe-a"
+            title="Dish A video"
+            src="about:blank"
+            allow="autoplay; encrypted-media"
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </div>
+        <div class="dh-dish-title">电影 A</div>
+        <div class="dh-dish-meta" id="dh-meta-a"></div>
+        <button id="dh-pick-a" class="dh-pick-btn" type="button">Bet A is More Popular</button>
+      </div>
+
+      <div class="dh-susan-center" aria-hidden="true">
+        <div class="dh-susan-shuangxi">囍</div>
+        <div class="dh-susan-vs">vs</div>
+      </div>
+
+      <div class="dh-dish" data-side="B">
+        <div class="dh-dish-frame">
+          <iframe
+            id="dh-iframe-b"
+            title="Dish B video"
+            src="about:blank"
+            allow="autoplay; encrypted-media"
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </div>
+        <div class="dh-dish-title">电影  B</div>
+        <div class="dh-dish-meta" id="dh-meta-b"></div>
+        <button id="dh-pick-b" class="dh-pick-btn" type="button">Bet B is More Popular</button>
+      </div>
+    </section>
+
+    <div id="dh-result" class="dh-result"></div>
+
+    <!-- Control panel: POT / RUNG / STRIKES / WAGER -->
+    <section class="dh-panel" aria-label="Game readouts and wager">
+      <div class="dh-lcd dh-lcd-pot">
+        <span class="dh-lcd-label">POT</span>
+        <span class="dh-lcd-value" id="dh-pot-value">0</span>
+      </div>
+      <div class="dh-lcd dh-lcd-rung">
+        <span class="dh-lcd-label">RUNG</span>
+        <span class="dh-lcd-value" id="dh-rung-value">0/12</span>
+      </div>
+      <!--
+        Strikes LCD. Three pip slots that light up with 好 (the Chinese
+        baseball umpire's strike call) when the player misses. Strikes 1
+        and 2 are warnings; the third (三振) busts the run.
+      -->
+      <div class="dh-lcd dh-lcd-strikes" aria-label="Strikes">
+        <span class="dh-lcd-label">好 STRIKES</span>
+        <span class="dh-lcd-value" id="dh-strikes-value">
+          <span class="dh-strike-pip">○</span>
+          <span class="dh-strike-pip">○</span>
+          <span class="dh-strike-pip">○</span>
+        </span>
+      </div>
+      <div class="dh-wager">
+        <span class="dh-wager-label">Wager</span>
+        <input type="number" id="dh-wager" min="1" value="5" inputmode="numeric" autocomplete="off">
+        <button id="dh-max" class="dh-mini-btn" type="button">MAX</button>
+      </div>
+    </section>
+
+    <!-- Decision row: visible only after a guess resolves -->
+    <div class="dh-decision">
+      <button id="dh-cash"    class="dh-decision-btn dh-decision-cash" type="button" hidden>囍 CASH OUT 囍</button>
+      <button id="dh-next"    class="dh-decision-btn dh-decision-push" type="button" hidden>Push It →</button>
+      <button id="dh-restart" class="dh-decision-btn dh-decision-new"  type="button" hidden>NEW RUN →</button>
+    </div>
+
+    <!-- Zodiac placemat ladder -->
+    <section class="dh-ladder" aria-label="Zodiac prize ladder">
+      <div class="dh-ladder-title">Zodiac Table</div>
+      <div class="dh-ladder-sub">First right pays ×0.40 of wager. Each next right multiplies the pot by 1.60×. Three strikes wipes it.</div>
+      <ol class="dh-zod-list"></ol>
+    </section>
+  </main>
+
+  <!-- Giant pop-in verdict glyph: ✓ on correct, ✕ on wrong. Driven by
+       page.js → showVerdict() in answer(). Pointer-events none, full-screen
+       fixed overlay above everything except the gate. -->
+  <div id="dh-verdict" class="dh-verdict" aria-hidden="true"></div>
+
+  <!-- Bottom strip: fortune cookie slip on the left, mute toggle on the right -->
+  <div class="dh-bottom-strip">
+    <aside class="dh-fortune-tray" aria-label="Fortune cookie slip">
+      <span id="dh-fortune">Welcome. Sit anywhere.</span>
+    </aside>
+    <button id="dh-mute" class="dh-mute-btn" type="button" aria-label="Mute / unmute SFX" title="Mute / unmute SFX">🔊</button>
+  </div>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <!--
+    Optional: a much larger video pool generated by tools/fetch-yt-videos.js.
+    If you haven't run the fetcher, this 404s harmlessly and data.js falls
+    back to its hand-curated list of ~28 canonical viral IDs.
+  -->
+  <script src="../js/doublehappiness/videos.generated.js" onerror="this.remove()"></script>
+  <script src="../js/doublehappiness/data.js"></script>
+  <script src="../js/doublehappiness/audio.js"></script>
+  <script src="../js/doublehappiness/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

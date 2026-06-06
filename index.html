@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  ROOT STUB — redirect to pages/index.html (the real lobby)               │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    The lobby lives at pages/index.html now. This file exists only to     │
+  │    forward visitors who land on the project root. It preserves the       │
+  │    `../index.html` back-links from every sub-page without making those   │
+  │    pages aware that the root moved.                                      │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    redirect: <meta http-equiv="refresh"> + JS fallback → pages/index.html│
+  │    no styles, no scripts, no storage R/W                                 │
+  │    purpose: keeps `../index.html` from sub-pages working post-refactor   │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fortuna's Palace</title>
+  <meta http-equiv="refresh" content="0;url=pages/index.html">
+  <script>location.replace('pages/index.html');</script>
+</head>
+<body>
+  <a href="pages/index.html">Enter the Palace</a>
+</body>
+</html>

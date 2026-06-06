@@ -1,0 +1,1632 @@
+/* Is It Raining? — smoking-lounge / late-night newscast vibe */
+
+:root {
+  --lounge-bg:        #14080a;
+  --lounge-bg-deep:   #08040502;
+  --lounge-velvet:    #2a0d14;
+  --lounge-leather:   #1a0a08;
+  --brass:            #b8965c;
+  --brass-bright:     #d8b878;
+  --brass-deep:       #6e5022;
+  --mahogany:         #4a2614;
+  --mahogany-light:   #6a3c1e;
+  --mahogany-dark:    #1f0d05;
+  --amber:            #ffb060;
+  --amber-glow:       #ffa040;
+  --ember:            #ff7a30;
+  --smoke:            rgba(216, 200, 176, 0.06);
+  --lcd-bg:           #0a0604;
+  --lcd-amber:        #ffb858;
+  --lcd-phosphor:     #c0ff80;
+}
+
+body.ir-body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 22px 16px 64px;
+  color: var(--bone);
+  font-family: var(--font-ui);
+  background:
+    /* dim ceiling spotlight over the TV */
+    radial-gradient(ellipse 70% 48% at 50% 28%, rgba(255, 176, 96, 0.10) 0%, transparent 70%),
+    /* deep velvet booth */
+    radial-gradient(ellipse at center, var(--lounge-velvet) 0%, var(--lounge-bg) 55%, #050203 100%);
+  background-attachment: fixed;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Velvety paisley wallpaper — almost invisible, just texture */
+body.ir-body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent 0 20px,
+      rgba(255, 200, 130, 0.025) 20px 21px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 20px,
+      rgba(255, 200, 130, 0.02) 20px 21px
+    );
+  mix-blend-mode: screen;
+  opacity: 0.6;
+}
+
+/* SVG grain */
+body.ir-body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.7' numOctaves='2' seed='9'/><feColorMatrix values='0 0 0 0 0.06  0 0 0 0 0.03  0 0 0 0 0.02  0 0 0 0.5 0'/></filter><rect width='220' height='220' filter='url(%23g)'/></svg>");
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+}
+
+/* ===== Smoke ===== */
+
+.lounge-haze {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 90% 30% at 50% 0%, rgba(216, 200, 176, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 20% at 20% 80%, rgba(216, 200, 176, 0.05) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 18% at 85% 60%, rgba(216, 200, 176, 0.04) 0%, transparent 70%);
+}
+
+.lounge-smoke {
+  position: fixed;
+  width: 320px;
+  height: 320px;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 50%;
+  filter: blur(38px);
+  opacity: 0.18;
+  background: radial-gradient(circle, rgba(216, 200, 176, 0.6) 0%, transparent 65%);
+  mix-blend-mode: screen;
+}
+.lounge-smoke-1 {
+  top: -80px;
+  left: -60px;
+  animation: smoke-drift 28s ease-in-out infinite alternate;
+}
+.lounge-smoke-2 {
+  top: 30%;
+  right: -80px;
+  animation: smoke-drift 36s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes smoke-drift {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.12; }
+  50%  { transform: translate(80px, -40px) scale(1.18); opacity: 0.22; }
+  100% { transform: translate(-30px, 60px) scale(0.95); opacity: 0.14; }
+}
+
+/* ===== Header ===== */
+
+header {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* ===== 70s station-ID title block ===== */
+
+.ir-title-block {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 28px 12px;
+  position: relative;
+}
+
+.ir-title-preline {
+  font-family: 'Limelight', 'Special Elite', serif;
+  font-size: 12px;
+  color: var(--brass);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(255, 200, 80, 0.35), 0 1px 0 #000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ir-title-star {
+  color: var(--amber);
+  font-size: 14px;
+  text-shadow: 0 0 6px rgba(255, 180, 60, 0.7);
+  animation: title-star-pulse 2.4s ease-in-out infinite;
+}
+.ir-title-star:nth-child(3) { animation-delay: 1.2s; }
+@keyframes title-star-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.75; }
+  50%      { transform: scale(1.18); opacity: 1; }
+}
+
+.ir-title {
+  font-family: 'Limelight', 'Pirata One', serif;
+  font-size: 72px;
+  line-height: 0.95;
+  color: #ffd070;
+  margin: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* Chunky extruded shadow — five steps, dark→darker, classic 70s station ID */
+  text-shadow:
+    1px 1px 0 #c89858,
+    2px 2px 0 #966c30,
+    3px 3px 0 #5c401a,
+    4px 4px 0 #2a1c0a,
+    5px 5px 0 #0a0402,
+    6px 8px 14px rgba(0, 0, 0, 0.7),
+    0 0 26px rgba(255, 160, 60, 0.22);
+  position: relative;
+}
+/* CRT chromatic-aberration ghost using a data-text duplicate */
+.ir-title::before,
+.ir-title::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: screen;
+}
+.ir-title::before {
+  color: #ff3050;
+  transform: translate(-2px, 0);
+  text-shadow: none;
+}
+.ir-title::after {
+  color: #20a0ff;
+  transform: translate(2px, 0);
+  text-shadow: none;
+}
+
+/* SMPTE color bars under the title */
+.ir-title-bars {
+  display: flex;
+  width: 100%;
+  height: 9px;
+  border: 1px solid #0a0402;
+  border-radius: 1px;
+  overflow: hidden;
+  box-shadow:
+    0 0 10px rgba(255, 200, 80, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+  margin-top: 4px;
+}
+.ir-title-bars span {
+  flex: 1;
+  height: 100%;
+}
+.ir-title-bars span:nth-child(1) { background: #c0c0c0; }
+.ir-title-bars span:nth-child(2) { background: #c0c020; }
+.ir-title-bars span:nth-child(3) { background: #20c0c0; }
+.ir-title-bars span:nth-child(4) { background: #20c020; }
+.ir-title-bars span:nth-child(5) { background: #c020c0; }
+.ir-title-bars span:nth-child(6) { background: #c02020; }
+.ir-title-bars span:nth-child(7) { background: #2020c0; }
+
+.ir-subtitle {
+  font-family: 'Special Elite', monospace;
+  font-size: 12px;
+  color: rgba(216, 200, 176, 0.65);
+  letter-spacing: 0.16em;
+  margin: 2px 0 8px;
+  font-style: italic;
+  text-transform: uppercase;
+}
+
+.header-nav {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  font-size: 13px;
+}
+.header-nav a {
+  color: rgba(216, 200, 176, 0.55);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+}
+.header-nav a:hover { color: var(--brass-bright); }
+
+.coins-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 14px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--brass-deep);
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 160, 0.08);
+}
+.coins-label {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(216, 200, 176, 0.55);
+}
+#balance {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: 'VT323', monospace;
+  color: var(--phosphor);
+  text-shadow: 0 0 6px rgba(26, 255, 127, 0.45);
+}
+#debug-reset {
+  background: none;
+  border: 1px solid #3a3032;
+  color: #6a6062;
+  font-size: 10px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+main {
+  position: relative;
+  z-index: 2;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ===== Wall of background TVs ===== */
+
+.tv-wall {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 720px;
+  padding: 0 4px;
+  perspective: 600px;
+}
+.tv-wall-top {
+  grid-template-columns: repeat(5, 1fr);
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.tv-wall-bottom {
+  grid-template-columns: repeat(5, 1fr);
+  margin-top: 4px;
+  opacity: 0.78;
+}
+
+.tv-mini {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  padding: 4px 4px 6px;
+  background:
+    repeating-linear-gradient(
+      92deg,
+      var(--mahogany-dark) 0px,
+      var(--mahogany) 2px,
+      var(--mahogany-dark) 3px
+    ),
+    linear-gradient(180deg, var(--mahogany), var(--mahogany-dark));
+  border: 1px solid #0a0402;
+  border-radius: 5px 5px 3px 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.18),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
+    0 6px 10px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  /* Subtle alternating tilt so the wall feels hand-stacked */
+  transform: rotate(-0.6deg);
+}
+.tv-wall-top  .tv-mini:nth-child(even),
+.tv-wall-bottom .tv-mini:nth-child(odd) {
+  transform: rotate(0.7deg);
+}
+
+/* mini screen — same CRT vignette/scanlines but cheaper */
+.tv-mini::after {
+  content: '';
+  position: absolute;
+  inset: 4px 4px 6px;
+  border-radius: 8px / 6px;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0,
+      rgba(0, 0, 0, 0) 1px,
+      rgba(0, 0, 0, 0.45) 1px,
+      rgba(0, 0, 0, 0.45) 2px
+    ),
+    radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.7) 100%);
+  mix-blend-mode: multiply;
+  z-index: 2;
+}
+
+/* Per-mode screen content (the actual lit surface) */
+.tv-mini[data-mode]::before {
+  content: '';
+  position: absolute;
+  inset: 4px 4px 6px;
+  border-radius: 8px / 6px;
+  z-index: 1;
+}
+
+/* SMPTE color bars */
+.tv-mini[data-mode="bars"]::before {
+  background:
+    linear-gradient(
+      to bottom,
+      #c0c0c0 0%, #c0c0c0 75%,
+      #2020c0 75%, #2020c0 100%
+    ),
+    linear-gradient(
+      90deg,
+      #c0c0c0 0 14.28%,
+      #c0c020 14.28% 28.57%,
+      #20c0c0 28.57% 42.85%,
+      #20c020 42.85% 57.14%,
+      #c020c0 57.14% 71.43%,
+      #c02020 71.43% 85.71%,
+      #2020c0 85.71% 100%
+    );
+  background-blend-mode: multiply;
+}
+
+/* Static / snow — animated noise */
+.tv-mini[data-mode="static"]::before {
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='60'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.9  0 0 0 0 0.9  0 0 0 0 0.9  0 0 0 1.4 -0.3'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    #1a1a1a;
+  background-size: 80px 60px;
+  animation: mini-static 0.18s steps(4) infinite;
+}
+@keyframes mini-static {
+  0%   { background-position: 0 0; }
+  25%  { background-position: -20px 8px; }
+  50%  { background-position: 12px -14px; }
+  75%  { background-position: -6px 18px; }
+  100% { background-position: 0 0; }
+}
+
+/* PLEASE STAND BY */
+.tv-mini[data-mode="standby"]::before {
+  background: radial-gradient(ellipse at center, #0a1830 0%, #050810 70%, #020308 100%);
+}
+.tv-mini[data-mode="standby"] > .standby-label {
+  position: absolute;
+  inset: 4px 4px 6px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #ffd070;
+  font-family: 'Limelight', serif;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-align: center;
+  text-shadow: 0 0 6px rgba(255, 200, 80, 0.6);
+}
+
+/* Channel number */
+.tv-mini[data-mode="channel"]::before {
+  background:
+    radial-gradient(ellipse at center, #02101a 0%, #020608 70%);
+}
+.tv-mini[data-mode="channel"] > .ch-label {
+  position: absolute;
+  inset: 4px 4px 6px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: #b6f4a0;
+  font-family: 'VT323', monospace;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-shadow: 0 0 6px rgba(140, 240, 120, 0.55);
+}
+.tv-mini[data-mode="channel"] > .ch-label .ch-num {
+  font-size: 30px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin-top: 1px;
+  text-shadow: 0 0 8px rgba(140, 240, 120, 0.7);
+}
+
+/* Test pattern (crosshair + circle) */
+.tv-mini[data-mode="test"]::before {
+  background:
+    /* crosshair */
+    linear-gradient(90deg, transparent 49.5%, rgba(255, 220, 140, 0.55) 49.5% 50.5%, transparent 50.5%),
+    linear-gradient(0deg,  transparent 49.5%, rgba(255, 220, 140, 0.55) 49.5% 50.5%, transparent 50.5%),
+    /* outer ring */
+    radial-gradient(circle at center, transparent 38%, rgba(255, 220, 140, 0.5) 39%, rgba(255, 220, 140, 0.5) 41%, transparent 42%),
+    radial-gradient(circle at center, transparent 20%, rgba(255, 220, 140, 0.4) 21%, rgba(255, 220, 140, 0.4) 22%, transparent 23%),
+    radial-gradient(ellipse at center, #1a0a14 0%, #050203 80%);
+}
+
+/* Off (dim slow scanline) */
+.tv-mini[data-mode="off"]::before {
+  background:
+    linear-gradient(180deg, #050203 0%, #020102 100%);
+}
+
+/* === Child face channel — upside-down, smeared, periodically dropping out === */
+.tv-mini[data-mode="child-face"]::before {
+  background: radial-gradient(ellipse at center, #2a0608 0%, #100204 60%, #050000 100%);
+}
+.child-face-display {
+  position: absolute;
+  inset: 4px 4px 6px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: #ff7868;
+  text-shadow:
+    2px 0 rgba(220, 30, 30, 0.65),
+    -2px 0 rgba(60, 200, 240, 0.55),
+    0 0 14px rgba(255, 70, 50, 0.45),
+    0 1px 0 #000;
+  filter: blur(0.5px) contrast(1.05);
+  /* upside down — that's the joke. Compose with jitter via the keyframes. */
+  animation:
+    child-face-jitter 0.13s steps(2) infinite,
+    child-face-dropout 6.3s ease-in-out infinite;
+  transform-origin: center center;
+}
+@keyframes child-face-jitter {
+  0%   { transform: rotate(180deg) translate(0, 0); }
+  33%  { transform: rotate(180deg) translate(0.7px, -0.3px); }
+  66%  { transform: rotate(180deg) translate(-0.5px, 0.5px); }
+  100% { transform: rotate(180deg) translate(0, 0); }
+}
+@keyframes child-face-dropout {
+  0%, 22%, 100% { opacity: 0.95; }
+  23%           { opacity: 0.15; filter: blur(2.4px) contrast(1.05); }
+  25%           { opacity: 0.95; filter: blur(0.5px) contrast(1.05); }
+  64%           { opacity: 0.95; }
+  65%           { opacity: 0.30; filter: blur(1.6px) contrast(1.05); }
+  67%           { opacity: 0.95; filter: blur(0.5px) contrast(1.05); }
+}
+/* Scrolling channels — quotes, ads, taglines — share the marquee plumbing.
+   Animation duration is set inline by decorateMiniTVs() based on text length,
+   so the speed stays constant (~9 chars/sec) regardless of pool size. */
+.tv-mini[data-mode="quotes"]::before,
+.tv-mini[data-mode="ads"]::before,
+.tv-mini[data-mode="taglines"]::before {
+  background: radial-gradient(ellipse at center, #050807 0%, #020403 100%);
+}
+.scroll-track {
+  position: absolute;
+  inset: 4px 4px 6px;
+  z-index: 3;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  border-radius: 8px / 6px;
+}
+.scroll-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: scroll-marquee 90s linear infinite;
+}
+.scroll-marquee .scroll-text {
+  display: inline-block;
+  white-space: nowrap;
+}
+@keyframes scroll-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* === Quotes channel — busted, ghosted, barely legible === */
+.scroll-quotes .scroll-text {
+  font-family: 'VT323', 'Special Elite', monospace;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: rgba(216, 200, 176, 0.30);
+  text-shadow:
+    1.5px 0 rgba(220, 50, 50, 0.55),
+    -1.5px 0 rgba(60, 180, 220, 0.55),
+    0 0 6px rgba(216, 200, 176, 0.18);
+  filter: blur(0.6px) contrast(0.9);
+  animation: quote-jitter 0.12s steps(2) infinite;
+}
+@keyframes quote-jitter {
+  0%   { transform: translateY(0); opacity: 0.85; }
+  25%  { transform: translateY(0.6px); opacity: 0.65; }
+  50%  { transform: translateY(-0.4px); opacity: 0.95; }
+  75%  { transform: translateY(0.2px); opacity: 0.7; }
+  100% { transform: translateY(0); opacity: 0.85; }
+}
+/* Occasional dropout — the whole channel briefly fades like a weak signal */
+.tv-mini[data-mode="quotes"] {
+  animation: quote-dropout 7s ease-in-out infinite;
+}
+@keyframes quote-dropout {
+  0%, 22%, 100% { filter: none; }
+  24%           { filter: brightness(0.2) blur(2px); }
+  26%           { filter: none; }
+  60%           { filter: none; }
+  62%           { filter: brightness(0.35) blur(1.5px); }
+  64%           { filter: none; }
+}
+
+/* === Ads channel — cable-access amber ticker === */
+.scroll-ads .scroll-text {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ffd070;
+  text-shadow:
+    0 0 4px rgba(255, 200, 80, 0.7),
+    0 0 12px rgba(255, 140, 30, 0.35),
+    0 1px 0 #000;
+}
+.tv-mini[data-mode="ads"]::before {
+  background:
+    radial-gradient(ellipse at center, #1a0a02 0%, #0a0301 100%);
+}
+/* Thin "lower-third" bar across the screen behind the ad text */
+.tv-mini[data-mode="ads"] .scroll-track {
+  top: auto;
+  bottom: 14px;
+  height: 22px;
+  background: linear-gradient(180deg, rgba(120, 50, 0, 0.4), rgba(40, 14, 0, 0.6));
+  border-top: 1px solid rgba(255, 200, 80, 0.35);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.6);
+}
+
+/* === Taglines channel — Fortuna's Palace station ident === */
+.tv-mini[data-mode="taglines"]::before {
+  /* Deep burgundy "stage curtain" backdrop, distinct from ads' black */
+  background:
+    radial-gradient(ellipse at center, #3a0a1a 0%, #1a0408 60%, #0a0204 100%);
+}
+.scroll-taglines .scroll-text {
+  font-family: 'Limelight', 'Special Elite', serif;
+  font-style: italic;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: #f0d8a8;
+  text-shadow:
+    0 0 6px rgba(240, 200, 130, 0.45),
+    0 0 14px rgba(255, 120, 60, 0.22),
+    0 1px 0 #000;
+}
+/* Centered horizontal band (no lower-third) — feels like a programming
+   bumper instead of a hard sell. */
+.tv-mini[data-mode="taglines"] .scroll-track {
+  top: 50%;
+  bottom: auto;
+  height: 24px;
+  transform: translateY(-50%);
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(60, 14, 30, 0.55) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  border-top: 1px solid rgba(240, 200, 130, 0.18);
+  border-bottom: 1px solid rgba(240, 200, 130, 0.18);
+}
+.tv-mini[data-mode="off"] > .off-scan {
+  position: absolute;
+  inset: 4px 4px 6px;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(to bottom,
+    transparent 47%, rgba(216, 200, 176, 0.18) 49%,
+    rgba(216, 200, 176, 0.4) 50%,
+    rgba(216, 200, 176, 0.18) 51%, transparent 53%);
+  animation: off-scan-line 5s linear infinite;
+}
+@keyframes off-scan-line {
+  0%   { transform: translateY(-50%); }
+  100% { transform: translateY(50%); }
+}
+
+/* ===== TV Cabinet ===== */
+
+.tv-stage {
+  position: relative;
+  margin-top: 56px; /* room for antenna */
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.tv {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  padding: 14px 14px 16px;
+  background:
+    repeating-linear-gradient(
+      92deg,
+      var(--mahogany) 0px,
+      var(--mahogany-light) 2px,
+      var(--mahogany-dark) 4px,
+      var(--mahogany-light) 6px,
+      var(--mahogany) 8px
+    ),
+    linear-gradient(180deg, var(--mahogany-light), var(--mahogany-dark));
+  border: 3px solid #1a0a02;
+  border-radius: 10px 10px 5px 5px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 200, 130, 0.18),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.55),
+    0 22px 40px rgba(0, 0, 0, 0.75),
+    0 0 0 3px #0e0604,
+    0 0 60px rgba(255, 160, 60, 0.10);
+}
+
+/* Wood grain knots */
+.tv::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 24%, rgba(0, 0, 0, 0.42) 2px, transparent 16px),
+    radial-gradient(circle at 82% 58%, rgba(0, 0, 0, 0.35) 2px, transparent 18px),
+    radial-gradient(circle at 44% 88%, rgba(0, 0, 0, 0.3)  2px, transparent 14px);
+  border-radius: inherit;
+  mix-blend-mode: multiply;
+}
+
+/* ===== Antenna ===== */
+
+.tv-antenna {
+  position: absolute;
+  top: -56px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 160px;
+  height: 56px;
+  pointer-events: none;
+}
+.tv-antenna-base {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 8px;
+  background: linear-gradient(180deg, #6a5a3a, #2a1f10);
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 1px 0 #1a1408;
+}
+.tv-antenna-left,
+.tv-antenna-right {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  width: 4px;
+  height: 60px;
+  background: linear-gradient(180deg, #c8b890, #5a4a20);
+  transform-origin: bottom center;
+  border-radius: 2px 2px 0 0;
+}
+.tv-antenna-left  { transform: translateX(-50%) rotate(-34deg); }
+.tv-antenna-right { transform: translateX(-50%) rotate(34deg); }
+.tv-antenna-left::after,
+.tv-antenna-right::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -1px;
+  width: 6px;
+  height: 6px;
+  background: #d8c890;
+  border-radius: 50%;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* ===== Screen ===== */
+
+.tv-screen-frame {
+  position: relative;
+  padding: 12px;
+  background: linear-gradient(180deg, #1a0d05, #08030200);
+  border: 3px solid #0e0604;
+  border-radius: 14px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 220, 160, 0.06),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.6);
+}
+
+.tv-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: radial-gradient(ellipse at center, #1a4a6a 0%, #08283a 60%, #03101a 100%);
+  border-radius: 22px / 16px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 20px rgba(0, 0, 0, 0.7),
+    inset 0 0 60px rgba(0, 0, 0, 0.5);
+  animation: tv-flicker 7s infinite;
+}
+
+@keyframes tv-flicker {
+  0%, 100% { filter: brightness(1) contrast(1); }
+  3%   { filter: brightness(1.06); }
+  4%   { filter: brightness(1); }
+  37%  { filter: brightness(0.92); }
+  38%  { filter: brightness(1); }
+  72%  { filter: brightness(1.1) contrast(1.05); }
+  73%  { filter: brightness(1); }
+}
+
+#weatherman-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* width:auto preserves the intrinsic 40:44 aspect of the pixel art so the
+     pointer-bearing weatherman isn't horizontally squashed by the 4:3 screen.
+     Height pushed up so the bigger sprite fills more of the CRT area. */
+  height: 92%;
+  width: auto;
+  transform: translate(-50%, -50%);
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  z-index: 1;
+}
+
+.tv-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px 10px 12px;
+  text-align: center;
+}
+
+/* Big red ✕ that slams across the broadcast when the player burns their
+   one free strike. JS toggles .is-on for the duration of the animation.
+   Built from two diagonal bars via ::before/::after so the X scales with
+   the screen container — no viewport-relative font-size math needed. */
+.ir-strike-x {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 6;
+  text-indent: -9999px;       /* hide the literal ✕ — bars carry the visual */
+  overflow: hidden;
+}
+.ir-strike-x::before,
+.ir-strike-x::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 130%;
+  height: 14%;
+  background: linear-gradient(180deg,
+    #ff8888 0%,
+    #ff1818 35%,
+    #c00000 65%,
+    #6a0000 100%);
+  border-radius: 6px;
+  box-shadow:
+    0 0 18px rgba(255, 30, 30, 1),
+    0 0 42px rgba(255, 30, 30, 0.85),
+    0 0 90px rgba(255, 30, 30, 0.55),
+    inset 0 2px 0 rgba(255, 200, 200, 0.6),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.55);
+  transform-origin: center;
+}
+.ir-strike-x::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.ir-strike-x::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+.ir-strike-x.is-on {
+  animation: ir-strike-flash 1.2s ease-out forwards;
+}
+@keyframes ir-strike-flash {
+  0%   { opacity: 0;    transform: scale(0.35) rotate(-22deg); }
+  18%  { opacity: 1;    transform: scale(1.1)  rotate(-4deg);  }
+  35%  { opacity: 0.95; transform: scale(1.0)  rotate(0deg);   }
+  72%  { opacity: 0.95; transform: scale(1.0)  rotate(0deg);   }
+  100% { opacity: 0;    transform: scale(1.05) rotate(0deg);   }
+}
+
+.tv-banner {
+  font-family: var(--font-title);
+  color: var(--brass-bright);
+  font-size: 16px;
+  letter-spacing: 0.22em;
+  text-shadow:
+    0 0 6px rgba(255, 200, 80, 0.7),
+    0 0 14px rgba(255, 120, 0, 0.4);
+}
+
+.tv-city {
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+  color: #fff5d0;
+  text-shadow:
+    0 0 4px rgba(255, 245, 200, 0.5),
+    0 1px 0 #000;
+  letter-spacing: 0.04em;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2px 10px;
+  border-radius: 3px;
+  align-self: center;
+  line-height: 1.15;
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 6px;
+}
+.tv-city .tv-q-city {
+  color: var(--brass-bright);
+  font-weight: 700;
+}
+.tv-city .tv-q-suffix {
+  /* Suffix carries punctuation + threshold text; no leading gap. */
+  margin-left: -6px;
+}
+
+.tv-result {
+  font-family: 'VT323', monospace;
+  font-size: 17px;
+  color: #fff5d0;
+  text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.03em;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 4px 10px;
+  border-radius: 3px;
+  align-self: center;
+  min-height: 1.3em;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.tv-result.is-on { opacity: 1; }
+.tv-result.is-win  { color: #b6f4a0; text-shadow: 0 0 6px rgba(140, 240, 120, 0.55), 0 1px 0 #000; }
+.tv-result.is-loss { color: #ffb0a0; text-shadow: 0 0 6px rgba(255, 90, 60, 0.6),   0 1px 0 #000; }
+.tv-result.is-err  { color: var(--brass-bright); }
+
+/* CRT effects */
+
+.crt-scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.32) 2px,
+    rgba(0, 0, 0, 0.32) 3px
+  );
+  mix-blend-mode: multiply;
+}
+
+.crt-roll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 26px;
+  pointer-events: none;
+  z-index: 6;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(255, 220, 140, 0.05) 30%,
+    rgba(255, 220, 140, 0.14) 50%,
+    rgba(255, 220, 140, 0.05) 70%,
+    transparent 100%
+  );
+  animation: tv-roll 11s linear infinite;
+}
+
+@keyframes tv-roll {
+  0%   { transform: translateY(-30%); opacity: 0; }
+  20%  { opacity: 0.9; }
+  80%  { opacity: 0.9; }
+  100% { transform: translateY(130%); opacity: 0; }
+}
+
+.crt-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.65) 100%);
+}
+
+/* ===== Built-in control panel ===== */
+
+.tv-panel {
+  margin-top: 10px;
+  padding: 10px 12px 8px;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.15)),
+    repeating-linear-gradient(
+      90deg,
+      var(--mahogany-dark) 0 2px,
+      var(--mahogany) 2px 4px
+    );
+  border: 1px solid #0a0402;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.10),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55);
+}
+
+.tv-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tv-panel-readouts {
+  margin-bottom: 8px;
+}
+
+/* LCD readouts (amber 7-seg styling) */
+
+.tv-lcd {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 4px 10px;
+  background: var(--lcd-bg);
+  border: 1px solid #1a0a02;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.85),
+    inset 0 0 8px rgba(255, 140, 40, 0.10),
+    0 0 6px rgba(255, 140, 40, 0.18);
+  min-width: 64px;
+}
+.tv-lcd-label {
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 176, 96, 0.55);
+  text-align: center;
+}
+.tv-lcd-value {
+  font-family: 'VT323', monospace;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--lcd-amber);
+  text-align: center;
+  text-shadow:
+    0 0 6px rgba(255, 176, 96, 0.7),
+    0 0 16px rgba(255, 130, 30, 0.35);
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+.tv-lcd-pot.is-grow .tv-lcd-value {
+  animation: lcd-bump 0.45s ease;
+}
+.tv-lcd-pot.is-bust .tv-lcd-value {
+  color: #ff6850;
+  text-shadow: 0 0 10px rgba(255, 60, 40, 0.7);
+}
+.tv-lcd-pot.is-cashed .tv-lcd-value {
+  color: var(--lcd-phosphor);
+  text-shadow: 0 0 10px rgba(120, 240, 100, 0.65);
+}
+/* Strikes LCD reddens once the free miss is used up. */
+.tv-lcd-strikes.is-warn .tv-lcd-value {
+  color: #ff6850;
+  text-shadow: 0 0 10px rgba(255, 60, 40, 0.7);
+  animation: lcd-bump 0.45s ease;
+}
+@keyframes lcd-bump {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* Wager dial */
+
+.tv-wager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--brass-deep);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+}
+.tv-wager-label {
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 220, 160, 0.6);
+}
+#ir-wager {
+  width: 64px;
+  padding: 2px 6px;
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  color: var(--phosphor);
+  background: var(--lcd-bg);
+  border: 1px solid #1a0a02;
+  border-radius: 2px;
+  text-align: center;
+  text-shadow: 0 0 4px rgba(26, 255, 127, 0.4);
+}
+#ir-wager:focus {
+  outline: none;
+  border-color: var(--phosphor);
+  box-shadow: 0 0 6px rgba(26, 255, 127, 0.4);
+}
+#ir-wager:disabled {
+  opacity: 0.55;
+}
+
+.tv-mini-btn {
+  font-family: 'Special Elite', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 2px 6px;
+  background: linear-gradient(180deg, #4a361a, #2a1808);
+  color: var(--brass-bright);
+  border: 1px solid var(--brass-deep);
+  border-radius: 2px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.tv-mini-btn:hover:not(:disabled) {
+  color: #fff5c0;
+  border-color: var(--brass-bright);
+  box-shadow: 0 0 6px rgba(255, 176, 96, 0.35);
+}
+.tv-mini-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Game buttons row — chunky bakelite lozenges set into the cabinet */
+
+.tv-panel-buttons {
+  gap: 8px;
+  justify-content: stretch;
+}
+
+.tv-btn {
+  flex: 1;
+  font-family: 'Special Elite', monospace;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  padding: 9px 10px;
+  background: linear-gradient(180deg, #2a1c12 0%, #14080a 100%);
+  color: #d8c8b0;
+  border: 1px solid #0a0402;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 #000;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.16),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
+    0 2px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--brass-deep);
+  transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
+  position: relative;
+}
+.tv-btn::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  right: 6px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 220, 160, 0.35), transparent);
+  pointer-events: none;
+}
+.tv-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #3a2818 0%, #1a0e0c 100%);
+}
+.tv-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.65),
+    0 0 0 1px var(--brass-deep);
+}
+.tv-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.tv-btn-yes {
+  color: #b8d8f0;
+  text-shadow: 0 0 6px rgba(120, 180, 230, 0.4), 0 1px 0 #000;
+}
+.tv-btn-yes:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.16),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
+    0 2px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 1px #4a7090,
+    0 0 14px rgba(120, 180, 230, 0.35);
+}
+
+.tv-btn-no {
+  color: #f0d490;
+  text-shadow: 0 0 6px rgba(240, 200, 100, 0.4), 0 1px 0 #000;
+}
+.tv-btn-no:hover:not(:disabled) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.16),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
+    0 2px 0 rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--brass),
+    0 0 14px rgba(240, 200, 100, 0.4);
+}
+
+/* Decision row — visibly different from the YES/NO bakelite row above.
+   These are taller, slimmer, brass-bezeled lozenges (think jukebox selectors)
+   so the player reads them as separate controls, not relabelled answers. */
+.tv-panel-decision {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(184, 150, 92, 0.25);
+  justify-content: center;
+  min-height: 0;
+}
+.tv-panel-decision:empty,
+.tv-panel-decision:has(button[hidden]:only-child),
+.tv-panel-decision:has(button:not([hidden]) ~ :not(button:not([hidden]))) {
+  /* No-op; structural placeholder so the row keeps its border even when only
+     a single button is showing. */
+}
+
+.tv-decision-btn {
+  flex: 1;
+  font-family: 'Limelight', 'Special Elite', serif;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  background:
+    linear-gradient(180deg, #0a0a14 0%, #14080a 60%, #0a0204 100%);
+  color: #d8c8a0;
+  border: 1px solid var(--brass-deep);
+  border-radius: 999px;       /* pill / lozenge shape, very different from YES/NO */
+  cursor: pointer;
+  text-shadow: 0 0 6px rgba(255, 200, 80, 0.5), 0 1px 0 #000;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.20),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    0 0 0 2px rgba(184, 150, 92, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.55);
+  transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.tv-decision-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #14101c 0%, #1a0a10 60%, #100208 100%);
+  color: #fff5d8;
+}
+.tv-decision-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.7),
+    0 0 0 2px rgba(184, 150, 92, 0.3);
+}
+.tv-decision-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.tv-decision-cash {
+  color: #b6f4a0;
+  border-color: #4a8a3a;
+  background:
+    linear-gradient(180deg, #0a1a08 0%, #14180a 60%, #061004 100%);
+  text-shadow: 0 0 8px rgba(140, 240, 120, 0.55), 0 1px 0 #000;
+}
+.tv-decision-cash:hover:not(:disabled) {
+  background: linear-gradient(180deg, #102a0a 0%, #1a2210 60%, #0a1808 100%);
+  color: #d8ffc8;
+  box-shadow:
+    inset 0 1px 0 rgba(180, 240, 160, 0.30),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    0 0 0 2px rgba(120, 200, 100, 0.45),
+    0 0 18px rgba(140, 240, 120, 0.45);
+}
+
+.tv-decision-push {
+  color: var(--brass-bright);
+  border-color: var(--brass);
+  background:
+    linear-gradient(180deg, #1a1408 0%, #14080a 60%, #0a0604 100%);
+  text-shadow: 0 0 8px rgba(255, 200, 80, 0.55), 0 1px 0 #000;
+  animation: decision-push-pulse 1.6s ease-in-out infinite;
+}
+.tv-decision-push:hover:not(:disabled) {
+  background: linear-gradient(180deg, #2a1808 0%, #1a0e08 60%, #14080a 100%);
+  color: #fff5c0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.30),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    0 0 0 2px var(--brass),
+    0 0 20px rgba(255, 200, 80, 0.55);
+}
+@keyframes decision-push-pulse {
+  0%, 100% { box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.20),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    0 0 0 2px rgba(184, 150, 92, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.55); }
+  50%      { box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.20),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    0 0 0 2px var(--brass-bright),
+    0 0 18px rgba(255, 200, 80, 0.5); }
+}
+
+.tv-decision-new {
+  color: #f0d490;
+  border-color: var(--brass-deep);
+}
+
+/* Base row: knobs + brand + speaker */
+
+.tv-panel-base {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.55);
+  box-shadow: 0 -1px 0 rgba(255, 220, 160, 0.06);
+}
+
+.tv-knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 35%, var(--brass-bright) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 50% 50%, #5a3a14 0 7px, #2a1808 8px 10px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.6);
+  flex: 0 0 auto;
+}
+
+.tv-brand {
+  font-family: var(--font-title);
+  color: var(--brass);
+  font-size: 14px;
+  letter-spacing: 0.24em;
+  text-shadow: 0 1px 0 #000;
+  flex: 1;
+  text-align: center;
+}
+
+.tv-speaker {
+  flex: 1;
+  height: 18px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #1a0d05 0 2px,
+      #2a1808 2px 4px
+    );
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgba(255, 200, 130, 0.08);
+}
+
+.tv-mute-btn {
+  width: 28px;
+  height: 22px;
+  margin: 0 4px;
+  padding: 0;
+  background: linear-gradient(180deg, #2a1808, #14080a);
+  border: 1px solid var(--brass-deep);
+  border-radius: 3px;
+  color: var(--brass-bright);
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.18),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(0, 0, 0, 0.5);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.tv-mute-btn:hover {
+  background: linear-gradient(180deg, #3a2818, #1a0e0c);
+  color: #fff5c0;
+}
+.tv-mute-btn.is-muted {
+  color: rgba(216, 200, 176, 0.4);
+}
+
+/* Legs */
+
+.tv-leg {
+  position: absolute;
+  bottom: -12px;
+  width: 18px;
+  height: 12px;
+  background: linear-gradient(180deg, #2a1808, #0e0604);
+  border-radius: 0 0 3px 3px;
+}
+.tv-leg-l { left: 36px; }
+.tv-leg-r { right: 36px; }
+
+/* ===== Built-in ladder column ===== */
+
+/* The screen + ladder share a row inside the wood cabinet. The ladder sits
+   to the right of the screen, framed in mahogany like an integrated
+   payout tote board. The control panel below spans the row's full width. */
+.tv-screen-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+}
+.tv-screen-row .tv-screen-frame {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tv-builtin-ladder {
+  flex: 0 0 132px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px 6px;
+  background:
+    linear-gradient(180deg, rgba(10, 4, 2, 0.85), rgba(28, 14, 8, 0.85)),
+    repeating-linear-gradient(
+      92deg,
+      var(--mahogany-dark) 0px,
+      var(--mahogany) 2px,
+      var(--mahogany-dark) 3px
+    );
+  border: 2px solid #1a0a02;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.10),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
+    0 0 0 1px var(--brass-deep);
+  position: relative;
+}
+/* Faint dashed inset border so the tote board reads as recessed */
+.tv-builtin-ladder::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed rgba(184, 150, 92, 0.22);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.tv-builtin-ladder .ir-ladder-title {
+  font-family: var(--font-title);
+  font-size: 10px;
+  letter-spacing: 0.30em;
+  color: var(--brass);
+  text-align: center;
+  margin-bottom: 5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(184, 150, 92, 0.3);
+}
+.tv-builtin-ladder .ir-ladder-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0;
+  flex: 1 1 auto;
+}
+.tv-builtin-ladder .ir-ladder-rung {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 2px 6px;
+  font-family: 'VT323', monospace;
+  font-size: 13px;
+  color: rgba(216, 200, 176, 0.32);
+  border-left: 2px solid transparent;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+.tv-builtin-ladder .ir-ladder-rung.is-climbed { color: rgba(216, 200, 176, 0.65); }
+.tv-builtin-ladder .ir-ladder-rung.is-current {
+  color: var(--brass-bright);
+  background: rgba(255, 200, 80, 0.10);
+  border-left-color: var(--brass-bright);
+  text-shadow: 0 0 6px rgba(255, 200, 80, 0.55);
+}
+.tv-builtin-ladder .ir-ladder-rung.is-next {
+  color: rgba(216, 200, 176, 0.85);
+  border-left-color: rgba(184, 150, 92, 0.4);
+}
+.tv-builtin-ladder .ir-ladder-mult { letter-spacing: 0.04em; flex: 0 0 auto; }
+.tv-builtin-ladder .ir-ladder-coins { flex: 1; text-align: right; }
+/* No "coins" suffix in the slim column. */
+.tv-builtin-ladder .ir-ladder-coins::after { content: ''; margin: 0; }
+.ir-ladder-title {
+  text-align: center;
+  font-family: var(--font-title);
+  font-size: 13px;
+  letter-spacing: 0.32em;
+  color: var(--brass);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(184, 150, 92, 0.3);
+}
+.ir-ladder-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 1px;
+}
+.ir-ladder-rung {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 10px;
+  font-family: 'VT323', monospace;
+  font-size: 17px;
+  color: rgba(216, 200, 176, 0.32);
+  border-left: 3px solid transparent;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+.ir-ladder-rung.is-climbed {
+  color: rgba(216, 200, 176, 0.65);
+}
+.ir-ladder-rung.is-current {
+  color: var(--brass-bright);
+  background: rgba(255, 200, 80, 0.10);
+  border-left-color: var(--brass-bright);
+  text-shadow: 0 0 6px rgba(255, 200, 80, 0.55);
+}
+.ir-ladder-rung.is-next {
+  color: rgba(216, 200, 176, 0.85);
+  border-left-color: rgba(184, 150, 92, 0.4);
+}
+.ir-ladder-mult { letter-spacing: 0.04em; flex: 0 0 auto; }
+.ir-ladder-coins { flex: 1; text-align: right; }
+.ir-ladder-coins::after {
+  content: ' coins';
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.5;
+  margin-left: 4px;
+}
+.ir-ladder-hint {
+  margin: 6px 0;
+  padding: 6px 12px;
+  border-top: 1px dashed rgba(184, 150, 92, 0.25);
+  border-bottom: 1px dashed rgba(184, 150, 92, 0.25);
+  font-family: 'Special Elite', monospace;
+  font-size: 11px;
+  color: rgba(216, 200, 176, 0.55);
+  font-style: italic;
+  text-align: center;
+  line-height: 1.4;
+  max-width: 440px;
+}
+
+/* ===== Ashtray with a smoldering cigarette ===== */
+
+.lounge-ashtray {
+  position: fixed;
+  bottom: 16px;
+  right: 18px;
+  width: 96px;
+  height: 26px;
+  border-radius: 50% / 60%;
+  background: radial-gradient(ellipse at center, #2a2018 0%, #14080a 70%, #08040500 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.8),
+    0 4px 10px rgba(0, 0, 0, 0.7);
+  z-index: 1;
+  pointer-events: none;
+}
+.lounge-cig {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  width: 56px;
+  height: 5px;
+  background: linear-gradient(90deg, #f0e8d0 0%, #f0e8d0 70%, #d8a060 88%, #2a1808 100%);
+  border-radius: 2px;
+  transform: rotate(-8deg);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+.lounge-cig-tip {
+  position: absolute;
+  top: 1px;
+  left: 60px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ff6020 0%, #c83010 60%, #4a1004 100%);
+  box-shadow: 0 0 8px rgba(255, 100, 40, 0.8), 0 0 16px rgba(255, 60, 20, 0.5);
+  animation: cig-ember 2.5s ease-in-out infinite;
+}
+@keyframes cig-ember {
+  0%, 100% { opacity: 0.85; box-shadow: 0 0 6px rgba(255, 100, 40, 0.7),  0 0 14px rgba(255, 60, 20, 0.45); }
+  50%      { opacity: 1;     box-shadow: 0 0 10px rgba(255, 130, 50, 0.95), 0 0 22px rgba(255, 80, 30, 0.65); }
+}
+.lounge-cig-smoke {
+  position: absolute;
+  top: -90px;
+  left: 56px;
+  width: 30px;
+  height: 100px;
+  background: radial-gradient(ellipse at bottom, rgba(216, 200, 176, 0.4) 0%, transparent 70%);
+  filter: blur(8px);
+  border-radius: 50%;
+  animation: cig-smoke 4s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+@keyframes cig-smoke {
+  0%   { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  20%  { opacity: 0.5; }
+  100% { transform: translate(-22px, -60px) scale(1.4); opacity: 0; }
+}
+
+/* ===== Responsive ===== */
+
+@media (max-width: 540px) {
+  /* Narrow phones: drop the built-in ladder column so the screen stays
+     full-size. The POT/RUNG LCDs on the bezel cover the same info. */
+  .tv-builtin-ladder { display: none; }
+}
+@media (max-width: 720px) {
+  .tv-wall-top    { grid-template-columns: repeat(5, 1fr); }
+  .tv-wall-bottom { grid-template-columns: repeat(5, 1fr); }
+}
+@media (max-width: 540px) {
+  .ir-title { font-size: 52px; }
+  .ir-title::before, .ir-title::after { display: none; }
+  .tv-panel-buttons { flex-wrap: wrap; }
+  .tv-btn { font-size: 12px; padding: 8px 8px; flex: 1 1 calc(50% - 4px); }
+  .tv-panel-readouts { flex-wrap: wrap; }
+  .tv-wager { margin-left: 0; }
+  .lounge-ashtray { display: none; }
+  .tv-wall-top    { grid-template-columns: repeat(3, 1fr); }
+  .tv-wall-bottom { grid-template-columns: repeat(3, 1fr); }
+  /* Hide the overflow mini TVs on small screens so we don't get half-rows */
+  .tv-wall-top    .tv-mini:nth-child(n+7),
+  .tv-wall-bottom .tv-mini:nth-child(n+4) { display: none; }
+}
+@media (max-width: 380px) {
+  .ir-title { font-size: 40px; }
+  .tv-wall-top    { grid-template-columns: repeat(2, 1fr); }
+  .tv-wall-bottom { grid-template-columns: repeat(2, 1fr); }
+  .tv-wall-top    .tv-mini:nth-child(n+5),
+  .tv-wall-bottom .tv-mini:nth-child(n+3) { display: none; }
+}

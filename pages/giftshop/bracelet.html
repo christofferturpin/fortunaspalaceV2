@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — HOSPITAL BRACELET (Fortuna's Postpartum Band, 200,000)      │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item page for a hospital wristband. PVC band printed in thermal       │
+  │    black on cream, mother's postpartum identification, three days        │
+  │    after admission. PT: MAYER, FORTUNA STONECIPHER. The band is the      │
+  │    artifact; the player is given three sliders — R, G, B — labelled      │
+  │    "your child's color" and a live LCD preview that matches the          │
+  │    tamagotchi screen on the child page. Sliding writes a new tint to     │
+  │    Child.setColor(); the next time the player visits Your Child the      │
+  │    screen behind the kaomoji wears whatever color was chosen. As the     │
+  │    player accumulates slider movement, four confession lines fade in     │
+  │    underneath in sequence, never re-hiding.                              │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/wallet.js, ../../js/child.js, ../../js/header.js     │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .hb-scene > .hb-band (.hb-band-front rows + .hb-barcode +        │
+  │      .hb-band-snap-l/r), .hb-mixer (#hbPreview + 3 .hb-slider w/         │
+  │      input[type=range] R/G/B + numeric readouts), .hb-prose (4           │
+  │      .reveal[data-reveal] <p>), a.hb-back                                │
+  │    flow: IIFE init → read Child.getColor → set sliders + preview;        │
+  │      sliders 'input' event → write Child.setColor({r,g,b}) + update      │
+  │      preview swatch + add |delta| to moveSum; checkReveals() →           │
+  │      threshold ladder (40 / 220 / 520 / 920) adds .shown to the next     │
+  │      hidden .reveal; revealIdx persists to localStorage so re-entry      │
+  │      keeps already-revealed lines visible from frame zero                │
+  │    storage R/W: wendys_palace_child.color {r,g,b} via Child.setColor;    │
+  │      wendys_palace_bracelet.{reveal:int, moveSum:int} (this page only);  │
+  │      ownership tracked in wendys_palace_giftshop, key='bracelet'         │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)              │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Hospital Bracelet</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400&family=VT323&family=Libre+Barcode+39&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at center, #181014 0%, #0a0407 70%, #020001 100%);
+      color: #d8c8b0;
+      font-family: 'Cormorant Garamond', serif;
+      overflow-x: hidden;
+    }
+    .hb-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 56px 22px 60px;
+      gap: 30px;
+      position: relative;
+    }
+
+    /* ──────────────── Wristband ──────────────── */
+    .hb-band {
+      width: min(560px, 96vw);
+      position: relative;
+      filter: drop-shadow(0 18px 28px rgba(0,0,0,0.7));
+    }
+    .hb-band-front {
+      position: relative;
+      padding: 18px 64px 20px;
+      background:
+        linear-gradient(180deg,
+          #f5ecd6 0%,
+          #ece1c5 32%,
+          #e4d7b5 68%,
+          #d8c89c 100%);
+      border-radius: 18px;
+      border: 1px solid rgba(80, 60, 30, 0.35);
+      box-shadow:
+        inset 0 2px 0 rgba(255, 250, 230, 0.55),
+        inset 0 -8px 16px rgba(110, 80, 30, 0.18),
+        inset 0 0 0 1px rgba(255, 245, 220, 0.5);
+      transform: perspective(900px) rotateX(8deg);
+      transform-origin: top center;
+    }
+    .hb-band-front::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      background:
+        repeating-linear-gradient(90deg,
+          transparent 0 18px,
+          rgba(180, 150, 90, 0.05) 18px 19px),
+        repeating-linear-gradient(0deg,
+          transparent 0 9px,
+          rgba(140, 110, 60, 0.04) 9px 10px);
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+    .hb-band-front::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      background: linear-gradient(115deg,
+        transparent 24%,
+        rgba(255, 252, 240, 0.32) 48%,
+        transparent 64%);
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+    .hb-band-snap {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 22px;
+      height: 56px;
+      background: linear-gradient(180deg, #f8efd6 0%, #c9b486 100%);
+      border: 1px solid rgba(80, 50, 20, 0.45);
+      border-radius: 5px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 250, 220, 0.6),
+        inset 0 -3px 6px rgba(90, 60, 20, 0.4),
+        0 2px 4px rgba(0, 0, 0, 0.45);
+    }
+    .hb-band-snap-l { left: 14px; }
+    .hb-band-snap-r { right: 14px; }
+    .hb-band-snap::before,
+    .hb-band-snap::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #f4e6c0 0%, #a88848 60%, #5a3818 100%);
+      box-shadow: inset 0 -1px 1px rgba(0,0,0,0.4);
+    }
+    .hb-band-snap::before { top: 8px; }
+    .hb-band-snap::after  { bottom: 8px; }
+
+    .hb-band-header {
+      text-align: center;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid rgba(60, 40, 16, 0.32);
+      font-family: 'Special Elite', monospace;
+      color: #2a1a08;
+    }
+    .hb-band-hospital {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .hb-band-room {
+      margin-top: 3px;
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: rgba(50, 30, 12, 0.7);
+    }
+    .hb-band-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-family: 'Special Elite', monospace;
+      color: #1c1004;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      margin-bottom: 5px;
+    }
+    .hb-band-row:last-of-type { margin-bottom: 0; }
+    .hb-band-row .hb-band-label {
+      font-size: 9px;
+      letter-spacing: 0.20em;
+      color: rgba(60, 36, 12, 0.65);
+      min-width: 30px;
+    }
+    .hb-band-row .hb-band-value { font-weight: 400; }
+    .hb-band-row-name .hb-band-value {
+      font-size: 14px;
+      letter-spacing: 0.10em;
+    }
+    .hb-band-row-baby {
+      margin-top: 7px;
+      padding-top: 6px;
+      border-top: 1px dotted rgba(60, 36, 12, 0.4);
+    }
+    .hb-band-row-baby .hb-band-value {
+      font-size: 11px;
+      color: rgba(50, 30, 12, 0.85);
+    }
+    .hb-barcode {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(60, 36, 12, 0.32);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .hb-barcode-bars {
+      width: 80%;
+      height: 30px;
+      background:
+        repeating-linear-gradient(90deg,
+          #1c1004 0 1px, transparent 1px 2px,
+          #1c1004 2px 4px, transparent 4px 5px,
+          #1c1004 5px 6px, transparent 6px 9px,
+          #1c1004 9px 11px, transparent 11px 12px,
+          #1c1004 12px 13px, transparent 13px 16px);
+    }
+    .hb-barcode-num {
+      margin-top: 4px;
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.30em;
+      color: rgba(40, 22, 6, 0.85);
+    }
+
+    /* ──────────────── Mixer (RGB sliders) ──────────────── */
+    .hb-mixer {
+      width: min(560px, 96vw);
+      padding: 22px 22px 26px;
+      border: 1px solid rgba(201, 161, 74, 0.32);
+      border-radius: 6px;
+      background:
+        linear-gradient(180deg, rgba(20, 14, 10, 0.78), rgba(10, 6, 4, 0.92));
+      box-shadow:
+        inset 0 1px 0 rgba(201, 161, 74, 0.18),
+        0 8px 18px rgba(0, 0, 0, 0.55);
+    }
+    .hb-mixer-title {
+      text-align: center;
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: rgba(216, 200, 176, 0.6);
+      margin-bottom: 14px;
+    }
+    .hb-preview-frame {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+    .hb-preview {
+      width: 220px;
+      height: 110px;
+      border: 4px solid #1a0e10;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'VT323', 'Courier New', monospace;
+      font-size: 48px;
+      color: #1a2810;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+      box-shadow:
+        inset 0 0 14px rgba(20, 40, 0, 0.5),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+      position: relative;
+      overflow: hidden;
+      transition: background 80ms linear, color 120ms linear;
+    }
+    .hb-preview::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0 2px,
+        rgba(0, 0, 0, 0.07) 2px 3px);
+    }
+
+    .hb-sliders {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .hb-slider {
+      display: grid;
+      grid-template-columns: 22px 1fr 44px;
+      align-items: center;
+      gap: 12px;
+    }
+    .hb-slider-letter {
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      letter-spacing: 0.10em;
+      text-align: center;
+    }
+    .hb-slider-r .hb-slider-letter { color: #e87078; }
+    .hb-slider-g .hb-slider-letter { color: #8ed078; }
+    .hb-slider-b .hb-slider-letter { color: #78a8e0; }
+    .hb-slider input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg,
+        rgba(40, 28, 20, 0.9) 0%,
+        rgba(60, 44, 28, 0.7) 100%);
+      outline: none;
+      cursor: pointer;
+    }
+    .hb-slider-r input[type=range] {
+      background: linear-gradient(90deg, #2a0a0c 0%, #e83040 100%);
+    }
+    .hb-slider-g input[type=range] {
+      background: linear-gradient(90deg, #0a2a0c 0%, #30e040 100%);
+    }
+    .hb-slider-b input[type=range] {
+      background: linear-gradient(90deg, #0a142a 0%, #4080e8 100%);
+    }
+    .hb-slider input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #f5e8c8 0%, #c9a14a 60%, #5a3a14 100%);
+      border: 1px solid #2a1a08;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      cursor: grab;
+    }
+    .hb-slider input[type=range]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #f5e8c8 0%, #c9a14a 60%, #5a3a14 100%);
+      border: 1px solid #2a1a08;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      cursor: grab;
+    }
+    .hb-slider-val {
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      color: rgba(216, 200, 176, 0.85);
+      text-align: right;
+    }
+    .hb-mixer-caption {
+      margin-top: 14px;
+      text-align: center;
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.30em;
+      text-transform: uppercase;
+      color: rgba(216, 200, 176, 0.38);
+    }
+
+    /* ──────────────── Confession reveals ──────────────── */
+    .hb-prose {
+      max-width: 560px;
+      text-align: center;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      line-height: 1.55;
+      color: rgba(216, 200, 176, 0.92);
+    }
+    .hb-prose .reveal {
+      opacity: 0;
+      max-height: 0;
+      margin-bottom: 0;
+      overflow: hidden;
+      transition: opacity 1.4s ease, max-height 1.4s ease, margin-bottom 1.4s ease;
+    }
+    .hb-prose .reveal.shown {
+      opacity: 1;
+      max-height: 200px;
+      margin-bottom: 14px;
+    }
+    .hb-prose .reveal:last-child.shown { margin-bottom: 0; }
+    .hb-line-1 {
+      font-size: 22px;
+      letter-spacing: 0.02em;
+      color: rgba(232, 220, 200, 0.95);
+    }
+    .hb-line-2 {
+      font-family: 'Special Elite', monospace;
+      font-style: normal;
+      font-size: 16px;
+      letter-spacing: 0.06em;
+      color: rgba(216, 192, 160, 0.85);
+    }
+    .hb-line-3 {
+      font-size: 21px;
+      font-weight: 700;
+      color: rgba(232, 184, 128, 0.95);
+    }
+    .hb-line-4 {
+      font-size: 24px;
+      color: #f0c890;
+      text-shadow: 0 0 14px rgba(216, 152, 56, 0.22);
+    }
+
+    .hb-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8b0;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+    }
+    .hb-back:hover {
+      background: rgba(201, 161, 74, 0.15);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="hb-scene">
+    <div class="hb-band" aria-label="Hospital wristband, MAYER FORTUNA STONECIPHER, admitted 05-22-2026">
+      <div class="hb-band-front">
+        <div class="hb-band-header">
+          <div class="hb-band-hospital">Roane Medical Center · Harriman, TN</div>
+          <div class="hb-band-room">L&amp;D · POSTPARTUM · RM 314-B</div>
+        </div>
+        <div class="hb-band-row hb-band-row-name">
+          <span class="hb-band-label">PT</span>
+          <span class="hb-band-value">MAYER, FORTUNA STONECIPHER</span>
+        </div>
+        <div class="hb-band-row">
+          <span class="hb-band-label">DOB</span><span class="hb-band-value">04-11-1992</span>
+          <span class="hb-band-label" style="margin-left:14px;">SEX</span><span class="hb-band-value">F</span>
+          <span class="hb-band-label" style="margin-left:14px;">AGE</span><span class="hb-band-value">34</span>
+        </div>
+        <div class="hb-band-row">
+          <span class="hb-band-label">ADM</span><span class="hb-band-value">05-22-2026 · 03:14</span>
+          <span class="hb-band-label" style="margin-left:14px;">MR#</span><span class="hb-band-value">8847-2913-K</span>
+        </div>
+        <div class="hb-band-row">
+          <span class="hb-band-label">DR</span><span class="hb-band-value">J. AHERN, M.D.</span>
+          <span class="hb-band-label" style="margin-left:14px;">ALG</span><span class="hb-band-value">NKDA</span>
+        </div>
+        <div class="hb-band-row hb-band-row-baby">
+          <span class="hb-band-label">INF</span>
+          <span class="hb-band-value">BABY MAYER · 7 lb 4 oz · 19 in · 05-22-2026</span>
+        </div>
+        <div class="hb-barcode">
+          <div class="hb-barcode-bars"></div>
+          <div class="hb-barcode-num">8 847291 30226 5</div>
+        </div>
+      </div>
+      <div class="hb-band-snap hb-band-snap-l"></div>
+      <div class="hb-band-snap hb-band-snap-r"></div>
+    </div>
+
+    <div class="hb-mixer">
+      <div class="hb-mixer-title">Your Child's Color</div>
+      <div class="hb-preview-frame">
+        <div class="hb-preview" id="hbPreview">(o_o)</div>
+      </div>
+      <div class="hb-sliders">
+        <label class="hb-slider hb-slider-r">
+          <span class="hb-slider-letter">R</span>
+          <input type="range" min="0" max="255" value="176" data-channel="r" aria-label="Red">
+          <span class="hb-slider-val" data-readout="r">176</span>
+        </label>
+        <label class="hb-slider hb-slider-g">
+          <span class="hb-slider-letter">G</span>
+          <input type="range" min="0" max="255" value="200" data-channel="g" aria-label="Green">
+          <span class="hb-slider-val" data-readout="g">200</span>
+        </label>
+        <label class="hb-slider hb-slider-b">
+          <span class="hb-slider-letter">B</span>
+          <input type="range" min="0" max="255" value="120" data-channel="b" aria-label="Blue">
+          <span class="hb-slider-val" data-readout="b">120</span>
+        </label>
+      </div>
+      <div class="hb-mixer-caption">Saved to Your Child the moment you move.</div>
+    </div>
+
+    <div class="hb-prose">
+      <p class="reveal hb-line-1" data-reveal="1">"I know what I did"</p>
+      <p class="reveal hb-line-2" data-reveal="2">"He had it coming"</p>
+      <p class="reveal hb-line-3" data-reveal="3">"I could deal with him."</p>
+      <p class="reveal hb-line-4" data-reveal="4">"But I couldn't let him hurt the baby…"</p>
+    </div>
+
+    <a class="hb-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/wallet.js"></script>
+  <script src="../../js/child.js"></script>
+  <script src="../../js/header.js"></script>
+  <script>
+    (function () {
+      if (!window.Child) return;
+      const STORAGE_KEY = 'wendys_palace_bracelet';
+      const THRESHOLDS = [40, 220, 520, 920];
+      const preview = document.getElementById('hbPreview');
+      const reveals = Array.from(document.querySelectorAll('.hb-prose .reveal'));
+      const sliders = Array.from(document.querySelectorAll('.hb-slider input[type=range]'));
+      const readouts = {
+        r: document.querySelector('[data-readout=r]'),
+        g: document.querySelector('[data-readout=g]'),
+        b: document.querySelector('[data-readout=b]'),
+      };
+
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (e) { saved = {}; }
+      let moveSum = typeof saved.moveSum === 'number' ? saved.moveSum : 0;
+      let revealIdx = typeof saved.reveal === 'number' ? saved.reveal : 0;
+
+      function persistMeta() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ reveal: revealIdx, moveSum: moveSum }));
+        } catch (e) { /* private mode / quota: ignore */ }
+      }
+
+      function applyPreview(c) {
+        preview.style.background = 'rgb(' + c.r + ',' + c.g + ',' + c.b + ')';
+        const lum = (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
+        const dark = lum >= 0.45;
+        preview.style.color = dark ? '#1a2810' : '#f0f4d8';
+        preview.style.textShadow = dark
+          ? '0 1px 0 rgba(0, 0, 0, 0.15)'
+          : '0 1px 0 rgba(0, 0, 0, 0.55)';
+      }
+
+      function readCurrent() {
+        return {
+          r: parseInt(sliders.find(s => s.dataset.channel === 'r').value, 10),
+          g: parseInt(sliders.find(s => s.dataset.channel === 'g').value, 10),
+          b: parseInt(sliders.find(s => s.dataset.channel === 'b').value, 10),
+        };
+      }
+
+      function showRevealsUpTo(n) {
+        for (let i = 0; i < Math.min(n, reveals.length); i++) {
+          reveals[i].classList.add('shown');
+        }
+      }
+
+      function checkReveals() {
+        while (revealIdx < THRESHOLDS.length && moveSum >= THRESHOLDS[revealIdx]) {
+          reveals[revealIdx].classList.add('shown');
+          revealIdx++;
+        }
+      }
+
+      // Boot: seed sliders from saved child color, paint preview, restore reveals.
+      (function boot() {
+        const c = Child.getColor();
+        for (const s of sliders) {
+          s.value = c[s.dataset.channel];
+          if (readouts[s.dataset.channel]) readouts[s.dataset.channel].textContent = c[s.dataset.channel];
+        }
+        applyPreview(c);
+        showRevealsUpTo(revealIdx);
+      })();
+
+      const lastVal = { r: null, g: null, b: null };
+      for (const s of sliders) lastVal[s.dataset.channel] = parseInt(s.value, 10);
+
+      function onInput(s) {
+        const ch = s.dataset.channel;
+        const v = parseInt(s.value, 10);
+        const prev = lastVal[ch];
+        if (prev !== null) moveSum += Math.abs(v - prev);
+        lastVal[ch] = v;
+        if (readouts[ch]) readouts[ch].textContent = v;
+        const c = readCurrent();
+        applyPreview(c);
+        Child.setColor(c);
+        checkReveals();
+        persistMeta();
+      }
+
+      for (const s of sliders) {
+        s.addEventListener('input', () => onInput(s));
+      }
+    })();
+  </script>
+</body>
+</html>

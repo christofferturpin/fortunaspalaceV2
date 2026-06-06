@@ -1,0 +1,176 @@
+﻿<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BOSSFIGHT — MALECHSTONE — heads-up Hold'em vs. Agent Malechstone (#2)   │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Boss #2. Visual register: military / institutional cruelty. The       │
+  │    background reads as a fragmented aerial map; six layered feather-     │
+  │    wing silhouettes drift across the field; arterial-red and military    │
+  │    phosphor-yellow accents. The boss's case-file label hangs over his    │
+  │    seat. Mechanics are unchanged — the shared poker engine (BFHoldem +   │
+  │    BFAI) handles the cards, and the slim generic page-generic.js         │
+  │    drives the UI. Atmosphere is CSS-only (no JS spawners on this         │
+  │    placeholder build).                                                   │
+  │                                                                          │
+  │    Boss's signature line: "Frankly, you're a danger to the neighbor-     │
+  │    hood. Shouldn't YOUR CHILD be reasoning by now?" — shown in the       │
+  │    table-side panel beneath his name.                                    │
+  │                                                                          │
+  │    DESIGN PLACEHOLDER. Wired to the same persistence schema as Chavez:   │
+  │    wendys_palace_boss_malechstone = {active, complete, won, snapshot}.   │
+  │    Win marks 'malechstone' beaten; no letter system, no threshold        │
+  │    ladder, no child-stat reward yet — those wire in once design lands.   │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/bossfight/holdem.js, ../js/bossfight/ai.js,              │
+  │      ../js/bossfight/page-generic.js                                     │
+  │    css: ../css/base.css, ../css/bossfight/poker-base.css,                │
+  │      ../css/bossfight/malechstone.css                                    │
+  │    inline route-guards: NONE (placeholder — no lobby flow yet)           │
+  │    window.BossConfig = { slug:'malechstone', name:'AGENT MALECHSTONE',   │
+  │      startingStacks:{playerChips:100,oppChips:50},                       │
+  │      tells:{idle:'watching map',thinking:'targeting…',busted:'silenced'}}│
+  │    DOM ids: same shape as bossfight-chavez.html (#bf-hand, #bf-blinds,   │
+  │      #bf-street, #bf-stakes-*, #bf-player-cards, #bf-chavez-cards,       │
+  │      #bf-community, #bf-player-bet, #bf-chavez-bet, #bf-player-seat,     │
+  │      #bf-chavez-seat, #bf-chavez-last, #bf-boss-tell, #bf-turn-status,   │
+  │      #bf-hand-strength, #bf-announce, #bf-log, #bf-actions, #bf-act-*,   │
+  │      #bf-sizing, #bf-raise-amount, #bf-raise-value, .bf-preset)          │
+  │    flow: BFHoldem+BFAI shared engine; page-generic.js: buildState →      │
+  │      bindRefs/Actions/Presets/Keyboard → BFHoldem.startHand → render →   │
+  │      loop until complete → showEndSplash → clearPersist + lobby return   │
+  │    storage R/W:                                                          │
+  │      R/W: wendys_palace_boss_malechstone {active, complete, won, snap}   │
+  │      W (on win): wendys_palace_bosses_beaten (append 'malechstone')      │
+  │    routes out: index.html (via end-splash Back button)                   │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Malechstone vs. You — Fortuna's Palace</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bossfight/poker-base.css">
+  <link rel="stylesheet" href="../css/bossfight/malechstone.css">
+</head>
+<body class="bf-body bf-theme-malechstone">
+
+  <header class="bf-header">
+    <h1 class="bf-title">AGENT MALECHSTONE <span class="bf-vs">vs.</span> YOU</h1>
+    <div class="bf-meta">
+      Hand <span id="bf-hand">1</span>
+      <span class="bf-meta-sep">·</span>
+      Blinds <span id="bf-blinds">1/2</span>
+    </div>
+  </header>
+
+  <main class="bf-table">
+
+    <section class="bf-seat bf-seat-chavez" id="bf-chavez-seat">
+      <div class="bf-seat-head">
+        <div class="bf-seat-name">AGENT MALECHSTONE <span class="bf-seat-tag">DHS</span></div>
+        <div class="bf-boss-tell" id="bf-boss-tell">watching map</div>
+        <div class="bf-bet" id="bf-chavez-bet"></div>
+      </div>
+      <div class="bf-last-move" id="bf-chavez-last">last move · —</div>
+      <p class="bf-mal-quote" style="margin:0 0 8px;font-family:'IM Fell English',serif;font-style:italic;font-size:14px;color:var(--bf-fg-dim);line-height:1.45;">
+        "Frankly, you're a danger to the neighborhood. Shouldn't <strong style="color:var(--bf-accent);font-weight:700;">YOUR CHILD</strong> be reasoning by now?"
+      </p>
+      <div class="bf-cards bf-cards-chavez" id="bf-chavez-cards"></div>
+    </section>
+
+    <section class="bf-felt">
+      <div class="bf-street" id="bf-street">PREFLOP</div>
+      <div class="bf-boss-avatar" id="bf-boss-avatar" aria-hidden="true"></div>
+      <div class="bf-turn-status" id="bf-turn-status">— hand begins —</div>
+      <div class="bf-community" id="bf-community"></div>
+    </section>
+
+    <section class="bf-seat bf-seat-player" id="bf-player-seat">
+      <div class="bf-seat-head">
+        <div class="bf-seat-name">YOU</div>
+      </div>
+
+      <div class="bf-announce" id="bf-announce" aria-live="polite"></div>
+
+      <div class="bf-stakes" id="bf-stakes">
+        <div class="bf-stakes-side bf-stakes-you">
+          <span class="bf-stakes-label">YOU</span>
+          <span class="bf-stakes-value" id="bf-stakes-player">100</span>
+        </div>
+        <div class="bf-stakes-mid" id="bf-stakes-mid">
+          <span class="bf-stakes-label">POT</span>
+          <span class="bf-stakes-value bf-stakes-pot-value" id="bf-stakes-pot">0</span>
+          <span class="bf-stakes-sub" id="bf-stakes-call"></span>
+        </div>
+        <div class="bf-stakes-side bf-stakes-them">
+          <span class="bf-stakes-label">M-STONE</span>
+          <span class="bf-stakes-value" id="bf-stakes-chavez">50</span>
+        </div>
+      </div>
+
+      <div class="bf-bet" id="bf-player-bet"></div>
+
+      <div class="bf-actions" id="bf-actions">
+        <div class="bf-action-row">
+          <button class="bf-action bf-action-fold" id="bf-act-fold" type="button">Fold</button>
+          <button class="bf-action bf-action-passive" id="bf-act-passive" type="button">Check</button>
+          <button class="bf-action bf-action-aggro" id="bf-act-aggro" type="button">Bet 2</button>
+        </div>
+        <div class="bf-sizing" id="bf-sizing">
+          <div class="bf-preset-row">
+            <button class="bf-preset" data-preset="min"  type="button">Min</button>
+            <button class="bf-preset" data-preset="half" type="button">½ Pot</button>
+            <button class="bf-preset" data-preset="pot"  type="button">Pot</button>
+            <button class="bf-preset" data-preset="all"  type="button">All-in</button>
+          </div>
+          <div class="bf-slider-row">
+            <input type="range" id="bf-raise-amount" min="0" max="0" value="0">
+            <div class="bf-size-value">to <span id="bf-raise-value">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bf-cards bf-cards-player" id="bf-player-cards"></div>
+      <div class="bf-hand-strength" id="bf-hand-strength"></div>
+    </section>
+
+  </main>
+
+  <div class="bf-log" id="bf-log"></div>
+
+  <script>
+    window.BossConfig = {
+      slug: 'malechstone',
+      name: 'AGENT MALECHSTONE',
+      startingStacks: { playerChips: 100, oppChips: 50 },
+      tells: { idle: 'watching map', thinking: 'targeting…', busted: 'silenced' },
+      // Crosshair eyes between target reticles. Yarmulke sits on top via
+      // malechstone.css; frames are the eyes only.
+      avatarFrames: {
+        lost:    ['╳ ✗_✗ ╳', '╳ x_x ╳', '╳ ✗_✗ ╳', '╳ ⌀_⌀ ╳'],
+        losing:  ['╳ ⊘;⊘ ╳', '╳ ⊘_⊘ ╳', '╳ ⊘;⊘ ╳', '╳ ⊗_⊗ ╳'],
+        average: ['╳ ⊙_⊙ ╳', '╳ ⊙.⊙ ╳', '╳ ⊙_⊙ ╳', '╳ ⊙—⊙ ╳'],
+        winning: ['╳ ◉_◉ ╳', '╳ ◉.◉ ╳', '╳ ◉_◉ ╳', '╳ ⊕_⊕ ╳'],
+        won:     ['╳ ⊕‿⊕ ╳', '╳ ⊕.⊕ ╳', '╳ ⊕‿⊕ ╳', '╳ ⊛_⊛ ╳'],
+      },
+      // Aggressive, bluff-heavy, big sizes. Slightly loose opening range,
+      // doesn't sit on hands.
+      aiStyle: {
+        bluffFreq:  1.6,
+        tightness:  0.8,
+        aggression: 1.3,
+        loose:      1.0,
+        mixedness:  1.0,
+      },
+    };
+  </script>
+  <script src="../js/bossfight/audio.js"></script>
+  <script src="../js/bossfight/holdem.js"></script>
+  <script src="../js/bossfight/ai.js"></script>
+  <script src="../js/bossfight/page-generic.js"></script>
+</body>
+</html>

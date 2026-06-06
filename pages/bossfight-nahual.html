@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BOSSFIGHT · NAHUAL — Hold'em (jade / obsidian / cochineal)             │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │  For humans: jungle obsidian + jade. Character notes TBD.              │
+  │  For AI: same shell — palette + BossConfig differ.                     │
+  │  routes out: debug-bosses.html                                         │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Nahual — Fortuna's Palace</title>
+  <script>
+    window.PAGE_VERSION = 'nahual v0.2 · azteca';
+    console.log('%c[page version] ' + window.PAGE_VERSION,
+                'color:#c9a14a;background:#1a1208;padding:2px 6px;border-radius:3px;font-family:monospace');
+  </script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bossfight/holdem.css">
+  <link rel="stylesheet" href="../css/bossfight/nahual.css">
+  <style>
+    html {
+      background:
+        radial-gradient(ellipse at top,
+          var(--bf-bg-grade, #0e1a14) 0%,
+          var(--bf-bg, #060a08) 65%,
+          color-mix(in srgb, var(--bf-bg, #060a08) 70%, black) 110%);
+      min-height: 100%;
+    }
+    body.bf-body {
+      background: transparent !important;
+      isolation: isolate;
+      transform: translateZ(0); /* contain fixed pseudos in body's stacking context */
+    }
+    body.bf-body::before,
+    body.bf-body::after {
+      content: '';
+      position: fixed;
+      inset: -10vh -10vw;
+      pointer-events: none;
+      background-image: url('../assets/images/azteca1.jpg');
+      background-repeat: repeat;
+      background-size: 320px 320px;
+      will-change: background-position, transform, opacity;
+    }
+    /* Bottom layer: upright, scrolling up. */
+    body.bf-body::before {
+      z-index: -2;
+      animation: nahual-rise 18s linear infinite;
+    }
+    /* Top layer: upside-down, falling, multiplies onto bottom so its
+       white pixels are transparent (multiply by 1 = no change). */
+    body.bf-body::after {
+      z-index: -1;
+      transform: scaleY(-1);
+      mix-blend-mode: multiply;
+      animation:
+        nahual-fall   16s linear infinite,
+        nahual-shift  24s linear infinite,
+        nahual-flick  11s steps(1, end) infinite;
+    }
+    @keyframes nahual-rise {
+      from { background-position: 0 0; }
+      to   { background-position: 0 -320px; }
+    }
+    @keyframes nahual-fall {
+      /* element is scaleY(-1)'d, so positive bg shift visually = downward */
+      from { background-position: 0 0; }
+      to   { background-position: 0 -320px; }
+    }
+    @keyframes nahual-shift {
+      0%   { filter: hue-rotate(0deg)   saturate(1.1); }
+      50%  { filter: hue-rotate(140deg) saturate(1.4); }
+      100% { filter: hue-rotate(360deg) saturate(1.1); }
+    }
+    @keyframes nahual-flick {
+      0%, 88%, 100% { opacity: 1; }
+      89%           { opacity: 0.25; }
+      90%           { opacity: 1; }
+      91%           { opacity: 0.4; }
+      92%           { opacity: 1; }
+    }
+    body.bf-body {
+      --bf-bg:          #060a08;
+      --bf-bg-grade:    #0e1a14;
+      --bf-fg:          #d8d4c0;
+      --bf-fg-dim:      #7a8470;
+      --bf-accent:      #5fa080;
+      --bf-accent-deep: #2e5a40;
+      --bf-felt:        #0a1810;
+      --bf-felt-edge:   #2e4a34;
+      --bf-card-face:   #e8e0c8;
+      --bf-card-back:   #0a0c08;
+      --bf-suit-black:  #0a0a0a;
+      --bf-suit-red:    #b04020;
+    }
+    /* Under-board monologue — empty by default; fill LINES in the
+       inline script below to activate. Styling uses the page palette
+       so the line tints to the boss's accent automatically. */
+    .bf-monologue {
+      width: 100%;
+      max-width: 560px;
+      margin: -2px auto 0;
+      padding: 6px 14px 2px;
+      font-family: var(--font-body, serif);
+      font-size: 18px;
+      font-style: italic;
+      line-height: 1.45;
+      color: var(--bf-fg);
+      text-align: center;
+      text-shadow:
+        0 0 4px  color-mix(in srgb, var(--bf-accent) 70%, transparent),
+        0 0 14px color-mix(in srgb, var(--bf-accent) 50%, transparent);
+      pointer-events: none;
+      user-select: none;
+      min-height: 1.5em;
+      transition: opacity 420ms ease;
+    }
+    .bf-monologue.is-fading { opacity: 0; }
+
+    /* ── Nahual chrome wiggle ─────────────────────────────────────
+       JS tags box-style chrome with .nahual-wig. We hide the real
+       border (color:transparent keeps layout) and paint a copy on
+       a ::before overlay. The overlay alone gets the SVG turbulence
+       filter, so the border line shimmies but the text/cards inside
+       stay crisp. Mouse-velocity JS pumps baseFrequency + displacement
+       scale on every rAF tick. */
+    .nahual-wig,
+    .bf-card { position: relative; }
+    .nahual-wig,
+    .bf-card { border-color: transparent !important; }
+    .nahual-wig::before,
+    .bf-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      box-sizing: border-box;
+      border: 1px solid currentColor;
+      border-radius: inherit;
+      color: var(--bf-accent-deep);
+      pointer-events: none;
+      filter: url(#nahual-wiggle);
+      z-index: 2;
+    }
+    /* per-state border-color overrides for the overlay */
+    .nahual-wig.bf-act-fold::before     { color: var(--bf-suit-red); }
+    .nahual-wig.bf-act-aggro::before,
+    .nahual-wig.is-active::before,
+    .nahual-wig:hover::before            { color: var(--bf-accent); }
+    .nahual-wig.bf-pot-display::before   { color: var(--bf-accent); }
+    /* keep suit color from leaking into the wiggling border; the
+       overlay reads currentColor on .bf-card itself (not its rank
+       text), so set it explicitly. */
+    .bf-card::before                     { color: var(--bf-accent-deep); }
+
+    /* ── Nahual pupil flash ──────────────────────────────────────
+       Inline JS wraps the two pupil characters of the kaomoji's
+       face row (the glyphs immediately inside ❨ and immediately
+       before ❩) in spans with this class, then a scheduler toggles
+       .is-flash briefly at random intervals, setting --eye-color
+       to a random tint per flash so the eyes cycle through colors. */
+    .nahual-eye {
+      transition: color 90ms ease, text-shadow 90ms ease;
+    }
+    .nahual-eye.is-flash {
+      color: var(--eye-color, #ff2030);
+      text-shadow:
+        0 0 4px  color-mix(in srgb, var(--eye-color, #ff2030) 85%, transparent),
+        0 0 12px color-mix(in srgb, var(--eye-color, #ff2030) 55%, transparent);
+    }
+  </style>
+</head>
+<body class="bf-body">
+
+  <!-- Wiggle filter — referenced by .nahual-wig::before. JS mutates
+       feTurbulence@baseFrequency and feDisplacementMap@scale based on
+       smoothed mouse velocity; seed cycles each frame for a constant
+       low-level shimmer even when the cursor is still. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="nahual-wiggle" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence id="nahual-wiggle-turb" type="turbulence"
+                    baseFrequency="0.03" numOctaves="2" seed="1" result="turb"/>
+      <feDisplacementMap id="nahual-wiggle-disp"
+                         in="SourceGraphic" in2="turb" scale="1.5"/>
+    </filter>
+  </svg>
+
+  <header class="bf-header">
+    <h1>Agent Nahual</h1>
+    <a class="bf-back-link" href="debug-bosses.html">← hub</a>
+  </header>
+
+  <div class="bf-status">
+    <div class="bf-status-cell">Hand <b id="bf-hand">#1</b></div>
+    <div class="bf-status-cell">Blinds <b id="bf-blinds">1/2</b></div>
+    <div class="bf-status-cell">Street <b id="bf-street">—</b></div>
+  </div>
+
+  <div class="bf-seat bf-seat-opp" id="bf-opp-seat">
+    <div class="bf-boss-avatar-wrap" id="bf-boss-avatar-wrap">
+      <div class="bf-boss-avatar-title" id="bf-boss-avatar-title">Nahual</div>
+      <div class="bf-boss-avatar-frame">
+        <pre class="bf-boss-avatar" id="bf-boss-avatar"></pre>
+      </div>
+      <span class="bf-boss-tell" id="bf-boss-tell"></span>
+    </div>
+    <div class="bf-seat-info">
+      <span class="bf-seat-name" id="bf-opp-name">Nahual</span>
+      <span class="bf-seat-stack"><span id="bf-opp-stack">125</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-opp-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-opp-cards"></div>
+  </div>
+
+  <div class="bf-community-row">
+    <div class="bf-pot-display" id="bf-pot-display">
+      <span class="bf-pot-label">Pot</span>
+      <span class="bf-pot-value" id="bf-pot">0</span>
+    </div>
+    <div class="bf-community" id="bf-community"></div>
+  </div>
+
+  <!-- Boss monologue — one line per hand, under the board. LINES is
+       empty by default (see the inline script below); fill it in to
+       activate this boss's voice. -->
+  <div id="bf-nahual-monologue" class="bf-monologue" aria-hidden="true"></div>
+
+  <div class="bf-seat bf-seat-player" id="bf-player-seat">
+    <div class="bf-seat-info">
+      <span class="bf-seat-name">You</span>
+      <span class="bf-seat-stack"><span id="bf-player-stack">100</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-player-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-player-cards"></div>
+  </div>
+
+  <div class="bf-log" id="bf-log">
+    <div class="bf-log-header">
+      Play Log
+      <button id="bf-log-clear" class="bf-log-clear" type="button">Clear</button>
+    </div>
+    <div class="bf-log-scroll" id="bf-log-scroll"></div>
+  </div>
+
+  <div class="bf-actions" id="bf-actions">
+    <button id="bf-act-fold" class="bf-act-fold" type="button">Fold</button>
+    <button id="bf-act-passive" type="button">Check</button>
+    <button id="bf-act-aggro" class="bf-act-aggro" type="button">Bet</button>
+    <div class="bf-sizing" id="bf-sizing">
+      <button class="bf-preset" data-preset="min" type="button">Min</button>
+      <button class="bf-preset" data-preset="half" type="button">½</button>
+      <button class="bf-preset" data-preset="pot" type="button">Pot</button>
+      <button class="bf-preset" data-preset="all" type="button">All</button>
+      <input id="bf-raise" type="range" min="0" max="0" value="0">
+      <span id="bf-raise-value" class="bf-raise-value">0</span>
+    </div>
+  </div>
+
+  <script>
+    window.BossConfig = {
+      slug: 'nahual',
+      name: 'Nahual',
+      epithet: '— TBD —',
+      startingStacks: { playerChips: 100, oppChips: 125 },
+      aiStyle: { tightness: 0.95, aggression: 1.15, bluffFreq: 1.20, loose: 1.15, mixedness: 1.30 },
+      // Brow-and-third-eye avatar. The 2-line cap is a furrowed brow
+      // ridge sitting above the face row, and the face row pairs two
+      // ◍ pupils around a shape-shifting central glyph (the "third
+      // eye" / forehead mark) that tracks mood. The pupils stay still
+      // while the center cycles, so the face reads as one watcher
+      // whose inner sight is the part that changes.
+      kaomoji: {
+        cap: ' _ _\n_|___|_',
+        faces: {
+          broken:    ['❨✗◌✗❩', '❨×◌×❩', '❨✗◌✗❩', '❨×◌×❩'],
+          desperate: ['❨◍⚆◍❩', '❨◍⚇◍❩', '❨◍⚆◍❩', '❨◍⚇◍❩'],
+          pressured: ['❨◐◬◑❩', '❨◑◬◐❩', '❨◐◬◑❩', '❨◑◬◐❩'],
+          even:      ['❨◍◯◍❩', '❨◍◌◍❩', '❨◍◯◍❩', '❨◍◌◍❩'],
+          ahead:     ['❨◉☉◉❩', '❨◎☉◎❩', '❨◉☉◉❩', '❨◎☉◎❩'],
+          dominant:  ['❨✺❂✺❩', '❨✦❂✦❩', '❨✺❂✺❩', '❨✦❂✦❩'],
+        },
+        tells: {
+          broken:    'unmoving',
+          desperate: 'shape changing',
+          pressured: 'watching from the trees',
+          even:      'between forms',
+          ahead:     'in your hair',
+          dominant:  'behind you',
+        },
+      },
+    };
+  </script>
+  <script>
+    /* Nahual's monologue — one line per hand. Empty LINES = scaffold
+       inert. To activate: fill LINES with what the boss says to the
+       player; each new hand swaps to the next entry. A MutationObserver
+       on #bf-hand drives advancement. */
+    (function () {
+      var el   = document.getElementById('bf-nahual-monologue');
+      var hand = document.getElementById('bf-hand');
+      if (!el || !hand) return;
+      var LINES = [
+        // TODO: voice Nahual here, one line per hand.
+      ];
+      if (LINES.length === 0) return;
+      var i = 0;
+      el.textContent = LINES[0];
+      var last = hand.textContent;
+      new MutationObserver(function () {
+        if (hand.textContent === last) return;
+        last = hand.textContent;
+        el.classList.add('is-fading');
+        setTimeout(function () {
+          i = (i + 1) % LINES.length;
+          el.textContent = LINES[i];
+          el.classList.remove('is-fading');
+        }, 420);
+      }).observe(hand, { childList: true, characterData: true, subtree: true });
+    })();
+  </script>
+  <script>
+    /* Nahual chrome wiggle driver. Tags box-style chrome with
+       .nahual-wig and pumps the SVG turbulence filter on every rAF.
+       Amplitude rises with cursor speed and decays toward a small
+       resting shimmer. */
+    (function () {
+      // .bf-sizing .bf-preset intentionally excluded — the SVG
+      // displacement scales up to ~16px which warps a 1px border on
+      // ~40px-wide preset buttons outside their own bounds, breaking
+      // the bet bar's visual coherence with the (untagged) slider and
+      // value readout. The big action buttons are wide enough that the
+      // same displacement reads as shimmer rather than damage.
+      var SEL = [
+        '.bf-status-cell',
+        '.bf-seat',
+        '.bf-pot-display',
+        '.bf-log',
+        '.bf-actions > button',
+        '.bf-boss-avatar-frame'
+      ].join(', ');
+      function tagAll() {
+        document.querySelectorAll(SEL).forEach(function (el) {
+          el.classList.add('nahual-wig');
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tagAll);
+      } else { tagAll(); }
+
+      var turb = document.getElementById('nahual-wiggle-turb');
+      var disp = document.getElementById('nahual-wiggle-disp');
+      if (!turb || !disp) return;
+
+      var lastX = 0, lastY = 0, lastT = performance.now();
+      var speed = 0;       // smoothed px/ms
+      var seed  = 1;
+
+      window.addEventListener('mousemove', function (e) {
+        var now = performance.now();
+        var dt  = Math.max(1, now - lastT);
+        var dx  = e.clientX - lastX, dy = e.clientY - lastY;
+        var v   = Math.sqrt(dx * dx + dy * dy) / dt;
+        speed   = Math.max(speed, v);   // ratchet up; rAF decays
+        lastX = e.clientX; lastY = e.clientY; lastT = now;
+      }, { passive: true });
+
+      function tick() {
+        speed *= 0.90;                  // decay toward rest
+        var s     = Math.min(speed, 3); // px/ms clamp
+        var scale = 1.2 + s * 5;        // 1.2 .. ~16
+        var freq  = 0.025 + s * 0.04;   // 0.025 .. ~0.15
+        disp.setAttribute('scale', scale.toFixed(2));
+        turb.setAttribute('baseFrequency', freq.toFixed(3));
+        seed = (seed + 1) % 9999;
+        turb.setAttribute('seed', String(seed));
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    })();
+  </script>
+  <script>
+    /* Nahual sound kit — four synthesized voices via Web Audio.
+       Percussion:
+         huehuetl   — low standing-drum, sine sweep 120→55Hz + low-pass
+                      noise burst, ~500ms body
+         teponaztli — slit log-drum, triangle ~280Hz + 2× sine overtone,
+                      ~160ms woody attack
+         ayoyote    — shell-rattle / shaker, band-passed noise burst,
+                      ~50ms; sits on off-beats and ghost positions to
+                      thicken the groove
+       Melody (call-and-response on A minor pentatonic, 220–660 Hz):
+         ocarina    — breathy clay-flute, dual detuned sines + bandpass
+                      noise + 5Hz vibrato. Slow phrases, the question.
+         panflute   — brighter cane-flute, triangle + sine fifth, lighter
+                      vibrato. Quicker phrases, the answer.
+
+       Layout:
+         drums   — 16-step ostinato at ~140 BPM (BEAT 0.214s); look-ahead
+                   scheduler so timing stays tight under tab jitter
+         melody  — every 8 beats one of the two flute voices picks a
+                   random phrase from its bank; voices alternate so the
+                   page reads as a slow call-and-response
+
+       Event accents: button clicks fire drum one-shots; hand
+       transitions fire a four-note cascade. Engine untouched.
+
+       Browser autoplay policy: AudioContext can't start without a user
+       gesture, so we boot lazily on the first click / keydown. */
+    (function () {
+      var ctx = null;
+      var booted = false;
+
+      function ensureCtx() {
+        if (ctx) return ctx;
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        try { ctx = new AC(); } catch (e) { return null; }
+        return ctx;
+      }
+
+      function huehuetl(time) {
+        if (!ctx) return;
+        var t   = time || ctx.currentTime;
+        var dur = 0.50;
+        var osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(120, t);
+        osc.frequency.exponentialRampToValueAtTime(55, t + 0.18);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.7,    t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(g);
+
+        // Low-passed noise burst for the skin slap.
+        var buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.08), ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+        var noise  = ctx.createBufferSource(); noise.buffer = buf;
+        var nfilt  = ctx.createBiquadFilter(); nfilt.type = 'lowpass'; nfilt.frequency.value = 600;
+        var ng     = ctx.createGain();
+        ng.gain.setValueAtTime(0.40, t);
+        ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+        noise.connect(nfilt).connect(ng);
+
+        var master = ctx.createGain(); master.gain.value = 0.32;
+        g.connect(master); ng.connect(master);
+        master.connect(ctx.destination);
+
+        osc.start(t);   osc.stop(t + dur);
+        noise.start(t); noise.stop(t + 0.10);
+      }
+
+      function teponaztli(time, pitch) {
+        if (!ctx) return;
+        pitch = pitch || 280;
+        var t   = time || ctx.currentTime;
+        var dur = 0.16;
+        var osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(pitch * 1.4, t);
+        osc.frequency.exponentialRampToValueAtTime(pitch, t + 0.04);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.50,   t + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(g);
+
+        // Overtone for woody body.
+        var osc2 = ctx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.value = pitch * 2.1;
+        var g2 = ctx.createGain();
+        g2.gain.setValueAtTime(0.0001, t);
+        g2.gain.exponentialRampToValueAtTime(0.20,   t + 0.002);
+        g2.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.7);
+        osc2.connect(g2);
+
+        var master = ctx.createGain(); master.gain.value = 0.22;
+        g.connect(master); g2.connect(master);
+        master.connect(ctx.destination);
+
+        osc.start(t);  osc.stop(t + dur);
+        osc2.start(t); osc2.stop(t + dur);
+      }
+
+      // ── ayoyote (shaker / shell rattle) ──────────────────────────
+      // Short band-passed noise burst. Velocity scales gain so we can
+      // place loud accents AND soft ghost taps from the same voice.
+      function ayoyote(time, vel) {
+        if (!ctx) return;
+        vel = (vel == null) ? 0.6 : vel;
+        var t = time || ctx.currentTime;
+        var dur = 0.055;
+        var buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < d.length; i++) {
+          d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+        }
+        var noise = ctx.createBufferSource(); noise.buffer = buf;
+        var bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = 5200; bp.Q.value = 0.9;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.35 * vel, t + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.0001,     t + dur);
+        var master = ctx.createGain(); master.gain.value = 0.18;
+        noise.connect(bp).connect(g).connect(master);
+        master.connect(ctx.destination);
+        noise.start(t); noise.stop(t + dur);
+      }
+
+      // ── melodic voices — pentatonic foundation ───────────────────
+      // A minor pentatonic across two octaves. Indices 0..4 are the
+      // lower octave (ocarina range), 5..9 the upper (panflute range).
+      var SCALE = [
+        220.00, 261.63, 293.66, 329.63, 392.00,   // A3 C4 D4 E4 G4
+        440.00, 523.25, 587.33, 659.25, 783.99,   // A4 C5 D5 E5 G5
+      ];
+
+      // Generic breathy-flute synth shared by ocarina + panflute.
+      // params: { time, freq, dur, detune, vibratoHz, vibratoCents,
+      //           breath, attack, release, gain, second }
+      function flute(p) {
+        if (!ctx) return;
+        var t       = p.time || ctx.currentTime;
+        var freq    = p.freq;
+        var dur     = p.dur;
+        var attack  = p.attack  != null ? p.attack  : 0.08;
+        var release = p.release != null ? p.release : 0.18;
+        var gainMx  = p.gain    != null ? p.gain    : 0.18;
+        var sustain = Math.max(0.02, dur - attack - release);
+
+        var osc1 = ctx.createOscillator();
+        osc1.type = 'sine'; osc1.frequency.value = freq;
+        var osc2 = ctx.createOscillator();
+        osc2.type = 'sine'; osc2.frequency.value = freq * (1 + (p.detune || 0.004));
+
+        // Vibrato shared between oscillators.
+        var lfo  = ctx.createOscillator();
+        lfo.frequency.value = p.vibratoHz || 5;
+        var lfoGain = ctx.createGain();
+        lfoGain.gain.value = freq * ((p.vibratoCents || 12) / 1200);
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc1.frequency);
+        lfoGain.connect(osc2.frequency);
+
+        // Optional second oscillator timbre (panflute uses triangle
+        // at the octave for the cane edge).
+        var oscB = null;
+        if (p.second) {
+          oscB = ctx.createOscillator();
+          oscB.type = p.second.type || 'triangle';
+          oscB.frequency.value = freq * (p.second.ratio || 2);
+        }
+
+        // Breath noise — bandpass around the fundamental.
+        var nBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * (dur + 0.05)), ctx.sampleRate);
+        var nd = nBuf.getChannelData(0);
+        for (var i = 0; i < nd.length; i++) nd[i] = (Math.random() * 2 - 1);
+        var noise = ctx.createBufferSource(); noise.buffer = nBuf;
+        var nfilt = ctx.createBiquadFilter();
+        nfilt.type = 'bandpass';
+        nfilt.frequency.value = freq * 2;
+        nfilt.Q.value = 1.5;
+        var ng = ctx.createGain();
+        ng.gain.value = (p.breath != null ? p.breath : 0.025);
+
+        // Body envelope.
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(gainMx, t + attack);
+        g.gain.setValueAtTime(gainMx, t + attack + sustain);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+        // Flute master is loud — drums above peak ~0.6 at their hits,
+        // so this voice needs headroom to sit above them in the mix.
+        var master = ctx.createGain(); master.gain.value = 1.10;
+        osc1.connect(g); osc2.connect(g);
+        if (oscB) {
+          var gB = ctx.createGain(); gB.gain.value = (p.second.gain || 0.35);
+          oscB.connect(gB); gB.connect(g);
+        }
+        noise.connect(nfilt).connect(ng).connect(g);
+        g.connect(master); master.connect(ctx.destination);
+
+        osc1.start(t);  osc1.stop(t + dur + 0.05);
+        osc2.start(t);  osc2.stop(t + dur + 0.05);
+        if (oscB) { oscB.start(t); oscB.stop(t + dur + 0.05); }
+        noise.start(t); noise.stop(t + dur);
+        lfo.start(t);   lfo.stop(t + dur + 0.05);
+      }
+
+      function ocarina(time, freq, dur) {
+        flute({
+          time: time, freq: freq, dur: dur,
+          attack: 0.10, release: 0.22,
+          vibratoHz: 4.5, vibratoCents: 14,
+          breath: 0.045, gain: 0.36,
+        });
+      }
+      function panflute(time, freq, dur) {
+        flute({
+          time: time, freq: freq, dur: dur,
+          attack: 0.04, release: 0.14,
+          vibratoHz: 6, vibratoCents: 9,
+          breath: 0.020, gain: 0.30, detune: 0.003,
+          second: { type: 'triangle', ratio: 2, gain: 0.18 },
+        });
+      }
+
+      // Phrase banks — each entry is a list of { n: scaleIndex,
+      // d: durationInBeats, r?: restAfterInBeats }. r is optional.
+      var OCARINA_PHRASES = [
+        [{n:2,d:1.5},{n:1,d:0.5},{n:0,d:1.5},{n:2,d:1},{n:0,d:2.5}],
+        [{n:4,d:1},{n:3,d:1},{n:2,d:1},{n:0,d:2},{n:2,d:2}],
+        [{n:0,d:0.5},{n:2,d:0.5},{n:3,d:1},{n:2,d:1},{n:0,d:2},{n:0,d:2}],
+        [{n:2,d:1},{n:4,d:1},{n:3,d:2},{n:2,d:1},{n:0,d:2}],
+        [{n:0,d:2},{n:2,d:1},{n:0,d:1},{n:-1,d:0,r:0}],  // breath rest
+      ];
+      var PANFLUTE_PHRASES = [
+        [{n:7,d:0.5},{n:8,d:0.5},{n:7,d:0.5},{n:6,d:0.5},{n:5,d:1},{n:6,d:1},{n:5,d:2}],
+        [{n:5,d:0.5},{n:7,d:0.5},{n:8,d:0.5},{n:9,d:0.5},{n:8,d:1},{n:7,d:1},{n:5,d:2}],
+        [{n:6,d:0.5},{n:5,d:0.5},{n:7,d:1},{n:6,d:0.5},{n:5,d:0.5},{n:5,d:3}],
+        [{n:5,d:1},{n:7,d:1},{n:8,d:0.5},{n:7,d:0.5},{n:5,d:2},{n:6,d:1}],
+        [{n:8,d:0.5},{n:7,d:0.5},{n:5,d:1},{n:7,d:0.5},{n:5,d:0.5},{n:4,d:2}],
+      ];
+
+      function pickPhrase(bank) {
+        return bank[Math.floor(Math.random() * bank.length)];
+      }
+
+      // Ambient loop — denser tribal pattern + shaker + melody scheduler.
+      // 16-step pattern at BEAT=0.214s feels close to 140 BPM eighths
+      // (each cell is roughly an 8th note). Tokens:
+      //   H = huehuetl loud   h = huehuetl ghost (quiet)
+      //   t = teponaztli       . = rest
+      // Shaker layer rides separately on every odd cell at low velocity,
+      // with a louder accent every 4 cells — the constant micro-texture
+      // is what reads as "tribal" more than the kick pattern.
+      function startAmbient() {
+        var BEAT = 0.214;
+        var DRUM_PATTERN = [
+          'H','.','t','.', 'h','t','H','.',
+          'h','t','.','H', 't','.','H','t',
+        ];
+        var nextNoteTime = ctx.currentTime + 0.30;
+        var step = 0;
+        // Melody scheduling state.
+        var melodyVoice = 'ocarina';
+        var melodyNextStep = 4;  // first phrase a beat into the loop
+        function scheduler() {
+          while (nextNoteTime < ctx.currentTime + 0.35) {
+            // Drum cell.
+            var tok    = DRUM_PATTERN[step % DRUM_PATTERN.length];
+            var jitter = (Math.random() - 0.5) * 0.012;
+            if      (tok === 'H') huehuetl  (nextNoteTime + jitter);
+            else if (tok === 'h') {
+              // Ghost: half-volume tap via a quick re-gain trick is
+              // overkill; just call huehuetl normally — it's plenty
+              // present even at full because the pattern is dense.
+              // To soften, schedule a teponaztli instead for variation.
+              teponaztli(nextNoteTime + jitter, 220);
+            }
+            else if (tok === 't') teponaztli(nextNoteTime + jitter);
+
+            // Shaker layer — every odd step, accent every 4th step.
+            // Velocities dialed down so the flutes can sit on top.
+            if (step % 2 === 1) {
+              var accent = (step % 8 === 7);
+              ayoyote(nextNoteTime + jitter * 1.5, accent ? 0.55 : 0.30);
+            }
+
+            // Melody phrase scheduling — every ~32 cells (~6.85s).
+            if (step >= melodyNextStep) {
+              var phrase = pickPhrase(
+                melodyVoice === 'ocarina' ? OCARINA_PHRASES : PANFLUTE_PHRASES);
+              var voiceFn = melodyVoice === 'ocarina' ? ocarina : panflute;
+              var phraseT = nextNoteTime;
+              var totalBeats = 0;
+              for (var pi = 0; pi < phrase.length; pi++) {
+                var note = phrase[pi];
+                if (note.n >= 0) {
+                  voiceFn(phraseT, SCALE[note.n], note.d * BEAT * 4);
+                }
+                phraseT += note.d * BEAT * 4;
+                totalBeats += note.d;
+                if (note.r) {
+                  phraseT += note.r * BEAT * 4;
+                  totalBeats += note.r;
+                }
+              }
+              // Next phrase: alternate voice, schedule for ~2 bars later
+              // measured in 16ths so the call-and-response breathes.
+              melodyVoice = (melodyVoice === 'ocarina') ? 'panflute' : 'ocarina';
+              melodyNextStep = step + Math.max(20, Math.ceil(totalBeats * 4) + 12);
+            }
+            nextNoteTime += BEAT;
+            step++;
+          }
+        }
+        setInterval(scheduler, 100);
+        scheduler();
+      }
+
+      function wireEvents() {
+        var fold    = document.getElementById('bf-act-fold');
+        var passive = document.getElementById('bf-act-passive');
+        var aggro   = document.getElementById('bf-act-aggro');
+        if (fold)    fold.addEventListener('click',    function () { huehuetl(); });
+        if (passive) passive.addEventListener('click', function () { teponaztli(); });
+        if (aggro)   aggro.addEventListener('click',   function () {
+          var t = ctx.currentTime;
+          teponaztli(t);
+          teponaztli(t + 0.08, 340);
+          huehuetl(t + 0.16);
+        });
+
+        // Hand transition — four-note cascade.
+        var hand = document.getElementById('bf-hand');
+        if (hand) {
+          var last = hand.textContent;
+          new MutationObserver(function () {
+            if (hand.textContent === last) return;
+            last = hand.textContent;
+            var t = ctx.currentTime;
+            huehuetl(t);
+            huehuetl(t + 0.20);
+            teponaztli(t + 0.38);
+            teponaztli(t + 0.50, 360);
+          }).observe(hand, { childList: true, characterData: true, subtree: true });
+        }
+      }
+
+      function boot() {
+        if (booted) return;
+        if (!ensureCtx()) return;
+        if (ctx.state === 'suspended') ctx.resume();
+        booted = true;
+        startAmbient();
+        wireEvents();
+        document.removeEventListener('click',   boot, true);
+        document.removeEventListener('keydown', boot, true);
+      }
+      document.addEventListener('click',   boot, true);
+      document.addEventListener('keydown', boot, true);
+    })();
+  </script>
+  <script>
+    /* Nahual pupil flash — wraps the two pupil glyphs of the kaomoji
+       face row (the characters immediately inside ❨ and immediately
+       before ❩, e.g. the two ◍ in ❨◍☉◍❩) in spans with class
+       .nahual-eye. A scheduler then toggles .is-flash on the eyes
+       at random intervals, setting --eye-color to a random color
+       per flash so they cycle through the palette. The avatar gets
+       re-rendered by page.js on game-state changes, so a
+       MutationObserver re-wraps the eyes whenever the content
+       updates. Both eyes flash together by default. */
+    (function () {
+      var avatar = document.getElementById('bf-boss-avatar');
+      if (!avatar) return;
+      var wrapping = false;
+
+      function wrapEyes() {
+        if (wrapping) return;
+        if (avatar.querySelector('.nahual-eye')) return;
+
+        var raw = avatar.textContent;
+        if (!raw) return;
+        var lines = raw.split('\n');
+        var faceLine = -1;
+        for (var i = 0; i < lines.length; i++) {
+          if (lines[i].indexOf('❨') !== -1 && lines[i].indexOf('❩') !== -1) {
+            faceLine = i; break;
+          }
+        }
+        if (faceLine < 0) return;
+
+        // Walk Unicode codepoints so surrogate-pair glyphs count as one.
+        var chars = Array.from(lines[faceLine]);
+        var openAt  = chars.indexOf('❨');
+        var closeAt = chars.indexOf('❩');
+        if (openAt < 0 || closeAt < 0 || closeAt - openAt < 2) return;
+
+        // Pupils sit one char inside each bracket.
+        var leftAt  = openAt + 1;
+        var rightAt = closeAt - 1;
+        if (leftAt >= rightAt) return;
+
+        var preLines  = lines.slice(0, faceLine).join('\n');
+        var postLines = lines.slice(faceLine + 1).join('\n');
+        var prePart   = chars.slice(0, leftAt).join('');
+        var midPart   = chars.slice(leftAt + 1, rightAt).join('');
+        var postPart  = chars.slice(rightAt + 1).join('');
+        var leftCh    = chars[leftAt];
+        var rightCh   = chars[rightAt];
+
+        wrapping = true;
+        avatar.textContent = '';
+        if (preLines) avatar.appendChild(document.createTextNode(preLines + '\n'));
+        if (prePart)  avatar.appendChild(document.createTextNode(prePart));
+        var lSpan = document.createElement('span');
+        lSpan.className = 'nahual-eye';
+        lSpan.textContent = leftCh;
+        avatar.appendChild(lSpan);
+        if (midPart)  avatar.appendChild(document.createTextNode(midPart));
+        var rSpan = document.createElement('span');
+        rSpan.className = 'nahual-eye';
+        rSpan.textContent = rightCh;
+        avatar.appendChild(rSpan);
+        if (postPart) avatar.appendChild(document.createTextNode(postPart));
+        if (postLines) avatar.appendChild(document.createTextNode('\n' + postLines));
+        wrapping = false;
+      }
+
+      new MutationObserver(function () {
+        if (wrapping) return;
+        wrapEyes();
+      }).observe(avatar, { childList: true, characterData: true, subtree: true });
+
+      wrapEyes();
+
+      // Palette of saturated flash colors — picks one per flash so the
+      // pupils cycle through colors rather than always flashing red.
+      var COLORS = [
+        '#ff2030',  // red
+        '#30c8ff',  // cyan
+        '#ffd000',  // amber-yellow
+        '#ff60d0',  // hot magenta
+        '#60ff60',  // jungle lime
+        '#ff8030',  // orange
+        '#a060ff',  // purple
+      ];
+
+      function scheduleFlash() {
+        var eyes = avatar.querySelectorAll('.nahual-eye');
+        if (eyes.length) {
+          var color = COLORS[Math.floor(Math.random() * COLORS.length)];
+          eyes.forEach(function (e) {
+            e.style.setProperty('--eye-color', color);
+            e.classList.add('is-flash');
+          });
+          setTimeout(function () {
+            eyes.forEach(function (e) { e.classList.remove('is-flash'); });
+          }, 140 + Math.random() * 160);
+        }
+        setTimeout(scheduleFlash, 1800 + Math.random() * 4500);
+      }
+      setTimeout(scheduleFlash, 1500);
+    })();
+  </script>
+  <script src="../js/bossfight/toast.js"></script>
+  <script src="../js/bossfight/holdem.js"></script>
+  <script src="../js/bossfight/ai.js"></script>
+  <script src="../js/bossfight/page.js"></script>
+</body>
+</html>

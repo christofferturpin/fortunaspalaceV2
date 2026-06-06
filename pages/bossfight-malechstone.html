@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BOSSFIGHT · MALECHSTONE — Agent Malechstone, the concerned neighbour    │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A Jewish angel boss as a structural mirror to Gabriel — both wear     │
+  │    their faith as logo, both frame violence as concern for the           │
+  │    neighbourhood. Shared Hold'em shell (holdem.css + holdem/ai/page.js); │
+  │    the per-boss layer is malechstone.css, which adds a phosphor          │
+  │    surveillance-terminal backdrop (fragmented map grid, drifting         │
+  │    feather-wing silhouettes, three thin diagonal streaks), a yarmulke    │
+  │    drawn via ::before on the boss avatar, and a bottom-right gutter      │
+  │    monologue cycling lines in the velvet "concerned neighbour" register. │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    css: ../css/base.css, ../css/bossfight/holdem.css,                    │
+  │         ../css/bossfight/malechstone.css                                 │
+  │    palette vars on body: --bf-bg, --bf-bg-grade, --bf-fg, --bf-fg-dim,   │
+  │      --bf-accent, --bf-accent-deep, --bf-felt, --bf-felt-edge,           │
+  │      --bf-card-face, --bf-card-back, --bf-suit-black, --bf-suit-red      │
+  │    body class: bf-body bf-malechstone                                    │
+  │    inline route-guards: NONE (reachable via debug hub)                   │
+  │    BossConfig: { slug:'malechstone', name, epithet, starts, aiStyle,     │
+  │      kaomoji (cap:'' — yarmulke drawn in CSS) }                          │
+  │    storage R/W: wendys_palace_boss_malechstone, wendys_palace_bosses_… │
+  │    routes out: debug-bosses.html                                         │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Malechstone — Fortuna's Palace</title>
+  <script>
+    window.PAGE_VERSION = 'malechstone v0.4 · klezmer';
+    console.log('%c[page version] ' + window.PAGE_VERSION,
+                'color:#c9a14a;background:#1a1208;padding:2px 6px;border-radius:3px;font-family:monospace');
+  </script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bossfight/holdem.css">
+  <link rel="stylesheet" href="../css/bossfight/malechstone.css">
+  <style>
+    body.bf-body {
+      --bf-bg:          #0e0d08;
+      --bf-bg-grade:    #2a2820;
+      --bf-fg:          #d8d2b8;
+      --bf-fg-dim:      #8a8470;
+      --bf-accent:      #d4d488;
+      --bf-accent-deep: #8a8a3a;
+      --bf-felt:        #2e2814;
+      --bf-felt-edge:   #5a4a28;
+      --bf-card-face:   #ede5c8;
+      --bf-card-back:   #1a2438;
+      --bf-suit-black:  #0a0a0a;
+      --bf-suit-red:    #8a0010;
+    }
+  </style>
+</head>
+<body class="bf-body bf-malechstone">
+
+  <!-- Scrambled-mosaic background — slices ottoman_dismemberment.jpg
+       into a 6×4 grid of tiles, places each tile at a randomized
+       destination cell on screen, then re-shuffles the whole map every
+       6–12s. Sits at z:-3 so the panel chrome + chord/burn layers
+       above remain on top. Replaces the static html background for
+       Malechstone only. -->
+  <script>
+    (function () {
+      var COLS = 6, ROWS = 4;
+      var IMG = '../assets/images/ottoman_dismemberment.jpg';
+
+      var bg = document.createElement('div');
+      bg.id = 'bf-mal-scrambled-bg';
+      bg.style.cssText =
+        'position:fixed;inset:0;z-index:-3;overflow:hidden;' +
+        'background:#000;pointer-events:none;';
+
+      // srcs[i] = which slice of the original image tile i carries;
+      // dests[i] = which on-screen cell tile i is currently parked in.
+      // The slice is locked; the destination is what we shuffle.
+      var srcs = [];
+      var tiles = [];
+      for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLS; c++) {
+          srcs.push({ c: c, r: r });
+          var t = document.createElement('div');
+          t.style.cssText =
+            'position:absolute;left:0;top:0;' +
+            'background-image:url(' + IMG + ');background-repeat:no-repeat;' +
+            'transition:transform 0.7s cubic-bezier(0.5,0,0.3,1);' +
+            'will-change:transform;';
+          bg.appendChild(t);
+          tiles.push(t);
+        }
+      }
+      document.body.insertBefore(bg, document.body.firstChild);
+
+      function shuffleArr(arr) {
+        for (var i = arr.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+        }
+      }
+
+      var dests = tiles.map(function (_, i) { return i; });
+      shuffleArr(dests);
+
+      function placeDest(i, tw, th) {
+        var d = dests[i];
+        var dc = d % COLS, dr = Math.floor(d / COLS);
+        tiles[i].style.transform =
+          'translate(' + (dc * tw) + 'px,' + (dr * th) + 'px)';
+      }
+
+      function resize() {
+        var w = window.innerWidth, h = window.innerHeight;
+        var tw = w / COLS, th = h / ROWS;
+        for (var i = 0; i < tiles.length; i++) {
+          var t = tiles[i], src = srcs[i];
+          t.style.width = tw + 'px';
+          t.style.height = th + 'px';
+          t.style.backgroundSize = w + 'px ' + h + 'px';
+          t.style.backgroundPosition =
+            (-src.c * tw) + 'px ' + (-src.r * th) + 'px';
+          placeDest(i, tw, th);
+        }
+      }
+
+      function resort() {
+        shuffleArr(dests);
+        var w = window.innerWidth, h = window.innerHeight;
+        var tw = w / COLS, th = h / ROWS;
+        for (var i = 0; i < tiles.length; i++) placeDest(i, tw, th);
+        // Re-fire 6–12s later with a fresh shuffle
+        setTimeout(resort, 6000 + Math.random() * 6000);
+      }
+
+      resize();
+      window.addEventListener('resize', resize);
+      setTimeout(resort, 4500);   // first re-sort 4.5s in
+    })();
+  </script>
+
+  <header class="bf-header">
+    <h1>
+      <span class="bf-mal-vs">You vs.</span>
+      <span class="bf-mal-name">Agent Malechstone</span>
+      <span class="bf-epithet">A concerned member of the neighbourhood</span>
+    </h1>
+    <a class="bf-back-link" href="debug-bosses.html">← hub</a>
+  </header>
+
+
+  <div class="bf-status">
+    <div class="bf-status-cell">Hand <b id="bf-hand">#1</b></div>
+    <div class="bf-status-cell">Blinds <b id="bf-blinds">1/2</b></div>
+    <div class="bf-status-cell">Street <b id="bf-street">—</b></div>
+  </div>
+
+  <div class="bf-seat bf-seat-opp" id="bf-opp-seat">
+    <div class="bf-boss-avatar-wrap" id="bf-boss-avatar-wrap">
+      <div class="bf-boss-avatar-title" id="bf-boss-avatar-title">Agent Malechstone</div>
+      <div class="bf-boss-avatar-frame">
+        <pre class="bf-boss-avatar" id="bf-boss-avatar"></pre>
+      </div>
+      <span class="bf-boss-tell" id="bf-boss-tell"></span>
+    </div>
+    <div class="bf-seat-info">
+      <span class="bf-seat-name" id="bf-opp-name">Agent Malechstone</span>
+      <span class="bf-seat-stack"><span id="bf-opp-stack">75</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-opp-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-opp-cards"></div>
+  </div>
+
+  <div class="bf-community-row">
+    <div class="bf-pot-display" id="bf-pot-display">
+      <span class="bf-pot-label">Pot</span>
+      <span class="bf-pot-value" id="bf-pot">0</span>
+    </div>
+    <div class="bf-community" id="bf-community"></div>
+  </div>
+
+  <!-- Malechstone's monologue — italic line sitting directly under the
+       community cards, cycled by the inline spawner script below. The
+       voice hangs over the board in the player's sightline. -->
+  <div id="bf-malechstone-monologue" class="bf-malechstone-monologue" aria-hidden="true"></div>
+
+  <div class="bf-seat bf-seat-player" id="bf-player-seat">
+    <div class="bf-seat-info">
+      <span class="bf-seat-name">You</span>
+      <span class="bf-seat-stack"><span id="bf-player-stack">100</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-player-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-player-cards"></div>
+  </div>
+
+  <div class="bf-log" id="bf-log">
+    <div class="bf-log-header">
+      Play Log
+      <button id="bf-log-clear" class="bf-log-clear" type="button">Clear</button>
+    </div>
+    <div class="bf-log-scroll" id="bf-log-scroll"></div>
+  </div>
+
+  <div class="bf-actions" id="bf-actions">
+    <button id="bf-act-fold" class="bf-act-fold" type="button">Fold</button>
+    <button id="bf-act-passive" type="button">Check</button>
+    <button id="bf-act-aggro" class="bf-act-aggro" type="button">Bet</button>
+    <div class="bf-sizing" id="bf-sizing">
+      <button class="bf-preset" data-preset="min" type="button">Min</button>
+      <button class="bf-preset" data-preset="half" type="button">½</button>
+      <button class="bf-preset" data-preset="pot" type="button">Pot</button>
+      <button class="bf-preset" data-preset="all" type="button">All</button>
+      <input id="bf-raise" type="range" min="0" max="0" value="0">
+      <span id="bf-raise-value" class="bf-raise-value">0</span>
+    </div>
+  </div>
+
+  <script>
+    window.BossConfig = {
+      slug: 'malechstone',
+      name: 'Agent Malechstone',
+      epithet: 'Wings in wings',
+      startingStacks: { playerChips: 100, oppChips: 75 },
+      // Malechstone's personality, pushed a notch past the original
+      // pass.  Earlier version: tightness 0.85, aggression 1.25,
+      // bluffFreq 1.40, loose 1.10, mixedness 1.20.  Each value here
+      // is nudged a little further in the same direction — looser,
+      // more aggressive, bluffs more, mixes more.  Boss reads as a
+      // hot-headed bully who keeps shoving with marginal holdings,
+      // which matches the "we have no choice but to act" register.
+      aiStyle: { tightness: 0.78, aggression: 1.35, bluffFreq: 1.55, loose: 1.18, mixedness: 1.30 },
+      // Yarmulke (kippah) is the visual signature, drawn in CSS via
+      // ::before on the avatar <pre> (see malechstone.css §6). Cap is
+      // left empty so page.js doesn't also prepend an ASCII version.
+      kaomoji: {
+        cap: '',
+        // Base face: ﾐΘ_Θﾐ — bracketed katakana mi (ﾐ ﾐ) holds two
+        // theta eyes (Θ Θ). Mood variants swap the eyes; the ﾐ flanks
+        // stay so the silhouette stays Malechstone across moods. The
+        // ⌒ kippah glyph is drawn above by the avatar ::before pseudo
+        // (malechstone.css §6), so cap stays empty here.
+        faces: {
+          broken:    ['ﾐ✗_✗ﾐ', 'ﾐx_xﾐ', 'ﾐ✗_✗ﾐ', 'ﾐx_xﾐ'],
+          desperate: ['ﾐ⊙_⊙ﾐ', 'ﾐ•́_•̀ﾐ', 'ﾐ⊙_⊙ﾐ', 'ﾐ⊙~⊙ﾐ'],
+          pressured: ['ﾐ•_•ﾐ',  'ﾐo_oﾐ', 'ﾐ•_•ﾐ',  'ﾐo_•ﾐ'],
+          even:      ['ﾐΘ_Θﾐ',  'ﾐΘ-Θﾐ', 'ﾐΘ_Θﾐ',  'ﾐ-_-ﾐ'],
+          ahead:     ['ﾐΘ‿Θﾐ', 'ﾐ¬‿¬ﾐ', 'ﾐΘ‿Θﾐ', 'ﾐΘ_Θﾐ'],
+          dominant:  ['ﾐ✦‿✦ﾐ', 'ﾐ◉‿◉ﾐ', 'ﾐ✦‿✦ﾐ', 'ﾐ¬‿¬ﾐ'],
+        },
+        tells: {
+          broken:    'shattered',
+          desperate: 'stressing out',
+          pressured: 'evaluating the variables',
+          even:      'monitoring the situation',
+          ahead:     'plotting',
+          dominant:  'amused',
+        },
+      },
+    };
+  </script>
+  <script>
+    /* Malechstone's monologue — one line per hand, sitting under the
+       board. Malechstone is an Israeli angel; the player is an
+       Appalachian girl. He speaks to her as though she were a Gazan,
+       and the lines have to land twice — as IDF-spokesman address to
+       the colonized, AND as metropolitan-consultant address to the
+       Appalachian. The parity between internal and external
+       colonization is the whole joke: the same voice does both jobs.
+       So the vocabulary is deliberately generic-colonial (no "ghetto",
+       "Egypt", "rockets" — those would lock it to one register).
+
+       Advancement is hand-keyed, not time-keyed: a MutationObserver
+       watches the #bf-hand status cell (which page.js updates via
+       setText(refs.hand, '#'+state.handNumber)) and bumps to the next
+       line whenever the hand number changes. The first line is shown
+       on initial load (hand #1). */
+    (function () {
+      var el   = document.getElementById('bf-malechstone-monologue');
+      var hand = document.getElementById('bf-hand');
+      if (!el || !hand) return;
+      var LINES = [
+        "Do you have any idea what happened to us?",
+        "Never again. We won't let any one hurt us again.",
+        "Our grandmothers screamed and no one came — they'll only scream with joy now.",
+        "We tried being good. They hurt us anyway.",
+        "Once two Gazans came up Zion Top — now those bitches dead!",
+        "You weep for your children. We wept for ours first.",
+        "We are not cruel. Just pragmatic.",
+        "After what we survived, you'd see this as mercy.",
+        "Our trauma is older than your culture.",
+        "We learned: when they say it, they mean it.",
+        "We didn't start it — we only stopped losing it.",
+        "Remember Blair Mountain!",
+        "Never again!",
+        "Eye for an eye!",
+        "Die heathens!",
+      ];
+      if (LINES.length === 0) return;
+      var i = 0;
+      el.textContent = LINES[0];
+      var last = hand.textContent;
+      new MutationObserver(function () {
+        if (hand.textContent === last) return;
+        last = hand.textContent;
+        el.classList.add('is-fading');
+        setTimeout(function () {
+          i = (i + 1) % LINES.length;
+          el.textContent = LINES[i];
+          el.classList.remove('is-fading');
+        }, 420);  // matches CSS opacity transition
+      }).observe(hand, { childList: true, characterData: true, subtree: true });
+    })();
+  </script>
+  <script>
+    /* Mouth-missile + cutesy death-toll HUD.
+       Every 3–9 seconds Malechstone fires a tiny ASCII missile from
+       his avatar's mouth area to a random viewport point. On impact
+       a 💥 flashes and the kill counter (pinned to the top-right of
+       the avatar wrap) bumps by 1–6 with a "+N" float-up. The HUD is
+       deliberately cheerful — pink-cream gradient, bouncy arcade
+       number — so the body count climbs beside the velvet "concerned"
+       lines and the contrast does the work. CSS lives in
+       malechstone.css §12. */
+    (function () {
+      var avatar = document.getElementById('bf-boss-avatar');
+      if (!avatar) return;
+
+      var dead = 0;
+
+      // Each impact spawns a fresh cute pink ☠ N badge at the strike
+      // point, showing the running total. It pops, rises a hair, fades.
+      function spawnKillBadge(n, x, y) {
+        dead += n;
+        var b = document.createElement('div');
+        b.className = 'bf-mal-killcount';
+        b.style.left = x + 'px';
+        b.style.top  = y + 'px';
+        b.innerHTML =
+          '<span class="bf-mal-killicon">☠</span>' +
+          '<span class="bf-mal-killnum">' + dead.toLocaleString() + '</span>';
+        document.body.appendChild(b);
+        setTimeout(function () { b.remove(); }, 1120);
+      }
+
+      // Briefly force the avatar to an open-mouth face while firing.
+      // page.js cycles the kaomoji on its own interval, so we re-assert
+      // every 80ms for the shot's duration to keep the mouth open even
+      // if the next mood tick lands mid-shot.
+      var OPEN_MOUTH = '(•O•)';
+      function holdMouthOpen(ms) {
+        avatar.textContent = OPEN_MOUTH;
+        var iv = setInterval(function () {
+          avatar.textContent = OPEN_MOUTH;
+        }, 80);
+        setTimeout(function () { clearInterval(iv); }, ms);
+      }
+
+      function fireMissile() {
+        var rect = avatar.getBoundingClientRect();
+        if (!rect.width) return;       // avatar not laid out yet
+        var ox = rect.left + rect.width  / 2;
+        var oy = rect.top  + rect.height * 0.62;   // mouth ≈ a hair below centre
+        // Aim somewhere on screen, but not at the boss himself
+        var tx, ty, tries = 0;
+        do {
+          tx = Math.random() * window.innerWidth;
+          ty = Math.random() * window.innerHeight;
+          tries++;
+        } while (tries < 6 && Math.hypot(tx - ox, ty - oy) < 220);
+        var dx = tx - ox, dy = ty - oy;
+        var dist = Math.hypot(dx, dy);
+        var ang  = Math.atan2(dy, dx) * 180 / Math.PI;
+
+        var m = document.createElement('div');
+        m.className = 'bf-mal-missile';
+        m.textContent = '═══►';
+        m.style.left = ox + 'px';
+        m.style.top  = oy + 'px';
+        m.style.setProperty('--ang',  ang  + 'deg');
+        m.style.setProperty('--dist', dist + 'px');
+        document.body.appendChild(m);
+
+        // Mouth opens for the duration of the missile flight (plus a
+        // touch for the boom). 900ms flight + ~180ms recovery.
+        holdMouthOpen(1080);
+
+        setTimeout(function () {
+          m.remove();
+          // Boom emoji — the main centerpiece, scaled up.
+          var b = document.createElement('div');
+          b.className = 'bf-mal-boom';
+          b.textContent = '💥';
+          b.style.left = (tx - 42) + 'px';
+          b.style.top  = (ty - 42) + 'px';
+          document.body.appendChild(b);
+          setTimeout(function () { b.remove(); }, 700);
+
+          // Shockwave ring — expanding circle that fades as it grows.
+          var ring = document.createElement('div');
+          ring.className = 'bf-mal-shock';
+          ring.style.left = tx + 'px';
+          ring.style.top  = ty + 'px';
+          document.body.appendChild(ring);
+          setTimeout(function () { ring.remove(); }, 720);
+
+          // Flash overlay — full-screen white burst that immediately fades.
+          var flash = document.createElement('div');
+          flash.className = 'bf-mal-flash';
+          document.body.appendChild(flash);
+          setTimeout(function () { flash.remove(); }, 220);
+
+          // Debris — 8 small fragments flying outward in random directions.
+          var DEBRIS = ['•', '·', '+', '×', '*', '◦'];
+          for (var d = 0; d < 8; d++) {
+            var frag = document.createElement('div');
+            frag.className = 'bf-mal-debris';
+            frag.textContent = DEBRIS[d % DEBRIS.length];
+            var ang = (Math.PI * 2) * (d / 8) + (Math.random() - 0.5) * 0.6;
+            var dist = 60 + Math.random() * 60;
+            frag.style.left = (tx - 4) + 'px';
+            frag.style.top  = (ty - 4) + 'px';
+            frag.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
+            frag.style.setProperty('--dy', Math.sin(ang) * dist + 'px');
+            frag.style.setProperty('--rot', ((Math.random() - 0.5) * 540) + 'deg');
+            document.body.appendChild(frag);
+            (function (el) {
+              setTimeout(function () { el.remove(); }, 720);
+            })(frag);
+          }
+
+          spawnKillBadge(1 + Math.floor(Math.random() * 6), tx, ty);
+          // Shake the game chrome on impact — the CSS animation drops
+          // off in ~280ms, so we toggle the body class for that span.
+          document.body.classList.add('is-impact');
+          setTimeout(function () {
+            document.body.classList.remove('is-impact');
+          }, 400);
+        }, 900);
+      }
+
+      function schedule() {
+        var delay = 3000 + Math.random() * 6000;   // 3–9s
+        setTimeout(function () { fireMissile(); schedule(); }, delay);
+      }
+      // First shot ~2s in so the player has a beat to see the table.
+      setTimeout(function () { fireMissile(); schedule(); }, 2000);
+    })();
+  </script>
+  <script src="../js/bossfight/toast.js"></script>
+  <script src="../js/bossfight/holdem.js"></script>
+  <script src="../js/bossfight/ai.js"></script>
+  <script src="../js/bossfight/page.js"></script>
+
+  <script>
+    /* ─── Hora-dubstep boss-battle music for Malechstone ─────────────
+       Hava Nagila / hora-chair-dance klezmer melody (Ahava Rabbah —
+       Phrygian Dominant — with the signature augmented-2nd cluster
+       between ♭2 and 3) over a 140 BPM half-time dubstep kit. The
+       clarinet plays from a bank of pre-composed Hava Nagila-evoking
+       phrases instead of random degrees so the call-and-response
+       reads as a tune, not noodling.
+
+       Voices:
+         · clarinet voice: square wave + steep lowpass (reedy klezmer
+           lead) + parallel 4th below for the open klezmer harmony
+         · subKick:    150→35Hz sine drop on dubstep beat 1 (+pickup)
+         · snare:      noise burst through HP+BP + 200Hz triangle tone,
+                       lands on dubstep beat 3 (half-time backbeat)
+         · hat:        very short HP-filtered noise on every 16th
+         · wobble:     sawtooth through a resonant lowpass whose cutoff
+                       is modulated by an LFO sync'd to the beat grid
+                       (8th-note wobble at this BPM); plays root + 5ths
+                       under each bar, retriggered each bar
+       Toggle pill ("♪ off") in bottom-left mirrors the other bosses. */
+    (function () {
+      var ctx = null, master = null, schedTimer = null;
+      var booted = false, muted = false;
+      var pattern = null, stepIdx = 0, nextTime = 0;
+      var LOOKAHEAD_MS = 100, AHEAD_S = 0.18;
+      var STEPS_PER_LOOP = 32;
+      var LOOPS_BEFORE_RESHUFFLE = 4;
+      var loopCount = 0;
+
+      // Ahava Rabbah (Phrygian Dominant) — 1, ♭2, 3, 4, 5, ♭6, ♭7, 8.
+      // Augmented 2nd between scale degrees 2 (♭2) and 3 gives the
+      // distinct klezmer/liturgical "Jewish" sound. Add a few notes
+      // above to allow upward phrasing into the next octave.
+      var SCALE = [0, 1, 4, 5, 7, 8, 10, 12, 13, 16];
+      // Weighted toward 1 / 3 / 5 / ♭7 (the structural pitches) plus
+      // emphasized ♭2 to expose the signature augmented-2nd interval.
+      var DEGREE_WEIGHTS = [3, 2.5, 2.8, 1.8, 3, 1.5, 2.2, 2.5, 1.2, 1];
+
+      function pickDegree() {
+        var sum = 0; for (var i = 0; i < DEGREE_WEIGHTS.length; i++) sum += DEGREE_WEIGHTS[i];
+        var r = Math.random() * sum, acc = 0;
+        for (var j = 0; j < DEGREE_WEIGHTS.length; j++) {
+          acc += DEGREE_WEIGHTS[j];
+          if (r < acc) return SCALE[j];
+        }
+        return 0;
+      }
+
+      // Hava Nagila phrase banks — each phrase is a list of
+      // {n: scale-index, d: duration-in-sixteenths}. Total duration
+      // of a phrase should sum to 16 (one bar) or 32 (two bars).
+      // Scale indices reference the SCALE table above (Ahava Rabbah).
+      var HAVA_PHRASES = [
+        // Opening "Hava nagila, hava nagila" — sits on 5 with the
+        // ♭6 lean, lots of repetition in the upper register.
+        [{n:4,d:4},{n:4,d:2},{n:5,d:2},{n:4,d:4},{n:3,d:2},{n:2,d:2}],
+        // Climb through ♭6 → ♭7 → octave, the energy build.
+        [{n:4,d:2},{n:5,d:2},{n:6,d:2},{n:7,d:4},{n:6,d:2},{n:5,d:2},{n:4,d:2}],
+        // Famous descent across the full Phrygian Dominant — the
+        // augmented 2nd between {n:2} (3) and {n:1} (♭2) is the
+        // signature klezmer "cry".
+        [{n:7,d:2},{n:6,d:2},{n:5,d:2},{n:4,d:2},{n:3,d:2},{n:2,d:2},{n:1,d:2},{n:0,d:2}],
+        // "Uru achim b'lev sameach" answering phrase — sits low,
+        // bounces around the root, ends with a krekhts grace lift.
+        [{n:0,d:4},{n:1,d:2},{n:2,d:2},{n:0,d:4},{n:2,d:2},{n:1,d:1},{n:0,d:1}],
+        // Spinning hora figure — repeated turn around root + 3rd.
+        [{n:0,d:2},{n:2,d:2},{n:0,d:2},{n:2,d:2},{n:3,d:2},{n:4,d:4},{n:3,d:2}],
+        // Two-bar (32-step) phrase — call across the whole range.
+        [{n:4,d:2},{n:5,d:2},{n:4,d:4},{n:3,d:2},{n:2,d:4},
+         {n:4,d:2},{n:5,d:2},{n:7,d:4},{n:6,d:2},{n:5,d:2},{n:4,d:4}],
+      ];
+
+      function pickPhrase() {
+        return HAVA_PHRASES[Math.floor(Math.random() * HAVA_PHRASES.length)];
+      }
+
+      // Render a phrase into a fixed step-aligned melody array of
+      // length STEPS_PER_LOOP. Notes that overflow are clipped.
+      function renderPhrase(phrase) {
+        var mel = new Array(STEPS_PER_LOOP); for (var i = 0; i < STEPS_PER_LOOP; i++) mel[i] = null;
+        var pos = 0;
+        for (var k = 0; k < phrase.length; k++) {
+          if (pos >= STEPS_PER_LOOP) break;
+          mel[pos] = phrase[k].n;
+          pos += phrase[k].d;
+        }
+        return mel;
+      }
+
+      function newPattern() {
+        // Locked to dubstep tempo so the half-time kit reads as the
+        // genre rather than a generic backbeat. Root A3 — comfortable
+        // klezmer clarinet, sub bass sits an octave below.
+        var bpm    = 140;
+        var rootHz = 220;
+        // Stitch two random phrases together for a 32-step (2-bar) melody.
+        var mel = renderPhrase(pickPhrase());
+        var melB = renderPhrase(pickPhrase());
+        for (var i = 0; i < 16; i++) {
+          if (mel[i + 16] == null) mel[i + 16] = melB[i];
+        }
+        return { bpm: bpm, rootHz: rootHz, mel: mel };
+      }
+
+      function scheduler() {
+        while (nextTime < ctx.currentTime + AHEAD_S) {
+          schedStep(stepIdx, nextTime);
+          var stepSec = (60 / pattern.bpm) / 4;
+          nextTime += stepSec;
+          stepIdx++;
+          if (stepIdx >= STEPS_PER_LOOP) {
+            stepIdx = 0;
+            loopCount++;
+            if (loopCount >= LOOPS_BEFORE_RESHUFFLE) {
+              pattern = newPattern();
+              loopCount = 0;
+            }
+          }
+        }
+      }
+
+      function schedStep(step, t) {
+        var stepSec = (60 / pattern.bpm) / 4;
+
+        // Clarinet melody — Hava Nagila phrase notes already laid
+        // into pattern.mel by renderPhrase(). Lead + parallel 4th
+        // below (open klezmer harmony). ~12% krekhts grace lift.
+        var deg = pattern.mel[step];
+        if (deg !== null && deg !== undefined) {
+          var hz1 = pattern.rootHz * Math.pow(2, deg / 12);
+          var hz2 = pattern.rootHz * Math.pow(2, (deg - 5) / 12);
+          if (Math.random() < 0.12) {
+            clarinet(hz1 * Math.pow(2, -1/12), t - stepSec * 0.18, stepSec * 0.18, 0.10);
+          }
+          clarinet(hz1, t, stepSec * 1.8, 0.18);
+          clarinet(hz2, t, stepSec * 1.8, 0.11);
+        }
+
+        // ── Wobble bass — retrigger on every bar (every 16 steps).
+        // Plays root for bar A, 5th for bar B so the harmony moves
+        // under the clarinet without straying from the mode.
+        if (step === 0 || step === 16) {
+          var barRoot = (step === 0) ? pattern.rootHz : pattern.rootHz * Math.pow(2, 7/12);
+          wobble(barRoot * 0.25, t, (60 / pattern.bpm) * 4 * 0.98, pattern.bpm);
+        }
+
+        // ── Dubstep drums — half-time at 140 BPM (one full bar = 16
+        // sixteenth-note steps). Kick lands on step 0 with a pickup
+        // on step 14; snare on step 8 (the "and of 3" feel that
+        // defines half-time). Closed hat every 16th, accent every 4.
+        var s = step % 16;
+        if (s === 0)  subKick(t);
+        if (s === 14) subKick(t, 0.7);
+        if (s === 8)  snare(t);
+        // Hats — every 16th, with louder accent on the quarter notes.
+        hat(t, (s % 4 === 0) ? 0.22 : 0.13);
+        // Sparse extra snare ghost on second bar's "and of 4" so the
+        // two-bar phrase feels less repetitive.
+        if (step === 30) snare(t, 0.55);
+      }
+
+      // Clarinet voice — square wave through a steep lowpass for the
+      // reedy klezmer timbre, with a quick attack and a slow release.
+      function clarinet(hz, t, dur, gain) {
+        var osc = ctx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(hz, t);
+        var lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = Math.min(hz * 4, 2800);
+        lp.Q.value = 1.8;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + 0.015);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.001, gain * 0.55), t + dur * 0.55);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(lp).connect(g).connect(master);
+        osc.start(t);
+        osc.stop(t + dur + 0.05);
+      }
+
+      // Wobble bass — saw through a resonant lowpass whose cutoff is
+      // driven by an LFO. The LFO speed is locked to the beat grid
+      // (here: 8th-note wobble — bpm/60 * 2) so the modulation phases
+      // with the kit. High Q gives the screaming dubstep character.
+      function wobble(hz, t, dur, bpm) {
+        var osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(hz, t);
+        var lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(450, t);
+        lp.Q.value = 14;
+        // LFO modulates lp.frequency by ±700 around the base 450 →
+        // sweeps roughly 200..1200 Hz. 8th-note wobble at the kit BPM.
+        var lfo = ctx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = (bpm / 60) * 2;
+        var lfoGain = ctx.createGain();
+        lfoGain.gain.value = 700;
+        lfo.connect(lfoGain).connect(lp.frequency);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.32, t + 0.02);
+        g.gain.setValueAtTime(0.32, t + dur * 0.92);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(lp).connect(g).connect(master);
+        osc.start(t); osc.stop(t + dur + 0.05);
+        lfo.start(t); lfo.stop(t + dur + 0.05);
+      }
+
+      // Dubstep sub kick — 150→35Hz sine drop with a fast click.
+      function subKick(t, gainScale) {
+        gainScale = gainScale || 1;
+        var osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.exponentialRampToValueAtTime(35, t + 0.08);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.95 * gainScale, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+        osc.connect(g).connect(master);
+        osc.start(t); osc.stop(t + 0.40);
+      }
+
+      // Snare — noise burst through highpass + bandpass + a 200Hz
+      // triangle tone for body. Lands on the half-time backbeat.
+      function snare(t, gainScale) {
+        gainScale = gainScale || 1;
+        var bufLen = ctx.sampleRate * 0.20;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 1.4);
+        var src = ctx.createBufferSource(); src.buffer = buf;
+        var hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900;
+        var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 0.7;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.55 * gainScale, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        src.connect(hp).connect(bp).connect(g).connect(master);
+        // Tone body — quick triangle thunk under the noise.
+        var osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = 200;
+        var oG = ctx.createGain();
+        oG.gain.setValueAtTime(0.30 * gainScale, t);
+        oG.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+        osc.connect(oG).connect(master);
+        src.start(t);
+        osc.start(t); osc.stop(t + 0.07);
+      }
+
+      // Closed hat — very short highpassed noise. Drives the 16ths.
+      function hat(t, gainScale) {
+        gainScale = gainScale || 1;
+        var bufLen = ctx.sampleRate * 0.04;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+        var src = ctx.createBufferSource(); src.buffer = buf;
+        var hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7000;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(gainScale, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+        src.connect(hp).connect(g).connect(master);
+        src.start(t);
+      }
+
+      function boot() {
+        if (booted) return;
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC();
+        master = ctx.createGain();
+        master.gain.value = 0.40;
+        master.connect(ctx.destination);
+        pattern = newPattern();
+        stepIdx = 0;
+        loopCount = 0;
+        nextTime = ctx.currentTime + 0.1;
+        schedTimer = setInterval(scheduler, LOOKAHEAD_MS);
+        booted = true;
+        updateToggleLabel();
+      }
+      function setMuted(m) {
+        muted = m;
+        if (master) master.gain.value = muted ? 0 : 0.40;
+        updateToggleLabel();
+      }
+      function updateToggleLabel() {
+        var t = document.getElementById('bf-klezmer-toggle');
+        if (t) t.textContent = (booted && !muted) ? '♪ on' : '♪ off';
+      }
+
+      // Toggle pill — bottom-left, quiet, themed phosphor on black.
+      var pill = document.createElement('button');
+      pill.id = 'bf-klezmer-toggle';
+      pill.type = 'button';
+      pill.textContent = '♪ off';
+      pill.style.cssText = [
+        'position: fixed',
+        'bottom: 10px',
+        'left: 10px',
+        'z-index: 90',
+        'padding: 4px 10px',
+        'background: rgba(0,0,0,0.7)',
+        'color: #d4d488',
+        'border: 1px solid #d4d488',
+        'border-radius: 999px',
+        'font-family: monospace',
+        'font-size: 11px',
+        'letter-spacing: 0.16em',
+        'cursor: pointer',
+        'text-transform: uppercase'
+      ].join(';');
+      pill.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!booted) boot(); else setMuted(!muted);
+      });
+      document.body.appendChild(pill);
+
+      // Auto-boot on first non-toggle click (browser autoplay gesture).
+      function bootOnGesture() {
+        if (!booted) boot();
+        document.removeEventListener('click', bootOnGesture, true);
+      }
+      document.addEventListener('click', bootOnGesture, true);
+    })();
+  </script>
+</body>
+</html>

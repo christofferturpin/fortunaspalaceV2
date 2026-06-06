@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  MATCHBOX — slot machine feeds 4-color match-3 board                     │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Two-panel prototype, side-by-side on wide screens, stacked on narrow  │
+  │    (≤760px). Left/top: a 3×3 slot machine (see js/matchbox/slot.js)      │
+  │    with three pip types — nada, blue (move-payer), yellow (wager         │
+  │    bonus). The player types a Wager ($10 min, rounds up) and SPIN —      │
+  │    Wallet.spend(bet), reels roll, blue 3+ touching blobs pay (n-2)       │
+  │    moves, yellow pips boost the active wager via 1-0.5^N. Right/bottom:  │
+  │    a 6×6 four-color grid (see js/matchbox/matcher.js). The player        │
+  │    swaps adjacent tiles to form 3+ in a line; matches clear and tiles    │
+  │    cascade. Each valid swap costs one move and pays bet×tilesCleared     │
+  │    coins back to the wallet (cascades included). Invalid swaps revert    │
+  │    for free. While moves are pending the Wager input and SPIN are        │
+  │    locked — one wager per match cycle. The standard Palace header        │
+  │    (Lobby + Coins + floating child widget) is wired in; each spin        │
+  │    nudges the child decay clock via Child.recordPlay.                    │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, matchbox/audio.js,           │
+  │      matchbox/slot.js, matchbox/matcher.js, header.js                    │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #debug-reset, #slot-grid, #bet-amount, #bet-max,   │
+  │      #spin-btn, #slot-result, #moves-count, #match-payout, #match-grid   │
+  │    flow: spin → readBet ($10 min, rounds up to nearest $10) →            │
+  │      Wallet.spend(bet) → Child.recordPlay → rollReels → animateSpin →    │
+  │      detectHits (per-cell: nada/match/match+ → +0/+1/+3 moves) →         │
+  │      MatchboxMatcher.addMoves(Σmoves, bet) if moves>0.                   │
+  │      swap → if blob TOUCHING swap cells: moves--, cascade. Depth-0       │
+  │      clears swap-touching 3+ blobs AND any stray 4+ (3s elsewhere sit).  │
+  │      Depth>=1 only auto-resolves 4+ from falling tiles (gravity-only,    │
+  │      no refill mid-chain). When cascade has nothing left, a SINGLE       │
+  │      refill drops new pieces in; refill-formed blobs sit until next      │
+  │      swap. Wallet.add(Σ bet × (N-3) × 0.6^depth per blob, N>=4).         │
+  │      Invalid swap reverts free. moves>0 ⇒ bet input + SPIN disabled.     │
+  │    storage R/W: sinnerbox (Wallet R/W), wendys_palace_child (R/W via     │
+  │      Child.recordPlay), wendys_palace_intro_seen (R),                    │
+  │      wendys_palace_death (R)                                             │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <title>Caja de Lotería</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/matchbox/matchbox.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body>
+  <header class="loteria-header">
+    <div class="header-center">
+      <h1>
+        <span class="header-skull header-skull-left">☠</span>
+        ¡Caja de Lotería!
+        <span class="header-skull header-skull-right">☠</span>
+      </h1>
+      <p class="header-tagline">— Todos los Seres Humanos Son Ilegales —</p>
+    </div>
+    <div class="coins-bar">
+      <span class="coins-label">Monedas</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+  <main class="loteria-scene">
+    <svg class="scene-tube" viewBox="0 0 400 30" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="tubeGlow" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#9cc060" stop-opacity="0.45"/>
+          <stop offset="0.15" stop-color="#dceb80" stop-opacity="0.95"/>
+          <stop offset="0.5" stop-color="#f4fa9c" stop-opacity="1"/>
+          <stop offset="0.85" stop-color="#dceb80" stop-opacity="0.95"/>
+          <stop offset="1" stop-color="#9cc060" stop-opacity="0.45"/>
+        </linearGradient>
+      </defs>
+      <rect x="76" y="0" width="6" height="10" fill="#1a1004"/>
+      <rect x="318" y="0" width="6" height="10" fill="#1a1004"/>
+      <rect x="58" y="9" width="284" height="9" rx="4.5" fill="url(#tubeGlow)"/>
+    </svg>
+
+    <aside class="scene-poster scene-poster-notice" aria-hidden="true">
+      <div class="poster-header">AVISO OFICIAL</div>
+      <p><strong>Formulario&nbsp;I-589</strong><br>Tiempo de espera: <strong>4&nbsp;años</strong></p>
+      <p class="poster-fine">Mientras tanto, recuerde sonreír al funcionario.</p>
+    </aside>
+
+    <aside class="scene-poster scene-poster-peel" aria-hidden="true">
+      <p class="poster-headline">BIENVENIDO</p>
+      <p class="poster-strike">no hay turno</p>
+    </aside>
+
+    <section class="matchbox">
+    <details class="mb-rules">
+      <summary>Instrucciones — Cómo Jugar</summary>
+      <div class="mb-rules-body">
+        <p>Dos máquinas atrapadas en una sola caja. Arriba, la tragamonedas. Abajo, el tablero. Las dos se alimentan: lo de arriba paga jugadas, lo de abajo paga monedas.</p>
+
+        <h4>La Tragamonedas</h4>
+        <p>Apuesta tu plata (mínimo $10, sube de diez en diez) y gira. Salen nueve símbolos en cuadrícula de tres por tres:</p>
+        <ul class="mb-rules-list">
+          <li><strong>·</strong> ceniza — no hace nada.</li>
+          <li><strong>☼</strong> el sol — el símbolo común.</li>
+          <li><strong>✠</strong> la cruz — raro; sube tu apuesta.</li>
+        </ul>
+        <p>Si tres o más símbolos (soles y cruces mezclados) <strong>se tocan en horizontal o en vertical</strong> — las diagonales no cuentan — ganas <em>jugadas</em> para gastar abajo. Una mancha de tamaño <em>n</em> da <em>n−2</em> jugadas. Cada cruz en el giro sube tu apuesta hasta ×1,5 — pero solo si la mancha llega a formarse.</p>
+
+        <h4>El Tablero</h4>
+        <p>Con jugadas guardadas, intercambia fichas vecinas en el tablero de seis por seis. El intercambio sirve únicamente si forma un grupo de tres o más fichas del mismo color tocándose <strong>horizontal o vertical</strong>. Las fichas se queman, las de arriba caen, y al final del ciclo se rellenan los huecos.</p>
+        <ul class="mb-rules-list">
+          <li>Grupo de <strong>3</strong> — se quema, no paga.</li>
+          <li>Grupo de <strong>4</strong> — paga ½ tu apuesta.</li>
+          <li>Grupo de <strong>5</strong> — paga 1× tu apuesta.</li>
+          <li>Grupo de <strong>6</strong> — paga 1,5×.</li>
+          <li>Grupo de <strong>n</strong> — paga (n−3) ÷ 2 × tu apuesta.</li>
+        </ul>
+        <p>Las <strong>cascadas</strong> — cuando las fichas caen solas y forman nuevos grupos sin que muevas nada — pagan menos a cada nivel: 1, 0,5, 0,25, 0,125… Un intercambio inválido se deshace gratis.</p>
+
+        <h4>El Comodín ✪</h4>
+        <p>Si un solo intercambio forma <strong>dos o más grupos</strong> al mismo tiempo, aparece un comodín en uno de los huecos donde moviste. El comodín hace de cualquier color para conectar futuras combinaciones — pero el comodín en sí mismo no cuenta para el pago. Es solo el puente.</p>
+
+        <h4>El Ritmo</h4>
+        <p>Mientras tengas jugadas, el tablero brilla y la tragamonedas se duerme. Cuando se acaben las jugadas, la luz vuelve arriba y puedes apostar de nuevo.</p>
+      </div>
+    </details>
+    <section class="slot-panel">
+      <div class="jackpot-display">
+        <div class="jackpot-label">El Premio Gordo</div>
+        <div id="jackpot-amount" class="jackpot-amount">$0</div>
+      </div>
+      <div id="slot-grid" class="slot-grid"></div>
+      <div class="slot-controls">
+        <div id="bet-tiers">
+          <label class="bet-label" for="bet-amount">Apuesta</label>
+          <input type="number" id="bet-amount" min="10" step="10" value="10" inputmode="numeric" autocomplete="off">
+          <button id="bet-max" class="bet-shortcut" type="button">MÁX</button>
+        </div>
+        <button id="spin-btn" type="button">GIRAR</button>
+        <div id="slot-result" class="slot-result">—</div>
+      </div>
+    </section>
+    <section class="match-panel">
+      <div class="match-hud">
+        <span>Jugadas: <span id="moves-count">0</span></span>
+        <span id="match-payout" class="match-payout"></span>
+      </div>
+      <div id="match-grid" class="match-grid"></div>
+    </section>
+    </section>
+  </main>
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/matchbox/audio.js"></script>
+  <script src="../js/matchbox/scene.js"></script>
+  <script src="../js/matchbox/jackpot.js"></script>
+  <script src="../js/matchbox/translate-trap.js"></script>
+  <script src="../js/matchbox/slot.js"></script>
+  <script src="../js/matchbox/matcher.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

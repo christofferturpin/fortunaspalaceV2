@@ -1,0 +1,820 @@
+/*
+  POKER-BASE — theme-agnostic structural CSS for the stub-boss poker tables
+  ─────────────────────────────────────────────────────────────────────────
+  This file ONLY paints layout, geometry, typography, and the universal
+  poker UX (cards, seats, action buttons, sizing slider, fly-chip, end
+  splash, announce toast). All color comes from CSS variables that each
+  boss-specific theme file overrides on its own theme-class root.
+
+  Theme class convention: each boss page sets
+    <body class="bf-body bf-theme-<slug>"> and ships a
+  css/bossfight/<slug>.css that scopes to .bf-theme-<slug> and overrides
+  vars + paints atmosphere. The poker mechanics are unchanged across all
+  bosses (BFHoldem + BFAI shared engine).
+
+  Chavez (the original) is NOT served by this file — bossfight-chavez.html
+  loads css/bossfight/chavez.css which is self-contained.
+
+  Sections:
+    1. Local vars (default placeholder palette — gothic Palace fallback)
+    2. Page root + reset
+    3. Header — title, hand/blinds meta
+    4. Table layout — vertical stack: opp seat / felt / player seat
+    5. Seats — name, last-move line, halo, bet puck, button chip
+    6. Cards — face up / face down (back is the eye motif)
+    7. Felt center — community + street label + turn-status
+    8. Stakes bar — YOU / POT / OPP riding above the player cards
+    9. Announce toast + hand-strength readout
+   10. Actions — fold/passive/aggro mutex
+   11. Sizing — presets + slider
+   12. Fly-chip animation
+   13. Log
+   14. End splash
+   15. Narrow-viewport tweaks
+
+  Owns selectors: .bf-body, .bf-header, .bf-title, .bf-vs, .bf-meta,
+    .bf-meta-sep, .bf-table, .bf-seat[-player|-chavez], .bf-halo,
+    .bf-seat-head, .bf-seat-name, .bf-seat-tag, .bf-bet, .bf-last-move,
+    .bf-cards[-player|-chavez], .bf-card[-back, -rank, -suit, -eye],
+    .bf-suit-{S,H,D,C}, .is-best, .bf-felt, .bf-community, .bf-street,
+    .bf-turn-status, .bf-stakes[-side, -you, -them, -mid, -label, -value,
+    -pot-value, -sub], .is-call, .bf-announce[, .is-open, .is-player,
+    .is-opp, .is-prompt, .is-deal], .bf-hand-strength, .bf-actions,
+    .bf-action[-row, -fold, -passive, -aggro], .is-locked, .bf-sizing,
+    .is-active, .bf-preset[-row], .is-selected, .bf-slider-row,
+    .bf-size-value, .bf-fly-chip, .is-flying, .is-arrived, .is-opp,
+    .bf-log, .bf-log-line, .bf-end-splash, .bf-end-card, .bf-end-title,
+    .bf-end-body, .bf-end-stats, .bf-end-button, .has-button, .is-acting,
+    .is-thinking, .is-summary, .bf-boss-tell
+  CSS vars (defaults; overridden in per-boss theme files):
+    --bf-bg, --bf-bg-grade, --bf-fg, --bf-fg-dim, --bf-accent, --bf-accent-deep,
+    --bf-felt, --bf-felt-edge, --bf-card-face, --bf-card-back,
+    --bf-suit-black, --bf-suit-red, --bf-button, --bf-button-hi,
+    --bf-button-text, --bf-danger, --bf-frame, --bf-frame-light
+  Consumed by: pages/bossfight-malechstone.html, pages/bossfight-zashiki-warashi.html,
+    pages/bossfight-nahual.html, pages/bossfight-fortuna.html
+  External deps: base.css (fonts only)
+*/
+
+/* ─── 1. Default vars (Palace gothic fallback if no boss theme loaded) ─── */
+.bf-body {
+  --bf-bg:           #050203;
+  --bf-bg-grade:     #1a1012;
+  --bf-fg:           #d8c8b0;
+  --bf-fg-dim:       #a89878;
+  --bf-accent:       #d4af37;
+  --bf-accent-deep:  #8a6e1e;
+  --bf-felt:         #1a1610;
+  --bf-felt-edge:    #3a2e24;
+  --bf-card-face:    #f6efe0;
+  --bf-card-back:    #2a4870;
+  --bf-suit-black:   #0a0a0a;
+  --bf-suit-red:     #9b1d20;
+  --bf-button:       #2a1408;
+  --bf-button-hi:    #4a2818;
+  --bf-button-text:  #d8c8b0;
+  --bf-danger:       #b8001f;
+  --bf-frame:        #1a1612;
+  --bf-frame-light:  #3a2e24;
+}
+
+/* ─── 2. Page root + reset ─── */
+/* Tight layout — fits 1300×700 with no scrolling. Bottom padding cut from
+   200 → 12px (the 200 was a leftover from an earlier draft); side padding
+   trimmed; top padding 18 → 8. */
+.bf-body {
+  margin: 0;
+  padding: 8px 18px 12px;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 50% -10%, var(--bf-bg-grade) 0%, var(--bf-bg) 70%) fixed,
+    var(--bf-bg);
+  color: var(--bf-fg);
+  font-family: var(--font-body, serif);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* ─── 3. Header ─── */
+.bf-header {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 2px 0 6px;
+  border-bottom: 1px solid var(--bf-frame-light);
+  margin-bottom: 8px;
+}
+.bf-title {
+  font-family: var(--font-title, serif);
+  font-size: 24px;
+  letter-spacing: 0.14em;
+  color: var(--bf-accent);
+  margin: 0 0 2px;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--bf-accent) 50%, transparent);
+}
+.bf-vs {
+  color: var(--bf-fg-dim);
+  font-style: italic;
+  font-size: 0.7em;
+  margin: 0 0.2em;
+}
+.bf-meta {
+  font-family: var(--font-ui, monospace);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--bf-fg-dim);
+  text-transform: uppercase;
+}
+.bf-meta-sep { margin: 0 8px; opacity: 0.5; }
+
+/* ─── 4. Table layout ─── */
+/* Horizontal-first: opponent seat | felt | player seat, side by side, so
+   the controls strip below the table has room to breathe and nothing
+   needs to scroll. */
+.bf-table {
+  position: relative;
+  z-index: 2;
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* ─── 5. Seats ─── */
+.bf-seat {
+  position: relative;
+  border: 1px solid var(--bf-frame-light);
+  background: linear-gradient(180deg, var(--bf-bg-grade), var(--bf-bg));
+  padding: 8px 10px;
+  border-radius: 4px;
+  transition: border-color 280ms ease, box-shadow 280ms ease;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+}
+.bf-seat.is-acting {
+  border-color: var(--bf-accent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--bf-accent) 40%, transparent);
+}
+.bf-seat.is-thinking {
+  border-color: var(--bf-accent-deep);
+  animation: bf-think-pulse 1.6s ease-in-out infinite;
+}
+@keyframes bf-think-pulse {
+  0%, 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--bf-accent) 20%, transparent); }
+  50%      { box-shadow: 0 0 22px color-mix(in srgb, var(--bf-accent) 55%, transparent); }
+}
+.bf-halo { display: none; }
+
+.bf-seat-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.bf-seat-name {
+  font-family: var(--font-title, serif);
+  font-size: 15px;
+  letter-spacing: 0.10em;
+  color: var(--bf-accent);
+}
+.bf-seat-tag {
+  font-family: var(--font-ui, monospace);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--bf-fg-dim);
+  border: 1px solid currentColor;
+  padding: 0 4px;
+}
+.bf-boss-tell {
+  font-family: var(--font-body, serif);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--bf-fg-dim);
+  margin-left: auto;
+}
+.bf-last-move {
+  font-family: var(--font-ui, monospace);
+  font-size: 10px;
+  color: var(--bf-fg-dim);
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.bf-seat.has-button::before {
+  content: 'BTN';
+  position: absolute;
+  top: -10px;
+  right: 14px;
+  font-family: var(--font-ui, monospace);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--bf-bg);
+  background: var(--bf-accent);
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+.bf-bet {
+  display: inline-block;
+  min-width: 20px;
+  font-family: var(--font-ui, monospace);
+  color: var(--bf-accent);
+  font-size: 13px;
+  padding: 1px 6px;
+  border: 1px dashed var(--bf-accent-deep);
+  border-radius: 999px;
+  margin-top: 2px;
+}
+.bf-bet:empty { display: none; }
+
+/* ─── 6. Cards ─── */
+.bf-cards {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  justify-content: center;
+}
+.bf-cards-chavez .bf-card { transform: translateY(-1px); }
+.bf-card {
+  width: 52px;
+  height: 74px;
+  background: var(--bf-card-face);
+  border: 1px solid var(--bf-frame);
+  border-radius: 4px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-title, serif);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  transition: transform 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
+  animation: bf-card-in 260ms ease;
+  flex-shrink: 0;
+}
+@keyframes bf-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bf-card-rank {
+  font-size: 18px;
+  line-height: 1;
+}
+.bf-card-suit {
+  font-size: 18px;
+  line-height: 1;
+  margin-top: 1px;
+}
+.bf-suit-S, .bf-suit-C { color: var(--bf-suit-black); }
+.bf-suit-H, .bf-suit-D { color: var(--bf-suit-red); }
+.bf-card.is-best {
+  border-color: var(--bf-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--bf-accent) 55%, transparent),
+              0 2px 6px rgba(0, 0, 0, 0.5);
+  transform: translateY(-3px);
+}
+.bf-card-back {
+  background: var(--bf-card-back);
+  position: relative;
+}
+.bf-card-back .bf-card-eye {
+  width: 40%;
+  height: 22%;
+  border-radius: 50%;
+  background: var(--bf-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--bf-accent) 60%, transparent);
+  position: relative;
+}
+.bf-card-back .bf-card-eye::after {
+  content: '';
+  position: absolute;
+  inset: 22% 38%;
+  background: var(--bf-bg);
+  border-radius: 50%;
+}
+
+/* ─── 7. Felt center ─── */
+.bf-felt {
+  position: relative;
+  background:
+    radial-gradient(ellipse at 50% 50%, var(--bf-felt) 0%, var(--bf-bg) 90%);
+  border: 1px solid var(--bf-felt-edge);
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: center;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.bf-street {
+  font-family: var(--font-ui, monospace);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--bf-fg-dim);
+}
+.bf-turn-status {
+  font-family: var(--font-body, serif);
+  font-size: 13px;
+  color: var(--bf-fg);
+  font-style: italic;
+}
+.bf-community {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  min-height: 74px;
+  flex-wrap: wrap;
+}
+.bf-community .bf-card { animation-duration: 320ms; }
+
+/* Boss avatar — large character/kaomoji rendering of the opponent, sits
+   in the felt above the community cards. JS sets text from
+   BossConfig.avatar, toggles .is-thinking while the AI deliberates, and
+   updates --avatar-scale (0.85 → 1.15) based on chip ratio. The boss
+   looms larger the closer the player is to busting; recedes as the boss
+   shortens. Theme CSS can override font, color, decorations, animation.
+   align-self:center keeps the avatar only as wide as its content so
+   pseudo-element decorations (cross earrings, yarmulke, FBI badge,
+   white-animal flankers, photobooth frame) anchor cleanly. */
+.bf-boss-avatar {
+  align-self: center;
+  position: relative;
+  font-family: var(--font-ui, monospace);
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--bf-accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--bf-accent) 50%, transparent);
+  margin: 2px 0 4px;
+  user-select: none;
+  transform: scale(var(--avatar-scale, 1));
+  transform-origin: center center;
+  transition: transform 360ms cubic-bezier(0.16, 0.84, 0.32, 1),
+              color 240ms ease, text-shadow 240ms ease;
+}
+.bf-boss-avatar.is-thinking {
+  /* Compose chip-ratio scale with the +8% think bump via calc(). */
+  transform: scale(calc(var(--avatar-scale, 1) * 1.08));
+  color: var(--bf-danger);
+  text-shadow:
+    0 0 14px color-mix(in srgb, var(--bf-danger) 60%, transparent),
+    0 0 28px color-mix(in srgb, var(--bf-danger) 35%, transparent);
+  animation: bf-avatar-think 1.2s ease-in-out infinite;
+}
+@keyframes bf-avatar-think {
+  0%, 100% { letter-spacing: 0.04em; }
+  50%      { letter-spacing: 0.14em; }
+}
+.bf-boss-avatar.is-busted {
+  color: var(--bf-fg-dim);
+  opacity: 0.5;
+  filter: grayscale(0.5);
+}
+
+/* ─── 8. Stakes bar (now lives in the player seat at the bottom) ─── */
+.bf-stakes {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--bf-frame-light);
+  background: var(--bf-bg-grade);
+  padding: 4px 10px;
+  margin: 6px 0 4px;
+  font-family: var(--font-ui, monospace);
+}
+.bf-stakes-side, .bf-stakes-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.bf-stakes-label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--bf-fg-dim);
+  text-transform: uppercase;
+}
+.bf-stakes-value {
+  font-size: 16px;
+  color: var(--bf-fg);
+  font-weight: 600;
+  line-height: 1.1;
+}
+.bf-stakes-pot-value {
+  color: var(--bf-accent);
+  font-size: 20px;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--bf-accent) 50%, transparent);
+}
+.bf-stakes-sub {
+  font-size: 10px;
+  color: var(--bf-fg-dim);
+  letter-spacing: 0.06em;
+}
+.bf-stakes-sub.is-call {
+  color: var(--bf-accent);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--bf-accent) 45%, transparent);
+}
+
+/* ─── 9. Announce toast + hand strength ─── */
+.bf-announce {
+  display: block;
+  text-align: center;
+  font-family: var(--font-ui, monospace);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: transparent;
+  height: 16px;
+  margin: 2px 0 4px;
+  opacity: 0;
+  transition: opacity 220ms ease, color 220ms ease;
+  text-transform: uppercase;
+}
+.bf-announce.is-open { opacity: 1; color: var(--bf-fg); }
+.bf-announce.is-player { color: var(--bf-accent); }
+.bf-announce.is-opp    { color: var(--bf-danger); }
+.bf-announce.is-deal   { color: var(--bf-fg); letter-spacing: 0.28em; }
+.bf-announce.is-prompt { color: var(--bf-accent); font-weight: 700; }
+
+.bf-hand-strength {
+  text-align: center;
+  font-family: var(--font-body, serif);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--bf-fg-dim);
+  margin-top: 2px;
+  min-height: 1.2em;
+}
+
+/* ─── 10. Actions — compact action row, presets inline ─── */
+.bf-actions {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--bf-frame-light);
+  background: var(--bf-bg-grade);
+  border-radius: 4px;
+  transition: opacity 200ms ease;
+}
+.bf-actions.is-locked { opacity: 0.4; pointer-events: none; }
+.bf-action-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1.4fr;
+  gap: 6px;
+}
+.bf-action {
+  font-family: var(--font-ui, monospace);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--bf-button);
+  color: var(--bf-button-text);
+  border: 1px solid var(--bf-frame-light);
+  padding: 6px 4px;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.bf-action:hover {
+  background: var(--bf-button-hi);
+  border-color: var(--bf-accent);
+  color: var(--bf-accent);
+}
+.bf-action-fold    { border-color: var(--bf-danger); color: var(--bf-danger); }
+.bf-action-fold:hover { background: var(--bf-danger); color: var(--bf-bg); }
+.bf-action-aggro   { border-color: var(--bf-accent); color: var(--bf-accent); }
+.bf-action-aggro:hover { background: var(--bf-accent); color: var(--bf-bg); }
+
+/* ─── 11. Sizing ─── */
+.bf-sizing {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--bf-frame-light);
+  display: none;
+}
+.bf-sizing.is-active { display: block; }
+.bf-preset-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.bf-preset {
+  font-family: var(--font-ui, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  background: transparent;
+  color: var(--bf-fg-dim);
+  border: 1px solid var(--bf-frame-light);
+  padding: 3px 2px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 140ms ease;
+}
+.bf-preset:hover { color: var(--bf-accent); border-color: var(--bf-accent); }
+.bf-preset.is-selected {
+  background: var(--bf-accent);
+  color: var(--bf-bg);
+  border-color: var(--bf-accent);
+}
+.bf-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bf-slider-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--bf-accent);
+  height: 16px;
+}
+.bf-size-value {
+  font-family: var(--font-ui, monospace);
+  font-size: 11px;
+  color: var(--bf-accent);
+  min-width: 60px;
+  text-align: right;
+}
+
+/* ─── 12. Fly-chip ─── */
+.bf-fly-chip {
+  position: fixed;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--bf-accent), var(--bf-accent-deep));
+  border: 2px solid var(--bf-bg);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--bf-accent) 60%, transparent);
+  pointer-events: none;
+  z-index: 100;
+  transition: transform 540ms cubic-bezier(0.4, 0.0, 0.6, 1), opacity 320ms ease;
+  opacity: 0.95;
+}
+.bf-fly-chip.is-opp {
+  background: radial-gradient(circle, var(--bf-danger), color-mix(in srgb, var(--bf-danger) 40%, black));
+}
+.bf-fly-chip.is-arrived { opacity: 0; }
+
+/* ─── 13. Log — minimised; lives as a compact strip below the table.
+   Recent two lines only, single row, fades from full opacity outward. */
+.bf-log {
+  max-width: 1240px;
+  margin: 4px auto 0;
+  font-family: var(--font-ui, monospace);
+  font-size: 10px;
+  color: var(--bf-fg-dim);
+  letter-spacing: 0.06em;
+  border-top: 1px dashed var(--bf-frame-light);
+  padding-top: 3px;
+  max-height: 26px;
+  overflow: hidden;
+}
+.bf-log-line { padding: 0; line-height: 1.2; }
+.bf-log-line:nth-child(n+3) { display: none; }
+.bf-log-line:nth-child(2) { opacity: 0.55; }
+.bf-log-line.is-player  { color: var(--bf-accent); }
+.bf-log-line.is-opp     { color: var(--bf-danger); }
+.bf-log-line.is-summary { color: var(--bf-fg); font-style: italic; }
+
+/* ─── 14. End splash ─── */
+.bf-end-splash {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+.bf-end-splash.is-open { opacity: 1; }
+.bf-end-card {
+  max-width: 480px;
+  background: var(--bf-bg-grade);
+  border: 1px solid var(--bf-accent);
+  padding: 32px 36px;
+  text-align: center;
+  box-shadow: 0 0 40px color-mix(in srgb, var(--bf-accent) 35%, transparent);
+}
+.bf-end-title {
+  font-family: var(--font-title, serif);
+  font-size: 26px;
+  letter-spacing: 0.16em;
+  color: var(--bf-accent);
+  margin: 0 0 14px;
+}
+.bf-end-body {
+  font-family: var(--font-body, serif);
+  font-size: 16px;
+  color: var(--bf-fg);
+  margin: 0 0 18px;
+}
+.bf-end-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 0 0 22px;
+  font-family: var(--font-ui, monospace);
+  font-size: 13px;
+  color: var(--bf-fg-dim);
+  letter-spacing: 0.1em;
+}
+.bf-end-stats strong {
+  display: block;
+  font-family: var(--font-title, serif);
+  font-size: 20px;
+  color: var(--bf-accent);
+  margin-top: 4px;
+  font-weight: 700;
+}
+.bf-end-button {
+  font-family: var(--font-ui, monospace);
+  font-size: 15px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: var(--bf-button);
+  color: var(--bf-button-text);
+  border: 1px solid var(--bf-accent);
+  padding: 12px 24px;
+  cursor: pointer;
+}
+.bf-end-button:hover { background: var(--bf-accent); color: var(--bf-bg); }
+
+/* ─── 15. Narrow viewport — collapse the 3-column table to a stack. ─── */
+@media (max-width: 980px) {
+  .bf-table {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .bf-seat { min-height: 0; }
+}
+@media (max-width: 640px) {
+  .bf-body { padding: 6px 10px 10px; }
+  .bf-title { font-size: 20px; letter-spacing: 0.08em; }
+  .bf-card { width: 44px; height: 62px; }
+  .bf-card-rank, .bf-card-suit { font-size: 15px; }
+  .bf-action-row { grid-template-columns: 1fr; gap: 4px; }
+  .bf-stakes { grid-template-columns: 1fr; gap: 4px; text-align: center; }
+}
+
+/* ─── 16. FX layer ─── Visual flourishes tied to audio cues + state.
+   JS-driven hooks: page-generic.js adds .is-bumping (pot value), .is-ticking
+   (stack values), .is-pressing (action buttons), .is-revealing (opp cards on
+   showdown). All animations are short, single-shot, and self-clearing. */
+
+/* Improved card deal — slide in from the right with a tiny rotation. The
+   community cards inherit a stagger via inline animation-delay set by JS,
+   so the flop reads as three cards landing in sequence. */
+.bf-card {
+  animation: bf-card-deal 320ms cubic-bezier(0.16, 0.84, 0.32, 1) both;
+}
+@keyframes bf-card-deal {
+  0%   { opacity: 0; transform: translate(60px, -18px) rotate(8deg); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translate(0, 0) rotate(0); }
+}
+/* Override the legacy bf-card-in keyframe so the new one wins on cascade
+   order. (poker-base.css's section 6 used bf-card-in; we keep it defined
+   so existing class refs continue to function but the new deal animation
+   is the one that runs.) */
+@keyframes bf-card-in {
+  0%   { opacity: 0; transform: translate(60px, -18px) rotate(8deg); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translate(0, 0) rotate(0); }
+}
+/* Best-card highlight: subtle scale pulse on top of the gold glow */
+.bf-card.is-best {
+  animation: bf-best-pulse 1.8s ease-in-out infinite;
+}
+@keyframes bf-best-pulse {
+  0%, 100% {
+    transform: translateY(-3px) scale(1.00);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--bf-accent) 55%, transparent),
+                0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.04);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--bf-accent) 75%, transparent),
+                0 4px 10px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Showdown reveal flip — added when an opp card transitions from back to
+   face on showdown. Page-generic adds .is-revealing for one cycle, then
+   removes it. */
+.bf-card.is-revealing {
+  animation: bf-card-flip 540ms ease-in-out both;
+}
+@keyframes bf-card-flip {
+  0%   { transform: rotateY(180deg) translateY(-2px); }
+  50%  { transform: rotateY(90deg)  translateY(-12px); }
+  100% { transform: rotateY(0)      translateY(0); }
+}
+
+/* Pot value bump — fires after a chip flies into the pot. JS toggles
+   .is-bumping for ~360 ms. The pulse layer color uses --bf-accent. */
+.bf-stakes-pot-value.is-bumping {
+  animation: bf-pot-bump 380ms ease-out;
+}
+@keyframes bf-pot-bump {
+  0%   { transform: scale(1);     text-shadow: 0 0 10px color-mix(in srgb, var(--bf-accent) 50%, transparent); }
+  35%  { transform: scale(1.22);  text-shadow: 0 0 26px var(--bf-accent), 0 0 40px color-mix(in srgb, var(--bf-accent) 60%, transparent); }
+  100% { transform: scale(1);     text-shadow: 0 0 10px color-mix(in srgb, var(--bf-accent) 50%, transparent); }
+}
+
+/* Stack-value tick when player/opponent stack changes between renders.
+   Brief color flash + tiny scale bump so the eye catches the change. */
+.bf-stakes-value.is-ticking {
+  animation: bf-stack-tick 460ms ease-out;
+}
+@keyframes bf-stack-tick {
+  0%   { transform: scale(1);    color: var(--bf-accent);  }
+  20%  { transform: scale(1.14); color: var(--bf-accent);  }
+  100% { transform: scale(1);    color: var(--bf-fg);      }
+}
+
+/* Action button press — depress + brighten on :active and via .is-pressing
+   (added programmatically for keyboard-fired actions so they get the same
+   tactile feedback). */
+.bf-action:active,
+.bf-action.is-pressing {
+  transform: translateY(2px) scale(0.985);
+  filter: brightness(1.15);
+  transition: transform 80ms ease-out, filter 80ms ease-out;
+}
+
+/* Preset chip press */
+.bf-preset:active {
+  transform: scale(0.94);
+  transition: transform 80ms ease-out;
+}
+
+/* Announce toast — a small letter-spacing burst at open so it pops, then
+   settles to its normal letterspacing within the existing transition. */
+.bf-announce.is-open {
+  animation: bf-announce-pop 360ms ease-out;
+}
+@keyframes bf-announce-pop {
+  0%   { letter-spacing: 0.42em; opacity: 0; }
+  40%  { letter-spacing: 0.22em; opacity: 1; }
+  100% { letter-spacing: 0.16em; opacity: 1; }
+}
+
+/* Hand-strength readout — small fade-in when the text changes (added by
+   JS via .is-flashing for one cycle when the strength text differs from
+   the previous render). */
+.bf-hand-strength.is-flashing {
+  animation: bf-strength-flash 540ms ease-out;
+}
+@keyframes bf-strength-flash {
+  0%   { color: var(--bf-accent); text-shadow: 0 0 12px color-mix(in srgb, var(--bf-accent) 60%, transparent); }
+  100% { color: var(--bf-fg-dim); text-shadow: none; }
+}
+
+/* End-splash entrance — small scale-in for the card so it doesn't just
+   pop into view. Already controlled by .is-open via the splash's opacity
+   transition; this adds card-level motion. */
+.bf-end-splash.is-open .bf-end-card {
+  animation: bf-end-card-in 480ms cubic-bezier(0.16, 0.84, 0.32, 1) both;
+}
+@keyframes bf-end-card-in {
+  0%   { opacity: 0; transform: translateY(28px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0)    scale(1.00); }
+}
+
+/* Audio mute button — polish over the inline-styled base in audio.js.
+   Theme-color via current --bf-accent. */
+.bf-audio-btn {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 10000;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--bf-frame-light);
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--bf-fg-dim);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: color 180ms ease, background 180ms ease, border-color 180ms ease, transform 120ms ease;
+}
+.bf-audio-btn:hover {
+  color: var(--bf-accent);
+  border-color: var(--bf-accent);
+  background: rgba(0, 0, 0, 0.7);
+}
+.bf-audio-btn:active { transform: scale(0.92); }
+.bf-audio-btn[data-muted="1"] {
+  color: var(--bf-danger);
+  border-color: var(--bf-danger);
+}
+.bf-audio-btn[data-muted="1"] .bf-audio-wave { opacity: 0; }
+.bf-audio-btn[data-muted="1"] .bf-audio-cross { opacity: 1; }
+.bf-audio-btn .bf-audio-wave { transition: opacity 200ms ease; }
+.bf-audio-btn .bf-audio-cross { transition: opacity 200ms ease; }
+

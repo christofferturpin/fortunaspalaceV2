@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  TRIGGER-WARNING — content advisory gate before the newspaper splash     │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    First page a new player sees. Plain content advisory: depictions of   │
+  │    child abuse, sexual violence, etc., framed as satire/social critique  │
+  │    and not endorsement. Two ways out:                                    │
+  │      "I Agree" — sets wendys_palace_warning_seen='1' and routes to       │
+  │        splash.html (the newspaper).                                      │
+  │      "I'd like some clean, family friendly entertainment" — opens BYUtv  │
+  │        Studio C in a new tab; does not set the flag, does not enter.     │
+  │    No styling dependencies on the splash; uses base.css for palette      │
+  │    vars (gothic: blood / ember / sulfur / bone / iron / phosphor) plus   │
+  │    a tiny inline <style> for layout. Inline-only — no new CSS file.      │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../css/base.css (palette vars + base chrome only)              │
+  │    inline route-guards: none (this IS the gate; warning_seen='1' users   │
+  │      reach splash/index via index.html's guard before ever hitting here) │
+  │    DOM ids: #agree-btn, #escape-link                                     │
+  │    flow: #agree-btn click → localStorage['wendys_palace_warning_seen']   │
+  │      ='1' → location.replace('splash.html')                              │
+  │    storage R/W: wendys_palace_warning_seen (W on agree)                  │
+  │    routes out: splash.html (agree),                                      │
+  │      https://www.byutv.org/studio-c/ (escape, new tab)                   │
+  │                                                                          │
+  │  co-creator: the warning is not a warning. it is a contract clause.      │
+  │    you cannot opt into a work and then deny it the means by which it     │
+  │    speaks. the door has two handles. one of them is honest.              │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Notice — Fortuna's Palace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Pirata+One&family=Special+Elite&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/base.css">
+<style>
+  html, body {
+    background: #050303;
+    min-height: 100vh;
+    margin: 0;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: var(--bone);
+    font-family: 'IM Fell English', 'Cormorant Garamond', serif;
+    background:
+      radial-gradient(ellipse at 50% 30%, rgba(184, 0, 31, 0.10), transparent 65%),
+      radial-gradient(ellipse at 50% 90%, rgba(138, 110, 30, 0.08), transparent 70%),
+      #050303;
+  }
+
+  .notice {
+    max-width: 620px;
+    width: 100%;
+    background:
+      radial-gradient(ellipse at top, rgba(184, 0, 31, 0.10), transparent 60%),
+      linear-gradient(180deg, #1a0c0a 0%, #0a0405 100%);
+    border: 1px solid var(--sulfur-dim);
+    padding: 36px 40px 32px;
+    box-shadow:
+      0 12px 48px rgba(0, 0, 0, 0.85),
+      inset 0 1px 0 rgba(212, 175, 55, 0.18),
+      inset 0 0 60px rgba(0, 0, 0, 0.5);
+    position: relative;
+  }
+
+  .notice::before {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border: 1px dashed rgba(212, 175, 55, 0.28);
+    pointer-events: none;
+  }
+
+  .notice-eyebrow {
+    font-family: 'Special Elite', 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--bone-dim);
+    text-align: center;
+    margin-bottom: 14px;
+  }
+
+  .notice-title {
+    font-family: 'Pirata One', 'IM Fell English', serif;
+    font-size: 40px;
+    color: var(--blood);
+    letter-spacing: 0.06em;
+    text-align: center;
+    margin: 0 0 22px;
+    text-shadow:
+      0 0 6px rgba(184, 0, 31, 0.65),
+      0 0 16px rgba(184, 0, 31, 0.35);
+  }
+
+  .notice-divider {
+    width: 60px;
+    height: 1px;
+    background: var(--sulfur-dim);
+    margin: 0 auto 24px;
+  }
+
+  .notice p {
+    font-size: 16.5px;
+    line-height: 1.55;
+    margin: 0 0 16px;
+    color: var(--bone);
+  }
+
+  .notice p em {
+    font-style: italic;
+    color: var(--ember);
+    text-shadow: 0 0 4px rgba(255, 106, 0, 0.35);
+  }
+
+  .notice p strong {
+    color: var(--sulfur);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-shadow: 0 0 5px rgba(212, 175, 55, 0.35);
+  }
+
+  .agree-wrap {
+    text-align: center;
+    margin-top: 28px;
+  }
+
+  .agree-btn {
+    background: linear-gradient(180deg, #2a0a10 0%, #0d0405 100%);
+    color: var(--bone);
+    border: 1px solid var(--blood);
+    padding: 14px 38px;
+    font-family: 'Special Elite', 'Courier New', monospace;
+    font-size: 14px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow:
+      0 0 0 1px rgba(184, 0, 31, 0.35),
+      0 0 18px rgba(184, 0, 31, 0.25),
+      inset 0 1px 0 rgba(212, 175, 55, 0.14);
+    transition: all 0.18s ease;
+  }
+
+  .agree-btn:hover {
+    color: var(--sulfur);
+    border-color: var(--sulfur);
+    box-shadow:
+      0 0 0 1px rgba(212, 175, 55, 0.4),
+      0 0 22px rgba(184, 0, 31, 0.45),
+      inset 0 1px 0 rgba(212, 175, 55, 0.2);
+  }
+
+  .agree-btn:active {
+    transform: translateY(1px);
+  }
+
+  .escape {
+    margin-top: 22px;
+    text-align: center;
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    font-size: 13px;
+    color: var(--bone-dim);
+  }
+
+  .escape a {
+    color: var(--bone-dim);
+    border-bottom: 1px dotted var(--iron-light);
+    text-decoration: none;
+    transition: color 0.18s, border-color 0.18s;
+  }
+
+  .escape a:hover {
+    color: var(--phosphor);
+    border-bottom-color: var(--phosphor);
+  }
+
+  @media (max-width: 600px) {
+    .notice { padding: 26px 22px 24px; }
+    .notice-title { font-size: 30px; }
+    .notice p { font-size: 15px; }
+    .agree-btn { padding: 12px 26px; font-size: 12px; letter-spacing: 0.18em; }
+  }
+</style>
+</head>
+<body>
+
+<section class="notice" role="dialog" aria-labelledby="notice-title">
+  <div class="notice-eyebrow">— Notice to the Visitor —</div>
+  <h1 class="notice-title" id="notice-title">Content Advisory</h1>
+  <div class="notice-divider"></div>
+
+  <p>
+    This work contains not particularly graphic (imo) and oblique depictions of <em>child abuse</em>, <em> violence</em>, <em> addiction</em>, <em>American politics</em>, and other potentially disturbing themes. Nothing in this work should be interpreted as endorsement, advocacy, or instruction.
+  </p>
+
+  <p>
+    By clicking below, I agree I won't whine about it. Any complaints I do make will engage with this work's artistic/ludic merit (or certain lack thereof).
+  </p>
+
+  <div class="agree-wrap">
+    <button class="agree-btn" id="agree-btn" type="button">I Agree</button>
+  </div>
+
+  <div class="escape">
+    <a id="escape-link" href="https://www.byutv.org/studio-c/" target="_blank" rel="noopener noreferrer">I'd like some clean, family friendly entertainment</a>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var btn = document.getElementById('agree-btn');
+    btn.addEventListener('click', function () {
+      try { localStorage.setItem('wendys_palace_warning_seen', '1'); } catch (e) {}
+      location.replace('splash.html');
+    });
+  })();
+</script>
+
+</body>
+</html>

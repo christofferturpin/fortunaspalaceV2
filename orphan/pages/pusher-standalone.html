@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Pusher</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0||c.pleasure<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/pusher.css">
+</head>
+<body>
+  <header>
+    <div class="header-nav"><a href="../index.html">← Lobby</a></div>
+    <h1>The Pusher</h1>
+    <p class="pu-subtitle">Drop on the downstroke. Hit the timing. Plink the edge.</p>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="pu-hud">
+      <div class="pu-hud-item">
+        <span class="pu-hud-label">Tray</span>
+        <span class="pu-hud-value" id="pu-tray">0</span>
+        <span class="pu-hud-suffix">tokens</span>
+      </div>
+      <div class="pu-hud-item">
+        <span class="pu-hud-label">This session</span>
+        <span class="pu-hud-value pu-hud-coins" id="pu-won">0</span>
+        <span class="pu-hud-suffix">coins</span>
+      </div>
+      <div class="pu-hud-item">
+        <span class="pu-hud-label">Power</span>
+        <div class="pu-power-meter"><div class="pu-power-fill" id="pu-power-fill"></div></div>
+      </div>
+    </div>
+
+    <canvas id="pu-canvas" tabindex="0" aria-label="High-octane coin pusher"></canvas>
+
+    <p class="pu-hint">
+      Mouse aims the chute · <kbd>Click</kbd> or <kbd>Space</kbd> drops a token · drop when the power bar is lit for max force.
+    </p>
+
+    <p class="pu-empty-note" id="pu-empty-note" hidden>
+      No tokens in the tray. <a href="craps.html">Roll the craps table</a> to win some.
+    </p>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
+  <script src="../js/pusher/page.js"></script>
+  <script src="../js/header.js"></script>
+</body>
+</html>

@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — STICKS (Hickory 5A Drum Sticks, 400 coins)                 │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item page for a pair of hickory 5A drum sticks, fanned apart, the     │
+  │    left one inscribed "RAY AND FORTUNA", the right one snapped clean      │
+  │    in two. Tap/space toggles a                                           │
+  │    continuously looping rock beat: each                                  │
+  │    bar is freshly randomized around a rock-solid core — kick on 1+3,    │
+  │    snare backbeat on 2+4, straight 8th hats — plus probabilistic ghost  │
+  │    kicks, ghost snares, open hat on the & of 4, occasional crash, ride  │
+  │    bell variant, sparse cowbell/rim, ~22% tom fill. All WebAudio. Tap   │
+  │    again to stop. Per-line typography (each beat in its own font/       │
+  │    color register) opens with the van years; while the loop plays,      │
+  │    four further lines reveal in sequence — VFW origin, the drummer,     │
+  │    the instant pair-bond, and (cold typewriter coda) the present-tense  │
+  │    fact: he doesn't play any more, after the accident.                  │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/child.js (for the kaomoji cosmetic toggle)           │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .st-dust + .st-scene > .st-sticks (.st-stick-1 w/ inscription   │
+  │      + .st-stick-2.is-broken > .st-stick-snap-top + .st-stick-snap-bot, │
+  │      fanned apart),                                                     │
+  │      .st-prose (2 static <p>.st-line-a/b + 4 .reveal.st-line-c/d/e/f   │
+  │      [data-reveal] <p> + .road)                                         │
+  │    flow: tap() toggles 160ms shake anim + loop on/off (startLoop ↔      │
+  │      stopLoop). startLoop picks bpm 108-136 & starts scheduler          │
+  │      (setInterval 25ms, 150ms lookahead) calling scheduleBar() per      │
+  │      bar; each bar re-rolls rock pattern (kick 1+3 + ghosts on &/a,     │
+  │      snare 2+4 + ghosts, 8th hats w/ open on &-of-4 ~35%, 18% ride-     │
+  │      bell variant, 10% crash hit, ~22% tom fill, sparse cowbell/rim).   │
+  │      In parallel, scheduleReveals() arms setTimeouts at 1.4s + n·5.2s   │
+  │      to add .shown to each remaining .reveal; revealIdx persists so     │
+  │      stop/restart resumes where it left off; reveals never re-hide.     │
+  │    storage R/W: writes wendys_palace_child.cosmetics.sticks via         │
+  │      Child.setCosmetic; ownership tracked in wendys_palace_giftshop,    │
+  │      key='sticks', by giftshopindex.html                                │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Drum Sticks</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400&family=Limelight&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at center, #1a1208 0%, #0a0604 70%, #020100 100%);
+      color: #d8c8b0;
+      font-family: 'Cormorant Garamond', serif;
+      overflow-x: hidden;
+    }
+    .st-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 50px 22px 60px;
+      gap: 32px;
+      position: relative;
+    }
+    .st-dust {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(1px 1px at 12% 20%, rgba(255, 220, 160, 0.4), transparent 60%),
+        radial-gradient(1px 1px at 78% 32%, rgba(255, 220, 160, 0.4), transparent 60%),
+        radial-gradient(1px 1px at 24% 70%, rgba(255, 220, 160, 0.4), transparent 60%),
+        radial-gradient(1px 1px at 88% 80%, rgba(255, 220, 160, 0.4), transparent 60%),
+        radial-gradient(1px 1px at 60% 50%, rgba(255, 220, 160, 0.4), transparent 60%);
+      animation: st-drift 14s ease-in-out infinite alternate;
+    }
+    @keyframes st-drift {
+      from { transform: translateY(-8px); }
+      to   { transform: translateY(8px); }
+    }
+
+    .st-sticks {
+      width: 260px;
+      height: 260px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: st-spin 16s ease-in-out infinite;
+      filter: drop-shadow(0 18px 28px rgba(0,0,0,0.7));
+      cursor: pointer;
+      transition: filter 0.3s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .st-sticks:hover {
+      filter:
+        drop-shadow(0 18px 28px rgba(0,0,0,0.7))
+        drop-shadow(0 0 14px rgba(255, 200, 120, 0.32));
+    }
+    .st-sticks:focus { outline: none; }
+    .st-sticks:focus-visible {
+      filter:
+        drop-shadow(0 18px 28px rgba(0,0,0,0.7))
+        drop-shadow(0 0 16px rgba(255, 200, 120, 0.5));
+    }
+    .st-sticks.tap .st-stick-1 { animation: st-tap-1 160ms ease-out; }
+    .st-sticks.tap .st-stick-2 { animation: st-tap-2 160ms ease-out; }
+    @keyframes st-tap-1 {
+      0%   { transform: translateX(-22px) rotate(-14deg); }
+      40%  { transform: translateX(-22px) rotate(-22deg); }
+      100% { transform: translateX(-22px) rotate(-14deg); }
+    }
+    @keyframes st-tap-2 {
+      0%   { transform: translateX(22px) rotate(14deg); }
+      40%  { transform: translateX(22px) rotate(22deg); }
+      100% { transform: translateX(22px) rotate(14deg); }
+    }
+    @keyframes st-spin {
+      0%, 100% { transform: rotateZ(-2deg) rotateY(-8deg); }
+      50%      { transform: rotateZ(2deg)  rotateY(8deg); }
+    }
+    .st-stick {
+      position: absolute;
+      width: 16px;
+      height: 240px;
+      border-radius: 8px 8px 4px 4px;
+      background: linear-gradient(180deg,
+        #f4d8a0 0%,
+        #d8b478 12%,
+        #b08850 30%,
+        #966c34 60%,
+        #7a5a28 85%,
+        #5a3e16 100%);
+      box-shadow:
+        inset 1.5px 0 0 rgba(255,240,200,0.45),
+        inset -1.5px 0 0 rgba(0,0,0,0.45),
+        inset 0 -6px 10px rgba(0,0,0,0.3),
+        0 2px 6px rgba(0,0,0,0.5);
+    }
+    .st-stick::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 28%, #f8e0a8 0%, #c8964a 55%, #6a4818 100%);
+      box-shadow:
+        inset 0 -3px 4px rgba(0,0,0,0.4),
+        inset 1.5px 1.5px 2px rgba(255,240,200,0.4),
+        0 2px 4px rgba(0,0,0,0.55);
+    }
+    .st-stick-1 {
+      transform: translateX(-22px) rotate(-14deg);
+      z-index: 2;
+    }
+    .st-stick-2 {
+      transform: translateX(22px) rotate(14deg);
+      z-index: 1;
+    }
+    /* Broken (snapped) stick: wrapper carries no chrome; two child segments do. */
+    .st-stick.is-broken { background: none; box-shadow: none; }
+    .st-stick.is-broken::before { display: none; }
+    .st-stick-snap-top,
+    .st-stick-snap-bot {
+      position: absolute;
+      left: 0;
+      width: 16px;
+      background: linear-gradient(180deg,
+        #f4d8a0 0%, #d8b478 12%, #b08850 30%,
+        #966c34 60%, #7a5a28 85%, #5a3e16 100%);
+      box-shadow:
+        inset 1.5px 0 0 rgba(255,240,200,0.45),
+        inset -1.5px 0 0 rgba(0,0,0,0.45),
+        inset 0 -6px 10px rgba(0,0,0,0.3),
+        0 2px 6px rgba(0,0,0,0.5);
+    }
+    .st-stick-snap-top {
+      top: 0;
+      height: 132px;
+      border-radius: 8px 8px 0 0;
+      clip-path: polygon(0 0, 100% 0, 100% 96%, 78% 90%, 60% 98%, 42% 88%, 26% 96%, 0 92%);
+    }
+    .st-stick-snap-bot {
+      top: 152px;
+      height: 88px;
+      border-radius: 0 0 4px 4px;
+      clip-path: polygon(0 12%, 26% 4%, 42% 14%, 60% 2%, 78% 10%, 100% 4%, 100% 100%, 0 100%);
+      transform: translateX(3px) rotate(3deg);
+      transform-origin: top center;
+    }
+    .st-stick-snap-top::after {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 28%, #f8e0a8 0%, #c8964a 55%, #6a4818 100%);
+      box-shadow:
+        inset 0 -3px 4px rgba(0,0,0,0.4),
+        inset 1.5px 1.5px 2px rgba(255,240,200,0.4),
+        0 2px 4px rgba(0,0,0,0.55);
+    }
+    .st-stick-inscription {
+      position: absolute;
+      top: 64px;
+      left: 50%;
+      transform: translateX(-50%);
+      writing-mode: vertical-rl;
+      font-family: 'Special Elite', monospace;
+      font-size: 8px;
+      letter-spacing: 0.22em;
+      color: rgba(50, 30, 8, 0.75);
+      white-space: nowrap;
+      pointer-events: none;
+      text-shadow: 0 1px 0 rgba(255, 240, 200, 0.18);
+    }
+
+    .st-prose {
+      max-width: 580px;
+      text-align: center;
+      font-size: 19px;
+      line-height: 1.6;
+      color: rgba(216, 200, 176, 0.92);
+      font-style: italic;
+    }
+    .st-prose p { margin: 0 0 14px; }
+    .st-prose p:last-child { margin: 0; }
+    .st-prose .em {
+      font-style: normal;
+      color: #f0c890;
+      letter-spacing: 0.02em;
+    }
+    .st-prose .reveal {
+      opacity: 0;
+      max-height: 0;
+      margin-bottom: 0;
+      overflow: hidden;
+      transition: opacity 0.9s ease, max-height 0.9s ease, margin-bottom 0.9s ease;
+    }
+    .st-prose .reveal.shown {
+      opacity: 1;
+      max-height: 240px;
+      margin-bottom: 14px;
+    }
+    /* Per-line voices: each beat carries its own font/color register. */
+    .st-line-a {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 21px;
+      color: rgba(232, 220, 200, 0.95);
+    }
+    .st-line-b {
+      font-family: 'Special Elite', monospace;
+      font-style: normal;
+      font-size: 16px;
+      letter-spacing: 0.02em;
+      line-height: 1.55;
+      color: rgba(216, 192, 160, 0.85);
+    }
+    .st-line-c {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 20px;
+      color: rgba(224, 184, 138, 0.95);
+    }
+    .st-line-d {
+      font-family: 'Limelight', serif;
+      font-style: normal;
+      font-size: 22px;
+      letter-spacing: 0.10em;
+      color: #d89838;
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6), 0 0 14px rgba(216, 152, 56, 0.22);
+    }
+    .st-line-e {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: 0.01em;
+      color: #f0c890;
+    }
+    .st-line-f {
+      font-family: 'Special Elite', monospace;
+      font-style: normal;
+      font-size: 14px;
+      letter-spacing: 0.05em;
+      line-height: 1.65;
+      color: rgba(168, 168, 176, 0.78);
+      margin-top: 10px;
+      padding-top: 14px;
+      border-top: 1px dotted rgba(168, 168, 176, 0.20);
+    }
+    .st-prose .road {
+      display: block;
+      font-family: 'Special Elite', monospace;
+      font-style: normal;
+      font-size: 14px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: rgba(216, 200, 176, 0.55);
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px dashed rgba(201, 161, 74, 0.3);
+    }
+
+    .kc-bay {
+      display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px;
+    }
+    .kc-preview {
+      font-family: 'Special Elite', monospace; font-size: 22px; letter-spacing: 0.04em;
+      color: #d8c8b0; background: rgba(20,14,10,0.55);
+      border: 1px solid rgba(201,161,74,0.35); border-radius: 4px;
+      padding: 10px 18px; min-width: 160px; text-align: center;
+      white-space: pre; line-height: 1.1;
+    }
+    .kc-toggle {
+      font-family: 'Special Elite', monospace; font-size: 14px;
+      letter-spacing: 0.26em; text-transform: uppercase; color: #d8c8b0;
+      padding: 12px 26px; background: rgba(20,14,10,0.7);
+      border: 1px solid rgba(201,161,74,0.5); border-radius: 4px;
+      cursor: pointer; min-width: 240px;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .kc-toggle:hover { background: rgba(201,161,74,0.16); border-color: #c9a14a; }
+    .kc-toggle.on { background: rgba(201,161,74,0.22); border-color: #d4b46a; color: #f0d890; }
+
+    .st-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8b0;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+      z-index: 2;
+    }
+    .st-back:hover {
+      background: rgba(201, 161, 74, 0.15);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="st-dust"></div>
+  <div class="st-scene">
+    <div class="st-sticks">
+      <div class="st-stick st-stick-1">
+        <span class="st-stick-inscription">RAY AND FORTUNA</span>
+      </div>
+      <div class="st-stick st-stick-2 is-broken">
+        <div class="st-stick-snap-top"></div>
+        <div class="st-stick-snap-bot"></div>
+      </div>
+    </div>
+
+    <div class="st-prose">
+      <p class="st-line-a">Hickory. Worn smooth in the same spot, the same way, every night from 2014 through 2019.</p>
+      <p class="st-line-b">In a van that smelled like french fries and pot. The club in the city. A wedding for someone none of you really knew. Opening for the openers.</p>
+      <p class="reveal st-line-c" data-reveal="1">That first night. The VFW hall. Mostly teenagers, early twenty-somethings, a line of old men in Vietnam vet hats along the wall.</p>
+      <p class="reveal st-line-d" data-reveal="2">He was playing the drums. An ugly little shit.</p>
+      <p class="reveal st-line-e" data-reveal="3">The set was amazing. He was hilarious. You two were a pair instantly.</p>
+      <p class="reveal st-line-f" data-reveal="4">He doesn't play any more, even though the doctors said it would have been good therapy after the accident.</p>
+      <span class="road">everywhere we ever drove</span>
+    </div>
+
+    <div class="kc-bay">
+      <div class="kc-preview" id="kc-preview" aria-hidden="true">(o_o)</div>
+      <button class="kc-toggle" type="button" aria-pressed="false">Let them keep time</button>
+    </div>
+
+    <a class="st-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/child.js"></script>
+  <script>
+    (function () {
+      const ID = 'sticks';
+      const OFF = 'Let them keep time';
+      const ON  = 'Hush the sticks';
+      const btn  = document.querySelector('.kc-toggle');
+      const prev = document.getElementById('kc-preview');
+      if (!btn || !window.Child) return;
+      function refresh() {
+        const on = Child.getCosmetic(ID);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.textContent = on ? ON : OFF;
+      }
+      let pi = 0;
+      function tick() {
+        if (!prev) return;
+        const d = Child.describeFace();
+        prev.textContent = d.frames[pi % d.frames.length];
+        pi++;
+      }
+      btn.addEventListener('click', () => Child.setCosmetic(ID, !Child.getCosmetic(ID)));
+      Child.onChange(refresh);
+      refresh();
+      tick();
+      setInterval(tick, 420);
+    })();
+  </script>
+
+  <script>
+    (function () {
+      const sticks = document.querySelector('.st-sticks');
+      const reveals = Array.from(document.querySelectorAll('.st-prose .reveal'));
+      if (!sticks) return;
+      sticks.setAttribute('role', 'button');
+      sticks.setAttribute('tabindex', '0');
+      sticks.setAttribute('aria-label', 'Tap to start or stop the beat');
+
+      let revealIdx = 0;
+      let revealTimers = [];
+      const REVEAL_FIRST_MS = 1400;
+      const REVEAL_GAP_MS = 5200;
+      let tapTimer = null;
+      let audioCtx = null;
+      let looping = false;
+      let loopBpm = 0;
+      let nextBarTime = 0;
+      let schedHandle = null;
+      const LOOKAHEAD_MS = 25;
+      const SCHED_HORIZON = 0.15;
+
+      function ensureCtx() {
+        if (!audioCtx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return null;
+          audioCtx = new AC();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+      }
+
+      function noiseBuf(secs) {
+        const len = Math.max(1, (audioCtx.sampleRate * secs) | 0);
+        const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+        return buf;
+      }
+
+      function kick(t, v) {
+        v = v == null ? 0.75 : v;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(v, t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+        osc.connect(g).connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.3);
+      }
+
+      function snare(t, v) {
+        v = v == null ? 0.38 : v;
+        const nLen = 0.14;
+        const src = audioCtx.createBufferSource();
+        src.buffer = noiseBuf(nLen);
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 1100;
+        const ng = audioCtx.createGain();
+        ng.gain.setValueAtTime(0.0001, t);
+        ng.gain.exponentialRampToValueAtTime(v, t + 0.003);
+        ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+        src.connect(hp).connect(ng).connect(audioCtx.destination);
+        src.start(t);
+        src.stop(t + nLen);
+
+        const osc = audioCtx.createOscillator();
+        const og = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(230, t);
+        osc.frequency.exponentialRampToValueAtTime(110, t + 0.05);
+        og.gain.setValueAtTime(0.0001, t);
+        og.gain.exponentialRampToValueAtTime(v * 0.48, t + 0.002);
+        og.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+        osc.connect(og).connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.1);
+      }
+
+      function hat(t, open, v) {
+        v = v == null ? (open ? 0.16 : 0.11) : v;
+        const len = open ? 0.18 : 0.045;
+        const src = audioCtx.createBufferSource();
+        src.buffer = noiseBuf(len);
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 7500;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(v, t + 0.001);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+        src.connect(hp).connect(g).connect(audioCtx.destination);
+        src.start(t);
+        src.stop(t + len);
+      }
+
+      function tom(t, pitch, v) {
+        v = v == null ? 0.42 : v;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(pitch, t);
+        osc.frequency.exponentialRampToValueAtTime(pitch * 0.45, t + 0.18);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(v, t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+        osc.connect(g).connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.28);
+      }
+
+      function cowbell(t, v) {
+        v = v == null ? 0.16 : v;
+        const bp = audioCtx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 800;
+        bp.Q.value = 1.4;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(v, t + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+        bp.connect(g).connect(audioCtx.destination);
+        for (const f of [800, 540]) {
+          const osc = audioCtx.createOscillator();
+          osc.type = 'square';
+          osc.frequency.value = f;
+          osc.connect(bp);
+          osc.start(t);
+          osc.stop(t + 0.15);
+        }
+      }
+
+      function rim(t, v) {
+        v = v == null ? 0.18 : v;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(2400, t);
+        osc.frequency.exponentialRampToValueAtTime(900, t + 0.045);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(v, t + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+        osc.connect(g).connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.1);
+      }
+
+      function ridePing(t, v) {
+        v = v == null ? 0.06 : v;
+        for (const f of [2800, 4200]) {
+          const osc = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = f;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(v, t + 0.002);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+          osc.connect(g).connect(audioCtx.destination);
+          osc.start(t);
+          osc.stop(t + 0.42);
+        }
+      }
+
+      function jitter(amount) {
+        return (Math.random() - 0.5) * 2 * amount;
+      }
+
+      function scheduleBar() {
+        const beat = 60 / loopBpm;
+        const eighth = beat / 2;
+        const t0 = nextBarTime;
+
+        kick(t0 + 0 * beat, 0.88);
+        kick(t0 + 2 * beat, 0.82);
+        if (Math.random() < 0.32) kick(t0 + 2.5 * beat, 0.48);
+        if (Math.random() < 0.20) kick(t0 + 3.5 * beat, 0.44);
+        if (Math.random() < 0.15) kick(t0 + 1.75 * beat, 0.40);
+
+        snare(t0 + 1 * beat, 0.50);
+        snare(t0 + 3 * beat, 0.52);
+        if (Math.random() < 0.18) snare(t0 + 2.75 * beat, 0.13);
+        if (Math.random() < 0.10) snare(t0 + 0.75 * beat, 0.11);
+
+        let useRide = Math.random() < 0.18;
+        for (let i = 0; i < 8; i++) {
+          const t = t0 + i * eighth + jitter(0.003);
+          const downbeat = (i % 2 === 0);
+          const open = (i === 7) && Math.random() < 0.35;
+          if (useRide && !open) {
+            ridePing(t, 0.04 + (downbeat ? 0.02 : 0) + Math.random() * 0.02);
+          } else {
+            const v = (open ? 0.16 : (downbeat ? 0.13 : 0.09)) + Math.random() * 0.03;
+            hat(t, open, v);
+          }
+        }
+
+        if (Math.random() < 0.10) hat(t0, true, 0.22);
+
+        if (Math.random() < 0.22) {
+          const n = 3 + Math.floor(Math.random() * 3);
+          for (let i = 0; i < n; i++) {
+            const t = t0 + (4 - 0.5 * (n - i)) * beat;
+            tom(t, 240 - i * 38, 0.48 + Math.random() * 0.08);
+          }
+        }
+
+        if (Math.random() < 0.04) cowbell(t0 + 2 * beat, 0.14);
+        if (Math.random() < 0.06) rim(t0 + (1 + Math.floor(Math.random() * 3)) * beat, 0.16);
+
+        nextBarTime = t0 + 4 * beat;
+      }
+
+      function scheduler() {
+        if (!looping || !audioCtx) return;
+        while (nextBarTime < audioCtx.currentTime + SCHED_HORIZON) {
+          scheduleBar();
+        }
+      }
+
+      function startLoop() {
+        const ctx = ensureCtx();
+        if (!ctx) return;
+        looping = true;
+        loopBpm = 108 + Math.random() * 28;
+        nextBarTime = ctx.currentTime + 0.08;
+        scheduleBar();
+        schedHandle = setInterval(scheduler, LOOKAHEAD_MS);
+      }
+
+      function stopLoop() {
+        looping = false;
+        if (schedHandle) { clearInterval(schedHandle); schedHandle = null; }
+      }
+
+      function clearRevealTimers() {
+        revealTimers.forEach(clearTimeout);
+        revealTimers = [];
+      }
+
+      function scheduleReveals() {
+        clearRevealTimers();
+        for (let i = revealIdx; i < reveals.length; i++) {
+          const offset = i - revealIdx;
+          const delay = REVEAL_FIRST_MS + offset * REVEAL_GAP_MS;
+          const target = reveals[i];
+          const idx = i;
+          revealTimers.push(setTimeout(() => {
+            target.classList.add('shown');
+            revealIdx = idx + 1;
+          }, delay));
+        }
+      }
+
+      function tap() {
+        sticks.classList.remove('tap');
+        void sticks.offsetWidth;
+        sticks.classList.add('tap');
+        if (tapTimer) clearTimeout(tapTimer);
+        tapTimer = setTimeout(() => sticks.classList.remove('tap'), 180);
+        if (looping) {
+          stopLoop();
+          clearRevealTimers();
+        } else {
+          startLoop();
+          scheduleReveals();
+        }
+      }
+
+      sticks.addEventListener('click', tap);
+      sticks.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          tap();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

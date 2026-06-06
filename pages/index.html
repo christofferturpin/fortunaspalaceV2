@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  PALACE LOBBY — Fortuna's Palace front-of-house, the game-card hub       │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    This is the page the player lands on after the splash. An inline      │
+  │    route-guard at the top of <head> kicks them back to splash.html if    │
+  │    they haven't seen the intro, to death.html if the wallet-death flag   │
+  │    is set, or to child-died.html if any child stat has bottomed out.     │
+  │    It also marks <html> with .tutorial-skip when the tutorial has been   │
+  │    seen so CSS can hide the overlay before paint.                        │
+  │    A House-Rules tutorial overlay (#tutorial-overlay) sits over the page │
+  │    on first visit — "Step Inside" dismisses it, sets the seen flag, and  │
+  │    fades it out. After that, the lobby is 25 game-card <a>s organized    │
+  │    into seven labeled sections: Entrance (child, roulette, tarot, gift   │
+  │    shop), Slots (sinnerbox, lotería, providence&tulane), Cards (patriot  │
+  │    poker, forest trick, shareware), Dice (critical hit, dice chart),     │
+  │    Arcade (witches pool, concussion bowl, baby highway), API             │
+  │    (derby, raining, double happiness), Experimental (stroke of           │
+  │    luck, photobooth, bear, gonegaishimasu, changelings, gladiatr,        │
+  │    slottrack).                                                           │
+  │    Each section is its own .game-grid. Asmodeus Memorial is intentionally│
+  │    unlisted — the page exists but no lobby card points at it. A small    │
+  │    inline CSS rule centers the hanging card in any odd-count section     │
+  │    (Slots, Cards, API) so the orphan reads as a capstone, not a remnant. │
+  │    Three inline IIFEs run after the script bundle: (1) a carpet         │
+  │    randomizer that picks one of 7 color variants (red, green, blue,     │
+  │    purple, ochre, rose, teal) by writing CSS vars on <html>, then       │
+  │    spawns 14–23 dirt elements (.carpet-dirt) of weighted kinds (stain   │
+  │    40% / burn 20% / drink 25% / fade 15%) at random positions; (2) a    │
+  │    quote-weaver that fetches ../assets/json/quotes.json and spawns      │
+  │    .carpet-quote elements across the body — 55% embroidered (gold       │
+  │    Cinzel uppercase, screen-blend, stitched-look), 23% whispered        │
+  │    (italic IM Fell, drift-fade loop), 22% plain-woven (italic IM Fell,  │
+  │    breathing opacity, overlay-blend); (3) a subtitle tagline tick loop  │
+  │    (every 1700ms) that reads the child's mood from Child state — if     │
+  │    avg stat < 3 it pulls 70% of the time from disturbing taglines,      │
+  │    glitch-corrupts the current text (#@%&*?!~†‡§), bursts the letter-   │
+  │    spacing / chromatic shadow, and spawns ghost-text fragments around   │
+  │    the viewport. Otherwise it cycles brochure-voice slogans. The        │
+  │    carpet itself drifts via CSS animation (palmette tile walks one full │
+  │    tile diagonally on a 124s loop; thread-noise overlay drifts opposite │
+  │    on an 88s loop) so the rug always feels alive when you look back.    │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/wallet.js, ../js/expenses.js, ../js/child.js,            │
+  │      ../js/taglines.js, ../js/header.js (then 6 inline <script>          │
+  │      IIFEs: tutorial-overlay dismiss + carpet/dirt + carpet-quotes       │
+  │      (fetch ../assets/json/quotes.json) + jackpot-ticker (per-card       │
+  │      pot read from localStorage) + roulette-blackout (Wallet.balance>100 │
+  │      → .is-blackedout on roulette card) + subtitle tagline tick)         │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_warning_seen → trigger-warning.html                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      (bossfight route-guard removed — bossfight system parked in        │
+  │       js/bossfightold, css/bossfightold, pages/bossfightold for rebuild) │
+  │      wendys_palace_tutorial_seen==='1' → add html.tutorial-skip class    │
+  │    DOM ids: #tutorial-overlay, #tutorial-begin, #palace-subtitle,        │
+  │      #balance, #debug-reset, .lobby-section, .lobby-section-title,       │
+  │      .game-grid, .game-card[data-theme], .carpet-dirt,                   │
+  │      .carpet-quote(+ -embroidered/-whispered)                            │
+  │    sections (in order, name→cards data-theme):                           │
+  │      Entrance → child,roulette,tarot,giftshop                            │
+  │      Slots → sinnerbox,matchbox,hollerworks                              │
+  │      Cards → jackandgin,foresttrick,foresthoard                          │
+  │      Dice → criticalhit,dicechart,bonepile                               │
+  │      Arcade → pool,crossfire,opossumer                                   │
+  │      API → horserace,isitraining,doublehappiness                         │
+  │      Experimental → craps,photobooth,bearbaiting,go,pacman,gladiatrix,   │
+  │                     slottrack                                            │
+  │    unlisted (page exists, no lobby card): raid (Asmodeus Memorial)       │
+  │    inline CSS: .game-grid>.game-card:last-child:nth-child(odd)           │
+  │      grid-column:1/-1; justify-self:center; width:calc(50% - 8px)        │
+  │      (full width on <=720px). Centers hangers in odd-count sections.     │
+  │    flow: head-guard → tutorial overlay (dismiss writes                   │
+  │      wendys_palace_tutorial_seen='1') → 7 lobby-sections → header.js     │
+  │      #child-status floating widget → carpet variant + dirt spawn IIFE →  │
+  │      quote-weaver IIFE (fetch ../assets/json/quotes.json, shuffle,       │
+  │      append 14-22 .carpet-quote with random rot/pos/delay/duration) →    │
+  │      subtitle tick(): getMood→pickTagline→corrupt(s,intensity)→          │
+  │      spaceBurst+spawnGhost when below>0 (setInterval 1700ms)             │
+  │    storage R/W:                                                          │
+  │      R: wendys_palace_warning_seen, wendys_palace_intro_seen,            │
+  │         wendys_palace_death, wendys_palace_child,                        │
+  │         wendys_palace_tutorial_seen,                                     │
+  │         wendys_palace_sinnerbox_jackpot, wendys_palace_pp_jackpot,       │
+  │         wendys_palace_matchbox_jackpot, wendys_palace_craps_jackpot,     │
+  │         wendys_palace_hollerworks_jackpot (per-card ticker),             │
+  │         wendys_palace_bonepile_dust (per-card dust meter),               │
+  │      W: wendys_palace_tutorial_seen='1' (on Step Inside click)           │
+  │    network: fetch('../assets/json/quotes.json') for carpet-quote weaver  │
+  │    routes out (all game-card hrefs, plus guard redirects):               │
+  │      child.html (Your Child)                                             │
+  │      roulette.html (Russian Roulette)                                    │
+  │      sinnerbox.html (Sinnerbox — slots+plinko)                           │
+  │      jackandgin.html (Patriot Poker — gilded blackjack/gin reskin)       │
+  │      horserace.html (Noah's Derby)                                       │
+  │      photobooth.html (Photobooth)                                        │
+  │      craps.html (Stroke of Luck — craps+putt-putt)                       │
+  │      criticalhit.html (Critical Hit — dice merging, back-room theme)    │
+  │      bonepile.html (Bonepile — 4×2 drag-scratch dice + dust pile/BUST)  │
+  │      opossumer.html (Baby Highway)                                       │
+  │      bearbaiting.html (Bear Baiting)                                     │
+  │      isitraining.html (Is It Raining?)                                   │
+  │      doublehappiness.html (Double Happiness)                             │
+  │      giftshop/index.html (Fortuna's Gift Shop)                           │
+  │      shapebots/index.html (GLADIATR.EXE)                                 │
+  │      tarot.html (Fortuna's Tarotheque)                                   │
+  │      matchbox.html (Caja de Lotería — slots + match-3)                   │
+  │      hollerworks.html (Providence & North Tulane — slots + traffic cam) │
+  │      go.html (Van Go — bottle-cap 9×9 in the back of an Econoline)       │
+  │      crossfire.html (Concussion Bowl — football-skinned Crossfire)       │
+  │      foresttrick.html (Forest Trick — 3-player poker-hand trick game)    │
+  │      foresthoard.html (Shareware Poker — 10-card video poker)            │
+  │      slottrack.html (Slottrack — WIP scratch: 3x3 slot + auto track)     │
+  │      guard-routes: splash.html, death.html, child-died.html,             │
+  │        bossfight-chavez.html (when boss active)                          │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fortuna's Palace</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_warning_seen')!=='1'){location.replace('trigger-warning.html');return;}if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(localStorage.getItem('wendys_palace_tutorial_seen')==='1'){document.documentElement.className+=' tutorial-skip';}}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/palace.css">
+  <style>
+    /* Roulette is a last-resort game — blacked out in the lobby when the
+       player has more than 100 coins. Heavy desaturate + dim, no hover
+       lift, no clicks. The card desc text already calls it a "last resort". */
+    .game-card.is-blackedout {
+      pointer-events: none;
+      filter: grayscale(0.92) brightness(0.28) contrast(0.75);
+      cursor: not-allowed;
+    }
+    .game-card.is-blackedout:hover {
+      transform: none;
+      border-color: var(--sulfur-dim);
+      box-shadow:
+        inset 0 0 0 1px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 rgba(212, 175, 55, 0.14),
+        inset 0 -28px 48px rgba(0, 0, 0, 0.55),
+        0 4px 14px rgba(0, 0, 0, 0.7);
+    }
+    .game-card.is-blackedout::after {
+      content: '— closed —';
+      position: absolute;
+      inset: auto 0 8px 0;
+      border: none;
+      text-align: center;
+      font-family: 'Special Elite', 'Courier New', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: rgba(184, 0, 31, 0.55);
+      text-transform: uppercase;
+    }
+
+    /* Third-hanger centering. The grid is 2 cols; a section with an odd
+       count leaves a single card hanging on its own row. Span the row and
+       constrain to one-column width so the orphan reads as a deliberate
+       capstone instead of a left-aligned remainder. */
+    .game-grid > .game-card:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+      justify-self: center;
+      width: calc(50% - 8px);
+    }
+    @media (max-width: 720px) {
+      .game-grid > .game-card:last-child:nth-child(odd) { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="tutorial-overlay" id="tutorial-overlay" aria-hidden="false">
+    <div class="tutorial-card">
+      <h2 class="tutorial-title">The Stakes:</h2>
+      <p class="tutorial-line">You gamble to make money.</p>
+      <p class="tutorial-line">The money is for YOUR CHILD.</p>
+      <p class="tutorial-line tutorial-line-warn">
+        Every game you play, the chance grows that they will become
+        <em>hungry</em>, <em>sick</em>, <em>lonely</em>. You <strong>can't imagine</strong> what you'd do if something hapened to YOUR CHILD.
+      </p>
+      <p class="tutorial-line">Securing them can slow this. Nothing stops it.</p>
+      <p class="tutorial-line tutorial-line-soft">Do not let them die.</p>
+
+      <div class="tutorial-tama-wrap" aria-hidden="true">
+        <div class="tutorial-tama-frame">
+          <div class="tutorial-tama-screen">
+            <div class="tutorial-tama-face">(o_o)</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="tutorial-cta" id="tutorial-begin" type="button">Step Inside</button>
+    </div>
+  </div>
+
+  <header class="palace-header">
+    <h1>FORTUNA'S PALACE</h1>
+    <p class="palace-subtitle" id="palace-subtitle">Where every dream comes true</p>
+    <div class="palace-flourish">✦ ✦ ✦</div>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="lobby-section">
+      <h2 class="lobby-section-title">Entrance</h2>
+      <div class="game-grid">
+        <a class="game-card" data-theme="child" href="child.html">
+          <div class="game-card-glyph">❀</div>
+          <div class="game-card-name">Your Child</div>
+          <div class="game-card-desc">Your Child; Tend to them, Don't let them die.</div>
+        </a>
+        <a class="game-card" data-theme="roulette" href="roulette.html">
+          <div class="game-card-glyph">☠</div>
+          <div class="game-card-name">Russian Roulette</div>
+          <div class="game-card-desc">You Know This Game; Free to play, but you may die. Only a last restort.</div>
+        </a>
+        <a class="game-card" data-theme="tarot" href="tarot.html">
+          <div class="game-card-glyph">🪩</div>
+          <div class="game-card-name">Tarotheque</div>
+          <div class="game-card-desc">Mash two museum paintings; divine thy three tenses. The Scroll knows all!</div>
+        </a>
+        <a class="game-card" data-theme="giftshop" href="giftshop/giftshopindex.html">
+          <div class="game-card-glyph">✦</div>
+          <div class="game-card-name">Gift Shop</div>
+          <div class="game-card-desc">Souvenirs. Keepsakes. Ways to REMEMBER.</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="lobby-section">
+      <h2 class="lobby-section-title">Slots</h2>
+      <div class="game-grid">
+        <a class="game-card" data-theme="sinnerbox" href="sinnerbox.html">
+          <div class="game-card-glyph">⛧</div>
+          <div class="game-card-name">Sinnerbox</div>
+          <div class="game-card-desc">Slots + Plinko; The One Armed Bandit</div>
+        </a>
+        <a class="game-card" data-theme="matchbox" href="matchbox.html">
+          <div class="game-card-glyph">💀</div>
+          <div class="game-card-name">Caja de Lotería</div>
+          <div class="game-card-desc">Tragamonedas + Match-3; 所有人类都是非法的.</div>
+        </a>
+        <a class="game-card" data-theme="hollerworks" href="hollerworks.html">
+          <div class="game-card-glyph">🚦</div>
+          <div class="game-card-name">Providence &amp; North Tulane</div>
+          <div class="game-card-desc">20×20 Reels + Live Traffic Cam; Oak Ridge, TN. Population, Declining.</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="lobby-section">
+      <h2 class="lobby-section-title">Cards</h2>
+      <div class="game-grid">
+        <a class="game-card" data-theme="jackandgin" href="jackandgin.html">
+          <div class="game-card-glyph">★</div>
+          <div class="game-card-name">Patriot Poker</div>
+          <div class="game-card-desc">Tremendous Cards. Yuge Pots. Believe Me.</div>
+        </a>
+        <a class="game-card" data-theme="foresttrick" href="foresttrick.html">
+          <div class="game-card-glyph">🦉</div>
+          <div class="game-card-name">Forest Trick</div>
+          <div class="game-card-desc">Owls, foxes &amp; fish play poker beneath the canopy. Three-handed trick-taking; bees and lost children are the wilds.</div>
+        </a>
+        <a class="game-card" data-theme="foresthoard" href="foresthoard.html">
+          <div class="game-card-glyph">▦</div>
+          <div class="game-card-name">Shareware Poker</div>
+          <div class="game-card-desc">Forgotten shareware. Deal 10, arrange into Left + Right 5-card hands, two draws, two wilds. Both sides scored separately and the payouts add. © 1993 Fortuna Softwerks.</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="lobby-section">
+      <h2 class="lobby-section-title">Dice</h2>
+      <div class="game-grid">
+        <a class="game-card" data-theme="criticalhit" href="criticalhit.html">
+          <div class="game-card-glyph">🎲</div>
+          <div class="game-card-name">Critical Hit</div>
+          <div class="game-card-desc">Dice Merging; Roll 10d4, drag matching faces together to push them up the ladder (d4→d6→…→d20). Two rerolls. Back room, old books, pizza, marijuana.</div>
+        </a>
+        <a class="game-card" data-theme="dicechart" href="dicechart.html">
+          <div class="game-card-glyph">⚂</div>
+          <div class="game-card-name">Dice Chart</div>
+          <div class="game-card-desc">Solitaire ledger; throw 3d6 + 1 red modifier die, ink the chart from III to XVIII. Hold dice between rolls. Strand and the run ends.</div>
+        </a>
+        <a class="game-card" data-theme="bonepile" href="bonepile.html">
+          <div class="game-card-glyph">☠</div>
+          <div class="game-card-name">LOTTAUTO<span style="font-size:0.55em;vertical-align:super;">™</span></div>
+          <div class="game-card-desc">Vending-machine scratchers; feed coins, print a fresh ticket on top of the last one. Drag to scrape the foil (dust piles at your feet). Pair matching dice, combo for fat bonuses, dodge the BUST. Cash out anytime.</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="lobby-section">
+      <h2 class="lobby-section-title">Arcade</h2>
+      <div class="game-grid">
+        <a class="game-card" data-theme="pool" href="pool.html">
+          <div class="game-card-glyph">☽</div>
+          <div class="game-card-name">Witches Pool</div>
+          <div class="game-card-desc">Miniclip style pool with a twist; chain colored orbs onto their matching banks. Build combos. Don't let the balls touch the center. Don't let the cue stop.</div>
+        </a>
+        <a class="game-card" data-theme="crossfire" href="crossfire.html">
+          <div class="game-card-glyph">🏈</div>
+          <div class="game-card-name">Concussion Bowl</div>
+          <div class="game-card-desc">American Football Blaster; shoot the player across the line. Hail Mary on right-click. First to 3 TDs.</div>
+        </a>
+        <a class="game-card" data-theme="opossumer" href="opossumer.html">
+          <div class="game-card-glyph">👶</div>
+          <div class="game-card-name">Baby Highway</div>
+          <div class="game-card-desc">Frogger-like; Crawl through traffic. Push your luck. Don't get squished.</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="lobby-section">
+      <h2 class="lobby-section-title">API</h2>
+      <div class="game-grid">
+        <a class="game-card" data-theme="horserace" href="horserace.html">
+          <div class="game-card-glyph">🐎</div>
+          <div class="game-card-name">Noah's Derby</div>
+          <div class="game-card-desc">Wikipedia Horse Racing; The Ungentlewoman's Game.</div>
+        </a>
+        <a class="game-card" data-theme="isitraining" href="isitraining.html">
+          <div class="game-card-glyph">☂</div>
+          <div class="game-card-name" data-text="Is It Raining?">Is It Raining?</div>
+          <div class="game-card-desc">Live Weather Data Based Guessing Game; Guess the weather. Double or nothing.</div>
+        </a>
+        <a class="game-card" data-theme="doublehappiness" href="doublehappiness.html">
+          <div class="game-card-glyph">囍</div>
+          <div class="game-card-name">Double Happiness</div>
+          <div class="game-card-desc">YouTube Popularity Contest; Bet on the more-watched of two silent B&amp;W videos. (Requires Firefox w/Ad Block)</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="lobby-section">
+      <h2 class="lobby-section-title">Experimental</h2>
+      <div class="game-grid">
+        <a class="game-card" data-theme="craps" href="craps.html">
+          <div class="game-card-glyph">⚄</div>
+          <div class="game-card-name">Stroke of Luck</div>
+          <div class="game-card-desc">Craps + Putt-Putt; Roll some dice and some balls.</div>
+        </a>
+        <a class="game-card" data-theme="photobooth" href="photobooth.html">
+          <div class="game-card-glyph">◉</div>
+          <div class="game-card-name">Photobooth</div>
+          <div class="game-card-desc">Step inside · 5 coins</div>
+        </a>
+        <a class="game-card" data-theme="bearbaiting" href="bearbaiting.html">
+          <div class="game-card-glyph">🐻</div>
+          <div class="game-card-name">Bear Baiting</div>
+          <div class="game-card-desc">A Probable Cut: Read the pit. Read the bookie. Stake your purse.</div>
+        </a>
+        <a class="game-card" data-theme="go" href="go.html">
+          <div class="game-card-glyph">🍺</div>
+          <div class="game-card-name">Gonegaishimasu</div>
+          <div class="game-card-desc">Go + ambient pad sequencer; bottle caps on a pizza box are notes (column = pitch, row = octave) over a 9/8 kick. Four voices on the knob.</div>
+        </a>
+        <a class="game-card" data-theme="pacman" href="pacman.html">
+          <div class="game-card-glyph">⛢</div>
+          <div class="game-card-name">Changelings</div>
+          <div class="game-card-desc">👶 vs. faeries. Push-your-luck: each round rolls a new faerie into the room (Mama → Smiler), bumping the multiplier — 1× / 1.25× / 1.5× / 2× / 3× / 5×. Clear the room, then cash out or push for one more faerie. Death wipes the wager.</div>
+        </a>
+        <a class="game-card" data-theme="gladiatrix" href="shapebots/index.html">
+          <div class="game-card-glyph">⚔</div>
+          <div class="game-card-name">GLADIATR<span class="sb-card-exe">.EXE</span></div>
+          <div class="game-card-desc">Programable Auto-Battler; Code a legion. Bet denarii. H@1L C3@ZAR!</div>
+        </a>
+        <a class="game-card" data-theme="slottrack" href="slottrack.html">
+          <div class="game-card-glyph">◇</div>
+          <div class="game-card-name">Slottrack [WIP]</div>
+          <div class="game-card-desc">Scratch page: 3x3 slot + auto-generated closed-loop track. No theme yet.</div>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/taglines.js"></script>
+  <script src="../js/header.js"></script>
+  <!-- Eye-of-Chavez badge moved into the Your-Child widget (see
+       js/header.js BOSS_BADGE_SVG.chavez + base.css .badge-eye). -->
+
+  <script>
+    (function () {
+      var overlay = document.getElementById('tutorial-overlay');
+      if (!overlay) return;
+      var seen = false;
+      try { seen = localStorage.getItem('wendys_palace_tutorial_seen') === '1'; } catch (e) {}
+      if (seen) {
+        overlay.parentNode.removeChild(overlay);
+        return;
+      }
+      document.body.classList.add('tutorial-active');
+      requestAnimationFrame(function () { overlay.classList.add('lit'); });
+      var btn = document.getElementById('tutorial-begin');
+      function dismiss() {
+        try { localStorage.setItem('wendys_palace_tutorial_seen', '1'); } catch (e) {}
+        overlay.classList.add('dismissed');
+        document.body.classList.remove('tutorial-active');
+        setTimeout(function () {
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }, 1200);
+      }
+      if (btn) btn.addEventListener('click', dismiss);
+    })();
+  </script>
+  <script>
+    (function () {
+      var variants = [
+        { base: '#1a0606', deep: '#0c0303', accent: '#5a1a22', motif: '#8a3333', gold: '#b8965c' },
+        { base: '#0a1410', deep: '#040806', accent: '#1a3a26', motif: '#5a8a4a', gold: '#a8954a' },
+        { base: '#08101e', deep: '#03060c', accent: '#2a3a5a', motif: '#6a4a18', gold: '#b89a3c' },
+        { base: '#180626', deep: '#08020e', accent: '#4a1a5a', motif: '#8a3a6a', gold: '#b89a5c' },
+        { base: '#0e0a04', deep: '#040302', accent: '#3a2a10', motif: '#7a5018', gold: '#c9a14a' },
+        { base: '#1a0a16', deep: '#080406', accent: '#5a1a3a', motif: '#a04060', gold: '#c8a060' },
+        { base: '#040c14', deep: '#020608', accent: '#0e3040', motif: '#1a5a6a', gold: '#a8a060' }
+      ];
+      var v = variants[Math.floor(Math.random() * variants.length)];
+      var root = document.documentElement;
+      root.style.setProperty('--carpet-base', v.base);
+      root.style.setProperty('--carpet-deep', v.deep);
+      root.style.setProperty('--carpet-accent', v.accent);
+      root.style.setProperty('--carpet-motif', v.motif);
+      root.style.setProperty('--carpet-gold', v.gold);
+
+      var dirtKinds = ['dirt-stain', 'dirt-burn', 'dirt-drink', 'dirt-fade'];
+      var weights  = [0.40, 0.20, 0.25, 0.15];
+      function pickKind() {
+        var r = Math.random();
+        var acc = 0;
+        for (var i = 0; i < weights.length; i++) {
+          acc += weights[i];
+          if (r < acc) return dirtKinds[i];
+        }
+        return dirtKinds[0];
+      }
+      var dirtCount = 14 + Math.floor(Math.random() * 10);
+      for (var i = 0; i < dirtCount; i++) {
+        var d = document.createElement('div');
+        var kind = pickKind();
+        d.className = 'carpet-dirt ' + kind;
+        var size = (kind === 'dirt-burn' ? 14 : 60) + Math.random() * (kind === 'dirt-burn' ? 22 : 220);
+        var rx = 0.7 + Math.random() * 0.7;
+        d.style.width  = size + 'px';
+        d.style.height = (size * rx) + 'px';
+        d.style.top    = (Math.random() * 100) + '%';
+        d.style.left   = (Math.random() * 100) + '%';
+        d.style.transform = 'translate(-50%, -50%) rotate(' + (Math.random() * 360) + 'deg)';
+        d.style.opacity = (kind === 'dirt-fade' ? 0.5 : 0.6) + Math.random() * 0.3;
+        document.body.appendChild(d);
+      }
+    })();
+
+    (function () {
+      /* Weave 14-22 random quotes from assets/json/quotes.json into the carpet.
+         55% embroidered (uppercase Cinzel in gold, screen-blend, stitched),
+         23% whispered (italic IM Fell, drift-fade loop),
+         22% plain woven (italic IM Fell, breathing opacity, overlay-blend). */
+      fetch('../assets/json/quotes.json')
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (quotes) {
+          if (!Array.isArray(quotes) || !quotes.length) return;
+          var pool = quotes.slice();
+          for (var i = pool.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+          }
+          var n = Math.min(14 + Math.floor(Math.random() * 9), pool.length);
+          for (var k = 0; k < n; k++) {
+            var el = document.createElement('div');
+            el.className = 'carpet-quote';
+            var roll = Math.random();
+            if (roll < 0.55)      el.classList.add('carpet-quote-embroidered');
+            else if (roll < 0.78) el.classList.add('carpet-quote-whispered');
+            el.textContent = pool[k];
+            var rot = (Math.random() - 0.5) * 16;
+            if (el.classList.contains('carpet-quote-embroidered')) rot *= 0.4;
+            el.style.setProperty('--rot', rot + 'deg');
+            el.style.top  = (3 + Math.random() * 94) + '%';
+            el.style.left = (2 + Math.random() * 78) + '%';
+            el.style.animationDelay    = (Math.random() * 30) + 's';
+            el.style.animationDuration = (35 + Math.random() * 40) + 's';
+            el.style.maxWidth = (110 + Math.random() * 130) + 'px';
+            document.body.appendChild(el);
+          }
+        })
+        .catch(function () { /* offline / missing quotes.json → no-op */ });
+    })();
+
+    (function () {
+      /* Jackpot ticker — read each game's persistent pot from localStorage
+         and inject "Current Jackpot $N" into its game card. Games without
+         a jackpot system get nothing. Read-only; no writes. */
+      var jackpots = [
+        { theme: 'sinnerbox',   key: 'wendys_palace_sinnerbox_jackpot' },
+        { theme: 'jackandgin',  key: 'wendys_palace_pp_jackpot' },
+        { theme: 'matchbox',    key: 'wendys_palace_matchbox_jackpot' },
+        { theme: 'hollerworks', key: 'wendys_palace_hollerworks_jackpot' },
+        { theme: 'craps',       key: 'wendys_palace_craps_jackpot' }
+      ];
+      jackpots.forEach(function (j) {
+        var card = document.querySelector('.game-card[data-theme="' + j.theme + '"]');
+        if (!card) return;
+        var raw = 0;
+        try { raw = parseInt(localStorage.getItem(j.key) || '0', 10); } catch (e) {}
+        if (!isFinite(raw) || raw < 0) raw = 0;
+        var line = document.createElement('div');
+        line.className = 'game-card-jackpot';
+        line.innerHTML = 'Current Jackpot<span class="jp-amount">$' +
+          raw.toLocaleString() + '</span>';
+        card.appendChild(line);
+      });
+
+      /* Bonepile dust meter — not a jackpot but a persistent bank, so it
+         gets its own label. Threshold = 4000 (matches js/bonepile/scratch.js). */
+      (function () {
+        var card = document.querySelector('.game-card[data-theme="bonepile"]');
+        if (!card) return;
+        var raw = 0;
+        try { raw = parseInt(localStorage.getItem('wendys_palace_bonepile_dust') || '0', 10); } catch (e) {}
+        if (!isFinite(raw) || raw < 0) raw = 0;
+        if (raw > 4000) raw = 4000;
+        var pct = Math.round((raw / 4000) * 100);
+        var line = document.createElement('div');
+        line.className = 'game-card-jackpot game-card-dust';
+        line.innerHTML = (raw >= 4000 ? 'Bone-dust · FULL' : 'Bone-dust') +
+          '<span class="jp-amount">' + raw.toLocaleString() + ' / 4000</span>';
+        card.appendChild(line);
+      })();
+    })();
+
+    (function () {
+      /* Russian Roulette is the desperation game — only open when broke.
+         Black out the lobby card when balance >= 100 so it can't be entered.
+         The card desc already calls it a "last resort"; this enforces it. */
+      function refresh() {
+        var bal = 0;
+        try { bal = (window.Wallet && window.Wallet.getBalance()) || 0; } catch (e) {}
+        var card = document.querySelector('.game-card[data-theme="roulette"]');
+        if (!card) return;
+        if (bal >= 100) {
+          card.classList.add('is-blackedout');
+          card.setAttribute('aria-disabled', 'true');
+          card.setAttribute('title', 'Last resort only — spend down first');
+        } else {
+          card.classList.remove('is-blackedout');
+          card.removeAttribute('aria-disabled');
+          card.removeAttribute('title');
+        }
+      }
+      refresh();
+      if (window.Wallet && typeof window.Wallet.onChange === 'function') {
+        window.Wallet.onChange(refresh);
+      }
+    })();
+
+    (function () {
+      var el = document.getElementById('palace-subtitle');
+      if (!el) return;
+
+      var normalTaglines = (window.Taglines && window.Taglines.normal) || ['Where every dream comes true'];
+      var disturbingTaglines = (window.Taglines && window.Taglines.disturbing) || normalTaglines;
+
+      function getMood() {
+        try {
+          if (!window.Child || typeof window.Child.getState !== 'function') return 10;
+          var s = window.Child.getState() || {};
+          return ((+s.hunger || 0) + (+s.wellness || 0) + (+s.closeness || 0)) / 3;
+        } catch (e) { return 10; }
+      }
+
+      var lastIdx = -1;
+      var lastPool = null;
+      function pickTagline() {
+        var mood = getMood();
+        var pool;
+        if (mood < 3) {
+          pool = Math.random() < 0.7 ? disturbingTaglines : normalTaglines;
+        } else {
+          pool = normalTaglines;
+        }
+        if (pool !== lastPool) lastIdx = -1;
+        lastPool = pool;
+        var i;
+        do {
+          i = Math.floor(Math.random() * pool.length);
+        } while (i === lastIdx && pool.length > 1);
+        lastIdx = i;
+        return pool[i];
+      }
+
+      function corrupt(s, intensity) {
+        var glyphs = '#@%&*?!~†‡§';
+        var threshold = 0.35 + Math.min(0.55, (intensity || 0) * 0.6);
+        return s.split('').map(function (c) {
+          if (c === ' ') return c;
+          return Math.random() < threshold ? glyphs[Math.floor(Math.random() * glyphs.length)] : c;
+        }).join('');
+      }
+
+      function spawnGhost(text, intensity) {
+        var ghost = document.createElement('div');
+        ghost.textContent = text;
+        var color = Math.random() < 0.5 ? '220,0,30' : '0,170,210';
+        var size = 12 + Math.random() * (16 + intensity * 28);
+        var rotate = (Math.random() - 0.5) * (20 + intensity * 80);
+        ghost.style.cssText = [
+          'position:fixed',
+          'top:' + (Math.random() * 90) + '%',
+          'left:' + (Math.random() * 85) + '%',
+          'pointer-events:none',
+          'z-index:9999',
+          'font-family:"Special Elite","Courier New",monospace',
+          'font-size:' + size + 'px',
+          'color:rgba(' + color + ',' + (0.4 + Math.random() * 0.4) + ')',
+          'letter-spacing:' + (Math.random() * 0.6) + 'em',
+          'transform:rotate(' + rotate + 'deg)',
+          'white-space:nowrap',
+          'opacity:0',
+          'transition:opacity 0.08s linear'
+        ].join(';');
+        document.body.appendChild(ghost);
+        requestAnimationFrame(function () { ghost.style.opacity = '1'; });
+        setTimeout(function () {
+          ghost.style.opacity = '0';
+          setTimeout(function () { if (ghost.parentNode) ghost.remove(); }, 180);
+        }, 90 + Math.random() * 260);
+      }
+
+      function spaceBurst(intensity) {
+        var origLS = el.style.letterSpacing;
+        var origColor = el.style.color;
+        var origTS = el.style.textShadow;
+        var origTrans = el.style.transform;
+        el.style.letterSpacing = (0.6 + Math.random() * (1.4 + intensity * 2.5)) + 'em';
+        if (Math.random() < 0.5) el.style.color = '#8b1a2b';
+        el.style.textShadow =
+          '2px 0 rgba(220,0,30,0.7), -2px 0 rgba(0,170,210,0.6)';
+        el.style.transform =
+          'translate(' + ((Math.random() - 0.5) * 24 * (1 + intensity)) + 'px,' +
+          ((Math.random() - 0.5) * 8) + 'px)';
+        setTimeout(function () {
+          el.style.letterSpacing = origLS;
+          el.style.color = origColor;
+          el.style.textShadow = origTS;
+          el.style.transform = origTrans;
+        }, 80 + Math.random() * 180);
+      }
+
+      function tick() {
+        var mood = getMood();
+        var below = Math.max(0, 3 - mood) / 3;
+        var current = el.textContent;
+        el.textContent = corrupt(current, below);
+        setTimeout(function () {
+          el.textContent = pickTagline();
+          if (below > 0) {
+            if (Math.random() < 0.35 + below * 0.5) spaceBurst(below);
+            var ghostCount = Math.floor(below * 4 + (Math.random() < below ? 1 : 0));
+            for (var i = 0; i < ghostCount; i++) {
+              spawnGhost(pickTagline(), below);
+            }
+          }
+        }, 90);
+      }
+
+      setInterval(tick, 1700);
+    })();
+  </script>
+</body>
+</html>

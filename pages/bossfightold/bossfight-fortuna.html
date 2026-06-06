@@ -1,0 +1,161 @@
+﻿<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BOSSFIGHT — FORTUNA — final boss · the Goddess at her own table         │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Boss #5. THE FINAL. Fortuna is not a player character — she is the    │
+  │    Palace itself sitting across from you. Visual register: a Virginia    │
+  │    Frances Sterrett illustration plate — twilight-violet ground, gold-   │
+  │    leaf filigree framing the page on every edge, a central stylized      │
+  │    rose blooming behind the felt. Card faces have thin gold rule lines   │
+  │    top and bottom. The opponent seat label simply reads "— the Goddess   │
+  │    —". This page is the terminal stop for the boss arc; if she wins,     │
+  │    the player loses everything. If the player wins, the Palace itself    │
+  │    has lost; the outro is TBD (placeholder splash for now).              │
+  │                                                                          │
+  │    Mechanics: shared BFHoldem + BFAI engine via page-generic.js.         │
+  │    Starting stacks 100/150 — Fortuna has the house edge.                 │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/bossfight/holdem.js, ../js/bossfight/ai.js,              │
+  │      ../js/bossfight/page-generic.js                                     │
+  │    css: ../css/base.css, ../css/bossfight/poker-base.css,                │
+  │      ../css/bossfight/fortuna.css                                        │
+  │    inline route-guards: NONE (placeholder — terminal page)               │
+  │    window.BossConfig = { slug:'fortuna', name:'FORTUNA',                 │
+  │      startingStacks:{playerChips:100,oppChips:150},                      │
+  │      tells:{idle:'smiling',thinking:'spinning the wheel…',               │
+  │             busted:'still smiling'} }                                    │
+  │    DOM ids: same shape as bossfight-chavez.html                          │
+  │    storage R/W:                                                          │
+  │      R/W: wendys_palace_boss_fortuna {active, complete, won, snapshot}   │
+  │      W (on win): wendys_palace_bosses_beaten (+= 'fortuna')              │
+  │    routes out: index.html (via end-splash Back button)                   │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fortuna vs. You — Fortuna's Palace</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bossfight/poker-base.css">
+  <link rel="stylesheet" href="../css/bossfight/fortuna.css">
+</head>
+<body class="bf-body bf-theme-fortuna">
+
+  <header class="bf-header">
+    <h1 class="bf-title">FORTUNA <span class="bf-vs">vs.</span> YOU</h1>
+    <div class="bf-meta">
+      Hand <span id="bf-hand">1</span>
+      <span class="bf-meta-sep">·</span>
+      Blinds <span id="bf-blinds">1/2</span>
+    </div>
+  </header>
+
+  <main class="bf-table">
+
+    <section class="bf-seat bf-seat-chavez" id="bf-chavez-seat">
+      <div class="bf-seat-head">
+        <div class="bf-seat-name">FORTUNA</div>
+        <div class="bf-boss-tell" id="bf-boss-tell">smiling</div>
+        <div class="bf-bet" id="bf-chavez-bet"></div>
+      </div>
+      <div class="bf-last-move" id="bf-chavez-last">last move · —</div>
+      <p class="bf-ft-quote" style="margin:0 0 8px;font-family:'IM Fell English',serif;font-style:italic;font-size:15px;color:var(--bf-fg-dim);line-height:1.45;text-align:center;">
+        — the wheel turns; she does not blink —
+      </p>
+      <div class="bf-cards bf-cards-chavez" id="bf-chavez-cards"></div>
+    </section>
+
+    <section class="bf-felt">
+      <div class="bf-street" id="bf-street">PREFLOP</div>
+      <div class="bf-boss-avatar" id="bf-boss-avatar" aria-hidden="true"></div>
+      <div class="bf-turn-status" id="bf-turn-status">— she deals —</div>
+      <div class="bf-community" id="bf-community"></div>
+    </section>
+
+    <section class="bf-seat bf-seat-player" id="bf-player-seat">
+      <div class="bf-seat-head">
+        <div class="bf-seat-name">YOU</div>
+      </div>
+
+      <div class="bf-announce" id="bf-announce" aria-live="polite"></div>
+
+      <div class="bf-stakes" id="bf-stakes">
+        <div class="bf-stakes-side bf-stakes-you">
+          <span class="bf-stakes-label">YOU</span>
+          <span class="bf-stakes-value" id="bf-stakes-player">100</span>
+        </div>
+        <div class="bf-stakes-mid" id="bf-stakes-mid">
+          <span class="bf-stakes-label">POT</span>
+          <span class="bf-stakes-value bf-stakes-pot-value" id="bf-stakes-pot">0</span>
+          <span class="bf-stakes-sub" id="bf-stakes-call"></span>
+        </div>
+        <div class="bf-stakes-side bf-stakes-them">
+          <span class="bf-stakes-label">FORTUNA</span>
+          <span class="bf-stakes-value" id="bf-stakes-chavez">150</span>
+        </div>
+      </div>
+
+      <div class="bf-bet" id="bf-player-bet"></div>
+
+      <div class="bf-actions" id="bf-actions">
+        <div class="bf-action-row">
+          <button class="bf-action bf-action-fold" id="bf-act-fold" type="button">Fold</button>
+          <button class="bf-action bf-action-passive" id="bf-act-passive" type="button">Check</button>
+          <button class="bf-action bf-action-aggro" id="bf-act-aggro" type="button">Bet 2</button>
+        </div>
+        <div class="bf-sizing" id="bf-sizing">
+          <div class="bf-preset-row">
+            <button class="bf-preset" data-preset="min"  type="button">Min</button>
+            <button class="bf-preset" data-preset="half" type="button">½ Pot</button>
+            <button class="bf-preset" data-preset="pot"  type="button">Pot</button>
+            <button class="bf-preset" data-preset="all"  type="button">All-in</button>
+          </div>
+          <div class="bf-slider-row">
+            <input type="range" id="bf-raise-amount" min="0" max="0" value="0">
+            <div class="bf-size-value">to <span id="bf-raise-value">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bf-cards bf-cards-player" id="bf-player-cards"></div>
+      <div class="bf-hand-strength" id="bf-hand-strength"></div>
+    </section>
+
+  </main>
+
+  <div class="bf-log" id="bf-log"></div>
+
+  <script>
+    window.BossConfig = {
+      slug: 'fortuna',
+      name: 'FORTUNA',
+      startingStacks: { playerChips: 100, oppChips: 150 },
+      tells: { idle: 'smiling', thinking: 'spinning the wheel…', busted: 'still smiling' },
+      // Rose-framed beatific face. Webcam version was removed (didn't
+      // work cross-browser). The photobooth treatment in fortuna.css
+      // still wraps these kaomoji frames — text-shadow chromatic shift,
+      // grayscale filter, scanlines, tear line.
+      avatarFrames: {
+        lost:    ['❀ ✗_✗ ❀', '❀ x_x ❀', '❀ ✗_✗ ❀', '❀ ⊘_⊘ ❀'],
+        losing:  ['❀ o_o ❀', '❀ o.o ❀', '❀ o_o ❀', '❀ o~o ❀'],
+        average: ['❀ ◠‿◠ ❀', '❀ ◠.◠ ❀', '❀ ◠‿◠ ❀', '❀ ◡‿◡ ❀'],
+        winning: ['❀ ◠ᴗ◠ ❀', '❀ ◠.◠ ❀', '❀ ◠ᴗ◠ ❀', '❀ ✦‿✦ ❀'],
+        won:     ['❀ ✦‿✦ ❀', '❀ ✦.✦ ❀', '❀ ✦‿✦ ❀', '❀ ✧‿✧ ❀'],
+      },
+      aiStyle: {
+        bluffFreq: 1.0, tightness: 1.0, aggression: 1.0,
+        loose: 1.0, mixedness: 1.2,
+      },
+    };
+  </script>
+  <script src="../js/bossfight/audio.js"></script>
+  <script src="../js/bossfight/holdem.js"></script>
+  <script src="../js/bossfight/ai.js"></script>
+  <script src="../js/bossfight/page-generic.js"></script>
+</body>
+</html>

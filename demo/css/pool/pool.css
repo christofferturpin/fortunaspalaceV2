@@ -1,0 +1,60 @@
+/*
+  POOL — felt + cue + canvas frame styling (minimal sandbox)
+  ─────────────────────────────────────────────────────────────────────────
+  Sections:
+    1. Page chrome: body bg, layout
+    2. Stage: centered canvas + drop shadow
+    3. Hint footer + range readout
+  Owns selectors: .pool-body, .pool-stage, #pool-canvas, .pool-hint,
+    .pool-range
+  CSS vars: consumes base.css (--bone-dim, --iron-light, --blood-dim,
+    --phosphor, --font-title)
+  Consumed by: pages/pool.html
+  External deps: base.css
+*/
+
+.pool-body {
+  background:
+    radial-gradient(circle at 50% 30%, #1a0e10 0%, #060304 70%);
+  min-height: 100vh;
+}
+
+.pool-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1.5rem 1rem 3rem;
+}
+
+#pool-canvas {
+  background: #0a0405;
+  box-shadow:
+    0 0 0 2px var(--iron-light, #3a2e24),
+    0 0 0 6px var(--blood-dim, #5a0010),
+    0 24px 60px rgba(0, 0, 0, 0.75),
+    inset 0 0 30px rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  cursor: crosshair;
+  display: block;
+  touch-action: none;
+}
+
+.pool-hint {
+  color: var(--bone-dim, #a89878);
+  font-family: var(--font-title, serif);
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  max-width: 540px;
+  text-align: center;
+  margin: 0;
+}
+
+.pool-range {
+  color: var(--phosphor, #1aff7f);
+  font-family: 'VT323', monospace;
+  font-weight: normal;
+  letter-spacing: 0.04em;
+  min-width: 3ch;
+  display: inline-block;
+}

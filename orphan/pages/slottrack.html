@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  SLOTTRACK — scratch page: 3x3 slot half + auto-generated track half     │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Bare-bones placeholder for a new game. Two independent halves:        │
+  │    (1) two 3x3 slots (see js/slottrack/slot.js) wired to a single BET    │
+  │    button. Place a bet → both slots spin; LIVES match (red/yellow/green) │
+  │    grants 1/2/3 tries, SABOTAGE match (wrench/gear/wheel) drops ghost    │
+  │    speed by 20/40/60%. If LIVES hits, race is ARMED — clock starts on    │
+  │    first THROTTLE press. Sprint race: first across the finish line       │
+  │    (one full lap, drawn perpendicular to the track at s=0) wins. Win     │
+  │    Win pays (2 + lives_remaining)× bet — a clean perfect-run win pays    │
+  │    the biggest multiplier. If LIVES doesn't hit, the bet is lost. Brake  │
+  │    is soft — holding it slows the car gradually; momentum carries.       │
+  │    (2) An auto-generated SVG                                             │
+  │    closed-loop track (see js/slottrack/track.js, Catmull-Rom cubics)     │
+  │    with at least six smooth corners; REGENERATE rerolls it. The track    │
+  │    is post-fit-scaled so it always stays inside the box. A slot car      │
+  │    (see js/slottrack/car.js) runs on it — hold THROTTLE (or Space) to    │
+  │    accelerate, hold BRAKE (or Shift) to slow down. Too much speed into   │
+  │    a corner throws sparks; more speed and the car flies off tangentially,│
+  │    costing one life. Press THROTTLE while crashed to respawn (lives>0).  │
+  │    At zero lives the car is GAME OVER until LIVES slot grants more.      │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/wallet.js, ../js/expenses.js, ../js/child.js,            │
+  │      ../js/header.js, ../js/slottrack/slot.js,                           │
+  │      ../js/slottrack/track.js, ../js/slottrack/car.js                    │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │    DOM ids: #balance, #st-lives-grid, #st-lives-cell-0..8,               │
+  │      #st-lives-result, #st-sabotage-grid, #st-sabotage-cell-0..8,        │
+  │      #st-sabotage-result, #st-bet, #st-bet-go, #st-bet-status,           │
+  │      #st-regen, #st-track, #st-track-path, #st-finish-bg, #st-finish-fg, │
+  │      #st-spark-layer, #st-ghost,                                         │
+  │      #st-car, #st-throttle, #st-brake, #st-car-info, #st-track-info,     │
+  │      #debug-reset                                                        │
+  │    flow:                                                                 │
+  │      slot.js init → render(null) for both configs (no per-slot binding)  │
+  │      bet button click → STCar.startRace(bet) → Wallet.spend(bet),        │
+  │        STSlot.spinAll() (fires both slots' onMatch callbacks into car),  │
+  │        if lives>0: raceArmed=true; else bet lost                         │
+  │      first throttle press while armed → raceActive=true                  │
+  │      step loop → if raceActive: count laps, checkRaceEnd:                │
+  │        player N laps→WIN (Wallet.add(bet·(WIN_PAYOUT+lives_left))) |     │
+  │        ghost N laps→OUTPACED | lives=0 && crashed→WRECKED                │
+  │      track.js init → bind #st-regen + generate() → smooth closed-loop    │
+  │        SVG cubic path (6-10 corners), fires onGenerate listeners         │
+  │      car.js init → onGenerate(reset) + THROTTLE/BRAKE bind → RAF loop    │
+  │        physics: v += ACCEL·throttle - BRAKE_DECEL·brake - FRICTION;      │
+  │        stress fills above SPARK_CENT with positive feedback ramp;        │
+  │        car leans into corners (lean ∝ cent), drifts outward with stress; │
+  │        stress=1 → eject tangentially → ballistic → crashed off-viewbox.  │
+  │        Independent AI ghost car laps the track each frame, braking into  │
+  │        corners via curvature look-ahead.                                 │
+  │    storage R/W: sinnerbox (Wallet R/W: bet spend, win payout),           │
+  │      wendys_palace_intro_seen (R), wendys_palace_death (R)               │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Slottrack</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <style>
+    /* Minimum-viable layout only. No theme. */
+    main { padding: 20px; }
+    .st-half { margin: 24px 0; }
+    .st-half h2 { margin: 0 0 12px; font-size: 18px; }
+
+    .st-slot-pair { display: flex; flex-wrap: wrap; gap: 32px; }
+    .st-slot h3 { margin: 0 0 6px; font: bold 13px monospace; letter-spacing: 0.1em; }
+    .st-slot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 60px);
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .st-slot-grid .st-cell {
+      width: 60px; height: 60px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid currentColor;
+      font-size: 28px; font-family: monospace;
+      background: transparent;
+    }
+    .st-cell[data-sym="red"]    { color: #c33; }
+    .st-cell[data-sym="yellow"] { color: #d9a522; }
+    .st-cell[data-sym="green"]  { color: #2a8a3a; }
+    .st-cell.st-cell-win {
+      outline: 2px solid #ffb030;
+      outline-offset: -3px;
+    }
+    .st-controls { display: flex; align-items: center; gap: 8px; }
+    .st-controls button { padding: 4px 12px; font-family: monospace; }
+    .st-slot-result { margin-top: 4px; font-family: monospace; min-height: 1.2em; }
+
+    #st-track {
+      width: 100%;
+      max-width: 1500px;
+      height: auto;
+      border: 1px solid currentColor;
+      display: block;
+    }
+    #st-track-path { fill: none; stroke: currentColor; stroke-width: 3; }
+    #st-track-info, #st-car-info { font-family: monospace; margin-top: 6px; }
+
+    #st-throttle, #st-brake {
+      padding: 10px 24px;
+      font-family: monospace;
+      font-size: 16px;
+      font-weight: bold;
+      user-select: none;
+      touch-action: manipulation;
+    }
+    #st-throttle:active, #st-brake:active { background: #ddd; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-nav"><a href="../index.html">← Lobby</a></div>
+    <h1>Slottrack</h1>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="st-half">
+      <h2>Slots</h2>
+      <div class="st-slot-pair">
+        <div class="st-slot">
+          <h3>LIVES — match line for + lives</h3>
+          <div id="st-lives-grid" class="st-slot-grid">
+            <div class="st-cell" id="st-lives-cell-0">·</div>
+            <div class="st-cell" id="st-lives-cell-1">·</div>
+            <div class="st-cell" id="st-lives-cell-2">·</div>
+            <div class="st-cell" id="st-lives-cell-3">·</div>
+            <div class="st-cell" id="st-lives-cell-4">·</div>
+            <div class="st-cell" id="st-lives-cell-5">·</div>
+            <div class="st-cell" id="st-lives-cell-6">·</div>
+            <div class="st-cell" id="st-lives-cell-7">·</div>
+            <div class="st-cell" id="st-lives-cell-8">·</div>
+          </div>
+          <div id="st-lives-result" class="st-slot-result"></div>
+        </div>
+
+        <div class="st-slot">
+          <h3>SABOTAGE — match line to slow the ghost</h3>
+          <div id="st-sabotage-grid" class="st-slot-grid">
+            <div class="st-cell" id="st-sabotage-cell-0">·</div>
+            <div class="st-cell" id="st-sabotage-cell-1">·</div>
+            <div class="st-cell" id="st-sabotage-cell-2">·</div>
+            <div class="st-cell" id="st-sabotage-cell-3">·</div>
+            <div class="st-cell" id="st-sabotage-cell-4">·</div>
+            <div class="st-cell" id="st-sabotage-cell-5">·</div>
+            <div class="st-cell" id="st-sabotage-cell-6">·</div>
+            <div class="st-cell" id="st-sabotage-cell-7">·</div>
+            <div class="st-cell" id="st-sabotage-cell-8">·</div>
+          </div>
+          <div id="st-sabotage-result" class="st-slot-result"></div>
+        </div>
+      </div>
+      <div class="st-slot-legend" style="margin-top: 12px; font-family: monospace; font-size: 12px; opacity: 0.85;">
+        LIVES: <span style="color:#c33;">●</span> red +1 &nbsp;
+               <span style="color:#d9a522;">●</span> yellow +2 &nbsp;
+               <span style="color:#2a8a3a;">●</span> green +3 &nbsp;&nbsp;|&nbsp;&nbsp;
+        SABOTAGE: 🔧 −20% &nbsp; ⚙ −40% &nbsp; 🛞 −60%
+      </div>
+      <div class="st-bet-controls" style="margin-top: 14px;">
+        <label for="st-bet" style="font-family: monospace;">Bet:</label>
+        <input id="st-bet" type="number" min="1" value="10" style="width: 70px; padding: 4px; font-family: monospace;">
+        <button id="st-bet-go" type="button" style="padding: 8px 18px; font-family: monospace; font-weight: bold; margin-left: 6px;">BET &amp; RACE</button>
+        <span id="st-bet-status" style="margin-left: 12px; font-family: monospace;"></span>
+      </div>
+      <div class="st-bet-rules" style="margin-top: 4px; font-family: monospace; font-size: 11px; opacity: 0.7;">
+        Spin both slots on bet. If LIVES hits, race is ARMED — hit THROTTLE / Space to go. First across the finish line wins. Payout is (2 + lives left)× bet — finish clean to cash the highest multiplier.
+      </div>
+    </section>
+
+    <section class="st-half">
+      <h2>Track</h2>
+      <svg id="st-track" viewBox="0 0 1300 500" preserveAspectRatio="xMidYMid meet" aria-label="auto-generated track">
+        <path id="st-track-path" d=""></path>
+        <line id="st-finish-bg" stroke="#fff" stroke-width="12" stroke-linecap="butt"></line>
+        <line id="st-finish-fg" stroke="#111" stroke-width="12" stroke-dasharray="6 6" stroke-linecap="butt"></line>
+        <g id="st-spark-layer"></g>
+        <g id="st-ghost" opacity="0.55" transform="translate(0,0)">
+          <rect x="-18" y="-8" width="36" height="16" fill="#3a78e0" stroke="#1a4ba0" stroke-width="2"></rect>
+          <polygon points="18,-8 26,0 18,8" fill="#1a4ba0"></polygon>
+        </g>
+        <g id="st-car" transform="translate(0,0)">
+          <rect class="st-car-body" x="-18" y="-8" width="36" height="16" fill="#ffd24a" stroke="#222" stroke-width="2"></rect>
+          <polygon points="18,-8 26,0 18,8" fill="#222"></polygon>
+        </g>
+      </svg>
+      <div id="st-track-info"></div>
+      <div id="st-car-info"></div>
+      <div class="st-controls" style="margin-top: 8px;">
+        <button id="st-regen" type="button">REGENERATE</button>
+        <button id="st-throttle" type="button">THROTTLE (hold / Space)</button>
+        <button id="st-brake" type="button">BRAKE (hold / Shift)</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/slottrack/slot.js"></script>
+  <script src="../js/slottrack/track.js"></script>
+  <script src="../js/slottrack/car.js"></script>
+</body>
+</html>

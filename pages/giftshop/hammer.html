@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — HAMMER (Framing Hammer in Lucite, 102,400 coins)           │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item page for a "historic" framing hammer suspended in a lucite       │
+  │    block, plaque marked EST. 2004 · DAYTON · TN. Prose: the player's     │
+  │    father killed her mother with this hammer in 2004 — 47 impact         │
+  │    sites, pled to second-degree, fifteen years at Big Sandy, dead of     │
+  │    pancreatic cancer eleven weeks after release. The lucite holds a      │
+  │    reproduction; the real hammer is in Rhea County evidence storage.     │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: (none — self-contained <style>, no <script src>)              │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .hm-spot + .hm-scene > .hm-display (.hm-hammer w/ head/claw/    │
+  │      handle, .hm-plaque), .hm-prose w/ .count (47)                      │
+  │    flow: static page; no JS, no animations                              │
+  │    storage R/W: none on this page (ownership tracked in                 │
+  │      wendys_palace_giftshop, key='hammer', by giftshopindex.html)       │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Hammer</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Limelight&family=Cormorant+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at center, #060606 0%, #020202 80%);
+      color: #c8c0b8;
+      font-family: 'Cormorant Garamond', serif;
+      overflow-x: hidden;
+    }
+    .hm-spot {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 600px 400px at 50% 35%, rgba(220, 200, 160, 0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hm-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 22px;
+      gap: 36px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hm-display {
+      width: min(420px, 92vw);
+      height: 420px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 30%),
+        linear-gradient(180deg, rgba(200, 220, 240, 0.08) 0%, rgba(140, 160, 180, 0.12) 100%);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 4px;
+      position: relative;
+      box-shadow:
+        inset 0 0 50px rgba(255, 255, 255, 0.06),
+        0 30px 60px rgba(0,0,0,0.8),
+        0 0 0 2px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    .hm-display::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    .hm-display::after {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 30%;
+      width: 80px;
+      height: 3px;
+      background: rgba(255,255,255,0.6);
+      filter: blur(2px);
+    }
+
+    .hm-hammer {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-32deg);
+      width: 260px;
+      height: 200px;
+    }
+    .hm-head {
+      position: absolute;
+      top: 30px;
+      left: 0;
+      width: 120px;
+      height: 70px;
+      background:
+        linear-gradient(180deg, #c0c4c8 0%, #6a6c70 50%, #303438 100%);
+      border: 2px solid #0c0e10;
+      border-radius: 4px;
+      box-shadow:
+        inset 2px 2px 0 rgba(255,255,255,0.35),
+        inset -2px -2px 0 rgba(0,0,0,0.5),
+        0 6px 14px rgba(0,0,0,0.5);
+    }
+    .hm-head::before {
+      content: '';
+      position: absolute;
+      top: 18px;
+      right: 14px;
+      width: 22px;
+      height: 22px;
+      background: radial-gradient(circle, #0a0a0a 0%, transparent 70%);
+      filter: blur(0.6px);
+      opacity: 0.85;
+    }
+    .hm-claw {
+      position: absolute;
+      top: 38px;
+      left: -42px;
+      width: 50px;
+      height: 50px;
+      background: #303438;
+      border: 2px solid #0c0e10;
+      clip-path: polygon(100% 0, 100% 100%, 60% 50%, 0 100%, 0 0);
+      box-shadow: inset 2px 2px 0 rgba(255,255,255,0.2);
+    }
+    .hm-handle {
+      position: absolute;
+      top: 80px;
+      left: 50px;
+      width: 26px;
+      height: 170px;
+      background:
+        repeating-linear-gradient(180deg, rgba(0,0,0,0.08) 0 8px, transparent 8px 16px),
+        linear-gradient(180deg, #a87038 0%, #6a3a18 50%, #4a2410 100%);
+      border-radius: 4px;
+      transform: rotate(28deg);
+      transform-origin: top center;
+      box-shadow:
+        inset 2px 0 0 rgba(255, 200, 140, 0.3),
+        inset -2px 0 0 rgba(0,0,0,0.4),
+        0 4px 10px rgba(0,0,0,0.4);
+    }
+
+    .hm-plaque {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(180deg, #d8b06a 0%, #8a6018 100%);
+      padding: 8px 22px;
+      font-family: 'Limelight', serif;
+      font-size: 13px;
+      letter-spacing: 0.28em;
+      color: #2a1808;
+      border: 1px solid #4a3010;
+      text-shadow: 0 1px 0 rgba(255, 240, 200, 0.4);
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    }
+    .hm-plaque small {
+      display: block;
+      font-family: 'Special Elite', monospace;
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      margin-top: 4px;
+      opacity: 0.85;
+    }
+
+    .hm-prose {
+      max-width: 580px;
+      font-size: 18px;
+      line-height: 1.7;
+      color: rgba(200, 192, 184, 0.92);
+      text-align: center;
+      font-style: italic;
+    }
+    .hm-prose p { margin: 0 0 14px; }
+    .hm-prose p:last-child { margin: 0; }
+    .hm-prose .count {
+      font-style: normal;
+      font-family: 'Limelight', serif;
+      font-size: 28px;
+      letter-spacing: 0.16em;
+      color: #d8a878;
+      display: block;
+      margin: 10px 0;
+      text-shadow: 0 0 14px rgba(216, 168, 120, 0.3);
+    }
+    .hm-prose .em {
+      font-style: normal;
+      color: #f0c890;
+    }
+    .hm-prose .quiet {
+      font-style: normal;
+      color: rgba(200, 192, 184, 0.55);
+      font-size: 16px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(200, 192, 184, 0.2);
+      display: block;
+      margin-top: 10px;
+    }
+
+    .hm-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #c8c0b8;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+    }
+    .hm-back:hover {
+      background: rgba(201, 161, 74, 0.15);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="hm-spot"></div>
+  <div class="hm-scene">
+    <div class="hm-display">
+      <div class="hm-hammer">
+        <div class="hm-claw"></div>
+        <div class="hm-head"></div>
+        <div class="hm-handle"></div>
+      </div>
+      <div class="hm-plaque">
+        EST. 2004
+        <small>HISTORICAL · DAYTON · TN</small>
+      </div>
+    </div>
+
+    <div class="hm-prose">
+      <p>The hammer was your father's. He framed houses with it before he framed anything else. He used it on her in 2004 — on a Wednesday, in the afternoon, in the kitchen.</p>
+      <span class="count">47</span>
+      <p>That was the number the medical examiner counted. Forty-seven impact sites, most of them to the head and upper body.</p>
+      <p>He called the Rhea County Sheriff's Office from the front porch when he was done. He sat with the hammer beside him and waited. He did not resist arrest.</p>
+      <p class="em">At trial he refused the insanity defense. He said he had known what he was doing. He said he would do it again. They pled it down to second because the prosecution did not want to risk a jury who knew about the bathtub.</p>
+      <p>Fifteen years at Big Sandy. Pancreatic cancer six months after release. He was dead eleven weeks after the diagnosis. You saw him three times in fifteen years and you were not good at it.</p>
+      <span class="quiet">Forty-seven blows. The hammer in the lucite is not the hammer. The hammer is not in a museum. The hammer is in evidence storage in Rhea County. The shop sells a reproduction so that the people who remember can have something to hold.</span>
+    </div>
+
+    <a class="hm-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+</body>
+</html>

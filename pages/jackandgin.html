@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  PATRIOT POKER — blackjack-flavored gin rummy against a gilded dealer    │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A two-handed card game played against the house. The player enters   │
+  │    a wager and clicks DEAL: each side gets 3 cards from a fresh deck.   │
+  │    From there it plays like blackjack on the surface (Hit / Stand /     │
+  │    Double) but melds are scored rummy-style — sets, runs, flushes, and  │
+  │    flush-runs — with a bust limit (see js/jackandgin/hand.js). The      │
+  │    scoreboard at the top reads the dealer/player melded scores live;    │
+  │    on Stand the dealer's hidden cards reveal and JG.Dealer.dealerStep   │
+  │    loops every 600ms until they bust or stand. Outcomes pay 2× (win),  │
+  │    1× refund (push), 0 (loss). JG.Sound triggers a clink/deal/flick/   │
+  │    win/loss SFX per state transition.                                   │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, jackandgin/cards.js, hand.js,│
+  │      dealer.js, audio.js, round.js, ui.js, glitch-textures.js,           │
+  │      moloch-jeer.js, header.js                                           │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #jg-bet-amount, #jg-bet-max, #jg-hit, #jg-double,  │
+  │      #jg-stand, #jg-next, #jg-dealer-hand, #jg-player-hand,              │
+  │      #jg-dealer-eval, #jg-player-eval, #jg-scoreboard-*,                 │
+  │      #debug-reset                                                        │
+  │    flow: ui.js init → bind buttons → Round.onChange(render) +            │
+  │      Wallet.onChange(render); phase: idle→placeBet (Wallet.spend +       │
+  │      Child.recordPlay + dealInitial) → playing→hit/doubleUp/stand →      │
+  │      dealer (scheduleDealerStep loop via JG.Dealer) → resolved →         │
+  │      payout {bothBust:push, pBust:dealerWin, dBust|p>d:playerWin x2,     │
+  │      tie|noMelds:push, p<d:dealerWin}; nextRound → idle                  │
+  │    storage R/W: sinnerbox (Wallet R/W), wendys_palace_child (R/W via     │
+  │      Child.recordPlay), wendys_palace_intro_seen (R),                    │
+  │      wendys_palace_death (R)                                             │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Patriot Poker</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/jackandgin/jackandgin.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body>
+  <header>
+    <div class="jg-title-marque">MOLOCH'S</div>
+    <h1>Patriot Poker</h1>
+    <p class="jg-subtitle">The very best poker. Believe me.</p>
+    <div class="jg-flourish">★ ✪ ★</div>
+    <div class="coins-bar">
+      <span class="coins-label">Tribute</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <main>
+    <details class="jg-rules">
+      <summary>How to Play</summary>
+      <div class="jg-rules-body">
+        <p>Wager your Tribute and click <strong>Deal</strong>. You and Moloch each get three cards. Build melds. Beat his score.</p>
+
+        <h4>Your Turn</h4>
+        <p>Draw another card (<strong>Hit</strong>) or lock in your hand (<strong>Stand</strong>). On your first three cards only, <strong>Double</strong> matches your wager, takes exactly one more card, and ends your turn.</p>
+
+        <h4>Scoring — Melds, Rummy-Style</h4>
+        <p>Only cards inside a meld score. Unused cards are deadwood and pay nothing — but they don't cost you either.</p>
+        <ul class="jg-rules-list">
+          <li><strong>Set</strong> — three or four of the same rank.</li>
+          <li><strong>Run</strong> — three or more consecutive ranks. Ace plays low or high.</li>
+          <li><strong>Flush</strong> — three or more cards in the same suit.</li>
+          <li><strong>Flush Run</strong> — a run that is also a flush. Multipliers stack.</li>
+        </ul>
+        <p>Four-card melds pay <em>×1.5</em>. Five or more pay <em>×2</em>. Same-suit runs pay an additional <em>×1.5</em>.</p>
+
+        <h4>Bust</h4>
+        <p>If your hand total reaches <strong>40</strong> or more, you bust and Moloch wins — no matter what melds you had.</p>
+
+        <h4>Moloch's Turn</h4>
+        <p>When you stand, Moloch flips his cards and keeps drawing until he <em>strictly</em> beats you. He has no fear of busting — losing-by-bust is no worse to him than losing-by-score.</p>
+
+        <h4>Payout</h4>
+        <p><strong>Win</strong> — wager pays 2×. <strong>Push</strong> — tied score, both bust, or no melds on either side: wager returned. <strong>Loss</strong> — wager forfeit.</p>
+
+        <h4>The Jackpot</h4>
+        <p>Every time you lose, <strong>1%</strong> of your Tribute (at least one coin) is dropped into the jackpot. It accrues across sessions. To claim it, win a round with a meld score of <strong>40 or more</strong> — the pot pays out on top of your normal win.</p>
+      </div>
+    </details>
+
+    <div class="jg-jackpot-banner" id="jg-jackpot-banner">
+      <span class="jg-jackpot-label">★ Jackpot ★</span>
+      <span class="jg-jackpot-amount" id="jg-jackpot-amount">0</span>
+      <span class="jg-jackpot-suffix">Tribute</span>
+    </div>
+
+    <div class="jg-table">
+      <div class="jg-scoreboard" id="jg-scoreboard">
+        <div class="jg-scoreboard-side jg-scoreboard-dealer" id="jg-scoreboard-dealer-side">
+          <div class="jg-scoreboard-label">Moloch</div>
+          <div class="jg-scoreboard-score" id="jg-scoreboard-dealer-score">—</div>
+        </div>
+        <div class="jg-scoreboard-vs">vs</div>
+        <div class="jg-scoreboard-side jg-scoreboard-player" id="jg-scoreboard-player-side">
+          <div class="jg-scoreboard-label">You</div>
+          <div class="jg-scoreboard-score" id="jg-scoreboard-player-score">—</div>
+        </div>
+        <div class="jg-scoreboard-status" id="jg-scoreboard-status">Choose your wager and deal.</div>
+        <div class="jg-scoreboard-payout" id="jg-scoreboard-payout"></div>
+      </div>
+
+      <section id="jg-dealer">
+        <h3>Moloch</h3>
+        <div class="jg-hand" id="jg-dealer-hand"></div>
+        <div class="jg-eval" id="jg-dealer-eval"></div>
+      </section>
+
+      <div class="jg-divider">★</div>
+
+      <section id="jg-player">
+        <h3>You</h3>
+        <div class="jg-hand" id="jg-player-hand"></div>
+        <div class="jg-eval" id="jg-player-eval"></div>
+      </section>
+    </div>
+
+    <div id="jg-actions">
+      <div class="jg-wager-group">
+        <label class="jg-bet-label" for="jg-bet-amount">Wager</label>
+        <input type="number" id="jg-bet-amount" min="1" value="5" inputmode="numeric" autocomplete="off">
+        <button id="jg-bet-max" class="jg-bet-shortcut" type="button">MAX</button>
+      </div>
+      <button id="jg-deal">Deal</button>
+      <button id="jg-hit">Hit</button>
+      <button id="jg-stand">Stand</button>
+      <button id="jg-next">Next round</button>
+      <button id="jg-double">Double</button>
+    </div>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/jackandgin/cards.js"></script>
+  <script src="../js/jackandgin/hand.js"></script>
+  <script src="../js/jackandgin/dealer.js"></script>
+  <script src="../js/jackandgin/audio.js"></script>
+  <script src="../js/jackandgin/round.js"></script>
+  <script src="../js/jackandgin/ui.js"></script>
+  <script src="../js/jackandgin/glitch-textures.js"></script>
+  <script src="../js/jackandgin/moloch-jeer.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

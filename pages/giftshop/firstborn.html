@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — YOUR FIRST BORN (Bloody footprint sealed in ice)            │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Variant of footprint.html. The same hospital keepsake card, but the   │
+  │    ink is blood, the paper is stained, and the whole card sits frozen    │
+  │    inside a slab of ice. The player chisels (clicks) ice tiles away.     │
+  │    Four VHS-yellow OSD lines float above the ice (z-stacked over slab)  │
+  │    and reveal in stages as the ice clears:                              │
+  │      25%   — "you knew before you touched him"                          │
+  │      55%   — "and felt how cold he was."                                │
+  │      85%   — "he was gone."                                              │
+  │      100%  — (1.4s later) "they said SIDS."                              │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/child.js (for the kaomoji cosmetic toggle)           │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .fb-scene > .fb-stage (.fb-card, svg#fb-ice w/ .fb-shard       │
+  │      polygons + static cracks + glaze), .fb-title above, .fb-reveal    │
+  │      (3× .fb-line) below                                               │
+  │    flow: jittered (COLS+1)×(ROWS+1) corner grid → 70 quad polygons    │
+  │      sharing edges → click polygon→.gone (translate+rotate+fade out); │
+  │      count gone/total; thresholds .33/.66/1.0 → addClass show on      │
+  │      .fb-line[i]                                                      │
+  │    storage R/W: writes wendys_palace_child.cosmetics.firstborn via      │
+  │      Child.setCosmetic                                                  │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Your First Born</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at center, #1a0608 0%, #0c0204 60%, #050102 100%);
+      color: #d8c8c0;
+      font-family: 'Cormorant Garamond', serif;
+      overflow-x: hidden;
+    }
+    .fb-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 22px 80px;
+      gap: 28px;
+    }
+
+    .fb-title {
+      font-family: 'Special Elite', monospace;
+      font-size: 28px;
+      letter-spacing: 0.34em;
+      color: #9a1818;
+      text-shadow:
+        0 0 12px rgba(180, 20, 20, 0.45),
+        0 0 2px rgba(255, 255, 255, 0.08);
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .fb-subtitle {
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.4em;
+      color: rgba(160, 180, 200, 0.5);
+      text-align: center;
+      margin-top: -16px;
+    }
+
+    /* ────────── ice stage ────────── */
+    .fb-stage {
+      position: relative;
+      width: min(460px, 94vw);
+      aspect-ratio: 420 / 580;
+      user-select: none;
+    }
+
+    /* the card, beneath the ice */
+    .fb-card {
+      position: absolute;
+      inset: 14px;
+      background:
+        repeating-linear-gradient(0deg, rgba(60,0,0,0.05) 0 1px, transparent 1px 4px),
+        radial-gradient(ellipse 80% 60% at 50% 40%, #c8a8a0 0%, #a07868 70%, #7a5048 100%);
+      padding: 30px 28px 22px;
+      box-shadow:
+        0 30px 60px rgba(0,0,0,0.6),
+        0 0 0 1px rgba(40, 10, 10, 0.6),
+        inset 0 0 80px rgba(80, 0, 0, 0.35);
+    }
+    .fb-card::before {
+      content: '';
+      position: absolute;
+      top: 8px; left: 8px; right: 8px; bottom: 8px;
+      border: 1px solid rgba(80, 20, 20, 0.5);
+      pointer-events: none;
+    }
+    /* dried blood blotches on the paper */
+    .fb-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 60px 28px at 18% 12%, rgba(90,0,0,0.55), transparent 70%),
+        radial-gradient(ellipse 90px 50px at 84% 22%, rgba(110,0,0,0.5), transparent 70%),
+        radial-gradient(ellipse 40px 80px at 8% 70%, rgba(70,0,0,0.55), transparent 70%),
+        radial-gradient(ellipse 120px 30px at 60% 96%, rgba(100,0,0,0.55), transparent 70%);
+      mix-blend-mode: multiply;
+    }
+
+    .fb-banner {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 500;
+      font-size: 22px;
+      letter-spacing: 0.04em;
+      color: #4a0a0a;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .fb-rule {
+      width: 60%;
+      margin: 0 auto 12px;
+      height: 1px;
+      background: rgba(80, 10, 10, 0.6);
+    }
+    .fb-hospital {
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      color: #5a1010;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+
+    /* bloody footprint: deep red ink, with drips */
+    .fb-foot {
+      width: 100px;
+      height: 160px;
+      margin: 0 auto 22px;
+      position: relative;
+      background:
+        radial-gradient(ellipse 26px 18px at 50% 6%, #3a0000 0%, transparent 60%),
+        radial-gradient(ellipse 9px 9px at 30% 22%, #3a0000 0%, transparent 60%),
+        radial-gradient(ellipse 10px 10px at 50% 18%, #3a0000 0%, transparent 60%),
+        radial-gradient(ellipse 9px 9px at 70% 22%, #3a0000 0%, transparent 60%),
+        radial-gradient(ellipse 7px 7px at 85% 30%, #3a0000 0%, transparent 60%),
+        radial-gradient(ellipse 36px 64px at 50% 66%, #3a0000 0%, transparent 60%);
+      filter: blur(0.4px) contrast(1.1);
+      opacity: 0.92;
+    }
+    /* drips dangling off the heel */
+    .fb-foot::before, .fb-foot::after {
+      content: '';
+      position: absolute;
+      bottom: -22px;
+      width: 3px;
+      background: linear-gradient(to bottom, #3a0000, #6a0000 60%, transparent);
+      border-radius: 2px;
+    }
+    .fb-foot::before { left: 42%; height: 28px; }
+    .fb-foot::after  { left: 56%; height: 18px; }
+
+    .fb-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 22px;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(80, 10, 10, 0.55);
+    }
+    .fb-field {
+      font-family: 'Special Elite', monospace;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      color: #3a0808;
+    }
+    .fb-field-label {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: rgba(70, 10, 10, 0.7);
+      margin-bottom: 2px;
+    }
+    .fb-field-value {
+      border-bottom: 1px solid rgba(80, 10, 10, 0.6);
+      min-height: 18px;
+      padding: 1px 0 2px;
+    }
+    .fb-field-value.fb-blank { color: transparent; }
+
+    /* ────────── ice slab (SVG shards) ────────── */
+    .fb-ice {
+      position: absolute;
+      inset: 0;
+      cursor: crosshair;
+      filter:
+        drop-shadow(0 0 28px rgba(180, 220, 255, 0.22))
+        drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
+      overflow: visible;
+    }
+    .fb-shard {
+      fill: url(#fb-iceGrad);
+      stroke: rgba(255, 255, 255, 0.42);
+      stroke-width: 0.6;
+      stroke-linejoin: miter;
+      transition:
+        opacity 0.5s cubic-bezier(.4,.0,.7,.2),
+        transform 0.55s cubic-bezier(.3,.7,.4,1);
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .fb-shard:hover {
+      fill: url(#fb-iceGradHover);
+    }
+    .fb-shard.gone {
+      opacity: 0;
+      transform:
+        translate(var(--tx, 0), var(--ty, 0))
+        rotate(var(--rot, 0deg))
+        scale(0.7);
+      pointer-events: none;
+    }
+    /* static fracture lines under the shards — already-cracked look */
+    .fb-crack {
+      stroke: rgba(255, 255, 255, 0.18);
+      stroke-width: 0.4;
+      fill: none;
+      pointer-events: none;
+    }
+    /* trapped bubbles */
+    .fb-bubble {
+      fill: rgba(255, 255, 255, 0.35);
+      pointer-events: none;
+    }
+    /* highlight glaze sweep across the slab */
+    .fb-glaze-rect {
+      fill: url(#fb-glazeGrad);
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+    /* rim — makes the slab feel like a solid block, not a sticker */
+    .fb-rim {
+      fill: none;
+      stroke: rgba(220, 240, 255, 0.55);
+      stroke-width: 1.2;
+      pointer-events: none;
+    }
+
+    /* ────────── reveal lines — VHS yellow OSD, floats over ice ────────── */
+    .fb-reveal {
+      position: absolute;
+      inset: 0;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      padding: 24px 14px;
+      pointer-events: none;
+      z-index: 20;
+    }
+    /* scanlines + faint vignette over the reveal area */
+    .fb-reveal::before {
+      content: '';
+      position: absolute; inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(0,0,0,0.22) 0 1px,
+          transparent 1px 4px);
+      mix-blend-mode: multiply;
+      opacity: 0.35;
+    }
+    .fb-line {
+      font-family: 'VT323', 'Special Elite', monospace;
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #ffec3a;
+      padding: 2px 10px;
+      background: rgba(0, 0, 0, 0.32);
+      text-shadow:
+        -2px 0 0 #ff1744,
+         2px 0 0 #00d9ff,
+         0 0 18px rgba(255, 220, 0, 0.55),
+         0 0 2px rgba(255, 255, 255, 0.85);
+      opacity: 0;
+      filter: blur(2px);
+      will-change: transform, opacity, filter;
+    }
+    .fb-line.show {
+      animation:
+        fb-glitch-in 0.55s steps(1, end) forwards,
+        fb-jitter 2.6s steps(1, end) infinite 0.55s;
+    }
+    @keyframes fb-glitch-in {
+      0%   { opacity: 0; transform: translate(0, 8px) skewX(0deg); filter: blur(3px) hue-rotate(0deg); }
+      8%   { opacity: 1; transform: translate(-8px, 0)  skewX(14deg); filter: blur(0) hue-rotate(20deg); }
+      14%  { transform: translate( 9px, -2px) skewX(-10deg); filter: hue-rotate(-30deg); }
+      22%  { transform: translate(-4px, 2px)  skewX( 6deg);  filter: hue-rotate(0); }
+      30%  { transform: translate( 5px, 0)    skewX(-3deg); }
+      40%  { transform: translate(-2px, 1px)  skewX( 1deg); }
+      55%  { transform: translate( 1px, 0); }
+      100% { opacity: 1; transform: translate(0, 0) skewX(0); filter: blur(0); }
+    }
+    @keyframes fb-jitter {
+      0%, 92%, 100% { transform: translate(0, 0); }
+      93% { transform: translate(-1px,  0); }
+      95% { transform: translate( 2px, -1px); }
+      97% { transform: translate(-1px,  1px); }
+    }
+    /* the gut-punch line — bigger, red-shifted, more violent jitter */
+    .fb-line.l3 {
+      font-size: 38px;
+      letter-spacing: 0.12em;
+    }
+    /* the bureaucratic dismissal — sickly clinical cyan, smaller, tighter */
+    .fb-line.l4 {
+      font-size: 22px;
+      letter-spacing: 0.22em;
+      color: #7af0d8;
+      text-shadow:
+        -2px 0 0 #00a0ff,
+         2px 0 0 #ff3060,
+         0 0 12px rgba(120, 240, 220, 0.55),
+         0 0 2px rgba(255, 255, 255, 0.7);
+      margin-top: 6px;
+    }
+    .fb-line.l4.show {
+      animation:
+        fb-glitch-in 0.55s steps(1, end) forwards,
+        fb-jitter 3.2s steps(1, end) infinite 0.55s;
+    }
+    .fb-line.l3.show {
+      color: #ff2a2a;
+      text-shadow:
+        -3px 0 0 #ff0040,
+         3px 0 0 #00d9ff,
+         0 0 26px rgba(255, 30, 30, 0.85),
+         0 0 4px rgba(255, 255, 255, 0.9);
+      animation:
+        fb-glitch-in 0.7s steps(1, end) forwards,
+        fb-jitter-hard 1.6s steps(1, end) infinite 0.7s;
+    }
+    @keyframes fb-jitter-hard {
+      0%, 78%, 100% { transform: translate(0, 0); }
+      80% { transform: translate(-3px, 1px) skewX(-5deg); }
+      83% { transform: translate( 4px,-1px) skewX( 3deg); }
+      86% { transform: translate(-2px, 2px); }
+      89% { transform: translate( 1px,-2px); }
+      92% { transform: translate(-1px, 0); }
+    }
+
+    .fb-hint {
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      color: rgba(180, 200, 220, 0.35);
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .kc-bay {
+      display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px;
+    }
+    .kc-preview {
+      font-family: 'Special Elite', monospace; font-size: 22px; letter-spacing: 0.04em;
+      color: #d8c8c0; background: rgba(20,6,8,0.6);
+      border: 1px solid rgba(120,60,60,0.5); border-radius: 4px;
+      padding: 10px 18px; min-width: 160px; text-align: center;
+      white-space: pre; line-height: 1.1;
+    }
+    .kc-toggle {
+      font-family: 'Special Elite', monospace; font-size: 14px;
+      letter-spacing: 0.26em; text-transform: uppercase; color: #b8a0a0;
+      padding: 12px 26px; background: rgba(20,6,8,0.6);
+      border: 1px solid rgba(120,60,60,0.6); border-radius: 4px;
+      cursor: pointer; min-width: 240px;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .kc-toggle:hover { background: rgba(80,20,20,0.4); border-color: #a04040; color: #f0d8d0; }
+    .kc-toggle.on { background: rgba(80,20,20,0.5); border-color: #a04040; color: #f0d8d0; }
+
+    .fb-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #b8a0a0;
+      text-decoration: none;
+      border: 1px solid rgba(120, 60, 60, 0.6);
+      border-radius: 3px;
+      background: rgba(20, 6, 8, 0.6);
+    }
+    .fb-back:hover {
+      background: rgba(80, 20, 20, 0.4);
+      border-color: #a04040;
+      color: #f0d8d0;
+    }
+  </style>
+</head>
+<body>
+  <div class="fb-scene">
+    <div class="fb-title">Your First Born.</div>
+    <div class="fb-subtitle">— chisel away —</div>
+
+    <div class="fb-stage">
+      <div class="fb-card">
+        <div class="fb-banner">Welcome, Little One</div>
+        <div class="fb-rule"></div>
+        <div class="fb-hospital">METHODIST MEDICAL CENTER · OAK RIDGE, TN</div>
+        <div class="fb-foot"></div>
+        <div class="fb-fields">
+          <div class="fb-field">
+            <span class="fb-field-label">Name</span>
+            <span class="fb-field-value fb-blank">·</span>
+          </div>
+          <div class="fb-field">
+            <span class="fb-field-label">Date</span>
+            <span class="fb-field-value">10 · 14 · 2020</span>
+          </div>
+          <div class="fb-field">
+            <span class="fb-field-label">Length</span>
+            <span class="fb-field-value">20 in.</span>
+          </div>
+          <div class="fb-field">
+            <span class="fb-field-label">Weight</span>
+            <span class="fb-field-value">7 lb 4 oz</span>
+          </div>
+        </div>
+      </div>
+
+      <svg class="fb-ice" id="fb-ice" viewBox="0 0 420 580" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="fb-iceGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stop-color="rgba(232, 244, 252, 0.86)"/>
+            <stop offset="50%"  stop-color="rgba(178, 210, 230, 0.70)"/>
+            <stop offset="100%" stop-color="rgba(126, 168, 198, 0.80)"/>
+          </linearGradient>
+          <linearGradient id="fb-iceGradHover" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stop-color="rgba(245, 252, 255, 0.92)"/>
+            <stop offset="100%" stop-color="rgba(160, 200, 224, 0.85)"/>
+          </linearGradient>
+          <linearGradient id="fb-glazeGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stop-color="rgba(255,255,255,0.22)"/>
+            <stop offset="35%"  stop-color="rgba(255,255,255,0)"/>
+            <stop offset="70%"  stop-color="rgba(255,255,255,0)"/>
+            <stop offset="100%" stop-color="rgba(255,255,255,0.10)"/>
+          </linearGradient>
+        </defs>
+        <g id="fb-shards"></g>
+        <g id="fb-decor"></g>
+        <rect class="fb-glaze-rect" x="0" y="0" width="420" height="580"/>
+        <rect class="fb-rim" x="2" y="2" width="416" height="576"/>
+      </svg>
+
+      <div class="fb-reveal">
+        <div class="fb-line l1">you knew before you touched him</div>
+        <div class="fb-line l2">and felt how cold he was.</div>
+        <div class="fb-line l3">he was gone.</div>
+        <div class="fb-line l4">they said SIDS.</div>
+      </div>
+    </div>
+
+    <div class="fb-hint" id="fb-hint">click the ice</div>
+
+    <div class="kc-bay">
+      <div class="kc-preview" id="kc-preview" aria-hidden="true">(o_o)</div>
+      <button class="kc-toggle" type="button" aria-pressed="false">Frost them</button>
+    </div>
+
+    <a class="fb-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/child.js"></script>
+  <script>
+    (function () {
+      const ID = 'firstborn';
+      const OFF = 'Frost them';
+      const ON  = 'Thaw them';
+      const btn  = document.querySelector('.kc-toggle');
+      const prev = document.getElementById('kc-preview');
+      if (!btn || !window.Child) return;
+      function refresh() {
+        const on = Child.getCosmetic(ID);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.textContent = on ? ON : OFF;
+      }
+      let pi = 0;
+      function tick() {
+        if (!prev) return;
+        const d = Child.describeFace();
+        prev.textContent = d.frames[pi % d.frames.length];
+        pi++;
+      }
+      btn.addEventListener('click', () => Child.setCosmetic(ID, !Child.getCosmetic(ID)));
+      Child.onChange(refresh);
+      refresh();
+      tick();
+      setInterval(tick, 420);
+    })();
+  </script>
+
+  <script>
+  /*
+    CODE (terse, AI-readable):
+    W=420; H=580; COLS=7; ROWS=10; TOTAL=70; NS='http://www.w3.org/2000/svg'
+    state: gone=0, lines=[F,F,F]
+    corners[(COLS+1)*(ROWS+1)] = grid pts; interior pts jittered ±0.45·cell
+    init():
+      build corner grid
+      ∀ cell(i,j): polygon pts = [c(i,j), c(i+1,j), c(i+1,j+1), c(i,j+1)]
+        ang=rnd·2π; dist=40+rnd·60; --tx,--ty,--rot stored on shard
+        click→chisel(shard); mouseenter+buttons==1→chisel
+      decor: ~14 static fb-crack polylines (radiating jagged), ~24 fb-bubble
+    chisel(s): guard .gone ; addClass gone ; gone++; chiselSfx();
+      pct=gone/TOTAL ; ≥.25→l1.show+revealSfx(1) ; ≥.55→l2.show+revealSfx(2)
+      ; ≥.85→l3.show+revealSfx(3) ; ≥1.0→hint='' && setTimeout(1400ms)→
+      l4.show+clinicalSfx
+    audio: WebAudio; ctx lazy on first click; chiselSfx=noise burst HP filt
+      1800-3200Hz, exp decay .16s + tiny triangle tink; revealSfx(sev)=square
+      osc 520/360/220Hz pitch-drop + bandpass static; sev=3 adds sub-rumble.
+      clinicalSfx=3 flat 880Hz square beeps (short,short,long) — flatline ref
+  */
+  (function(){
+    var W = 420, H = 580, COLS = 7, ROWS = 10, TOTAL = COLS * ROWS;
+    var NS = 'http://www.w3.org/2000/svg';
+    var shardsG = document.getElementById('fb-shards');
+    var decorG  = document.getElementById('fb-decor');
+    var hint = document.getElementById('fb-hint');
+    var lines = [
+      document.querySelector('.fb-line.l1'),
+      document.querySelector('.fb-line.l2'),
+      document.querySelector('.fb-line.l3'),
+      document.querySelector('.fb-line.l4')
+    ];
+    var gone = 0;
+    var shownMask = 0; // bit 0/1/2 — track which lines have fired their sfx
+
+    // ── audio ──
+    var actx = null;
+    function audio() {
+      if (!actx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) actx = new AC();
+      }
+      if (actx && actx.state === 'suspended') actx.resume();
+      return actx;
+    }
+    function noiseBuffer(c, secs) {
+      var buf = c.createBuffer(1, Math.max(1, Math.floor(secs * c.sampleRate)), c.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+      }
+      return buf;
+    }
+    function chiselSfx() {
+      var c = audio(); if (!c) return;
+      var t = c.currentTime;
+      var src = c.createBufferSource();
+      src.buffer = noiseBuffer(c, 0.16);
+      var hp = c.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 1800 + Math.random() * 1400;
+      var g = c.createGain();
+      g.gain.setValueAtTime(0.22 + Math.random() * 0.08, t);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + 0.16);
+      src.connect(hp).connect(g).connect(c.destination);
+      src.start(t);
+      // tiny pitched "tink" — varies per hit
+      var osc = c.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = 1600 + Math.random() * 900;
+      var og = c.createGain();
+      og.gain.setValueAtTime(0.06, t);
+      og.gain.exponentialRampToValueAtTime(0.0005, t + 0.08);
+      osc.connect(og).connect(c.destination);
+      osc.start(t); osc.stop(t + 0.09);
+    }
+    function revealSfx(sev) {
+      var c = audio(); if (!c) return;
+      var t = c.currentTime;
+      var startF = sev === 1 ? 520 : sev === 2 ? 360 : 220;
+      var endF   = sev === 3 ?  60 : startF * 0.45;
+      var dur    = sev === 3 ? 0.55 : 0.28;
+      var osc = c.createOscillator();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(startF, t);
+      osc.frequency.exponentialRampToValueAtTime(endF, t + dur);
+      var g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(sev === 3 ? 0.22 : 0.14, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+      osc.connect(g).connect(c.destination);
+      osc.start(t); osc.stop(t + dur + 0.05);
+      // bandpass static tail
+      var src = c.createBufferSource();
+      src.buffer = noiseBuffer(c, dur + 0.1);
+      var bp = c.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = sev === 3 ? 900 : 2400;
+      bp.Q.value = sev === 3 ? 1.2 : 2.4;
+      var sg = c.createGain();
+      sg.gain.setValueAtTime(sev === 3 ? 0.18 : 0.12, t);
+      sg.gain.exponentialRampToValueAtTime(0.0008, t + dur + 0.08);
+      src.connect(bp).connect(sg).connect(c.destination);
+      src.start(t);
+      // sub-rumble on the final line
+      if (sev === 3) {
+        var sub = c.createOscillator();
+        sub.type = 'sawtooth';
+        sub.frequency.setValueAtTime(55, t);
+        sub.frequency.exponentialRampToValueAtTime(28, t + 1.1);
+        var subg = c.createGain();
+        subg.gain.setValueAtTime(0.0001, t);
+        subg.gain.exponentialRampToValueAtTime(0.18, t + 0.05);
+        subg.gain.exponentialRampToValueAtTime(0.0005, t + 1.2);
+        sub.connect(subg).connect(c.destination);
+        sub.start(t); sub.stop(t + 1.25);
+      }
+    }
+
+    function clinicalSfx() {
+      var c = audio(); if (!c) return;
+      var t = c.currentTime;
+      function beep(at, freq, dur, vol) {
+        var osc = c.createOscillator();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        var g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t + at);
+        g.gain.exponentialRampToValueAtTime(vol, t + at + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0005, t + at + dur);
+        osc.connect(g).connect(c.destination);
+        osc.start(t + at); osc.stop(t + at + dur + 0.04);
+      }
+      beep(0.00, 880, 0.11, 0.10);
+      beep(0.22, 880, 0.11, 0.10);
+      beep(0.46, 880, 0.95, 0.12);
+    }
+
+    function chisel(s) {
+      if (s.classList.contains('gone')) return;
+      s.classList.add('gone');
+      gone++;
+      chiselSfx();
+      var pct = gone / TOTAL;
+      if (pct >= 0.25 && !(shownMask & 1)) { lines[0].classList.add('show'); shownMask |= 1; revealSfx(1); }
+      if (pct >= 0.55 && !(shownMask & 2)) { lines[1].classList.add('show'); shownMask |= 2; revealSfx(2); }
+      if (pct >= 0.85 && !(shownMask & 4)) { lines[2].classList.add('show'); shownMask |= 4; revealSfx(3); }
+      if (pct >= 1.00 && !(shownMask & 8)) {
+        shownMask |= 8;
+        hint.textContent = '';
+        setTimeout(function(){ lines[3].classList.add('show'); clinicalSfx(); }, 1400);
+      }
+    }
+
+    var cellW = W / COLS, cellH = H / ROWS;
+    var corners = [];
+    for (var j = 0; j <= ROWS; j++) {
+      for (var i = 0; i <= COLS; i++) {
+        var x = i * cellW, y = j * cellH;
+        if (i > 0 && i < COLS) x += (Math.random() - 0.5) * cellW * 0.9;
+        if (j > 0 && j < ROWS) y += (Math.random() - 0.5) * cellH * 0.9;
+        corners.push({ x: x, y: y });
+      }
+    }
+    function C(i, j) { return corners[j * (COLS + 1) + i]; }
+
+    for (var jj = 0; jj < ROWS; jj++) {
+      for (var ii = 0; ii < COLS; ii++) {
+        var a = C(ii, jj), b = C(ii + 1, jj), c = C(ii + 1, jj + 1), d = C(ii, jj + 1);
+        var pts = [a, b, c, d].map(function(p){ return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ');
+        var poly = document.createElementNS(NS, 'polygon');
+        poly.setAttribute('points', pts);
+        poly.setAttribute('class', 'fb-shard');
+        var ang = Math.random() * Math.PI * 2;
+        var dist = 40 + Math.random() * 60;
+        poly.style.setProperty('--tx', (Math.cos(ang) * dist).toFixed(1) + 'px');
+        poly.style.setProperty('--ty', (Math.sin(ang) * dist).toFixed(1) + 'px');
+        poly.style.setProperty('--rot', (Math.random() * 140 - 70).toFixed(1) + 'deg');
+        poly.addEventListener('click', (function(el){ return function(){ chisel(el); }; })(poly));
+        poly.addEventListener('mouseenter', (function(el){
+          return function(e){ if (e.buttons === 1) chisel(el); };
+        })(poly));
+        shardsG.appendChild(poly);
+      }
+    }
+
+    // static fracture lines — jagged polylines crossing the slab
+    for (var k = 0; k < 14; k++) {
+      var x0 = Math.random() * W, y0 = Math.random() * H;
+      var segs = 3 + Math.floor(Math.random() * 3);
+      var pts2 = [x0.toFixed(1) + ',' + y0.toFixed(1)];
+      var px = x0, py = y0;
+      for (var s = 0; s < segs; s++) {
+        px += (Math.random() - 0.5) * 140;
+        py += (Math.random() - 0.5) * 140;
+        pts2.push(px.toFixed(1) + ',' + py.toFixed(1));
+      }
+      var pl = document.createElementNS(NS, 'polyline');
+      pl.setAttribute('points', pts2.join(' '));
+      pl.setAttribute('class', 'fb-crack');
+      decorG.appendChild(pl);
+    }
+    // trapped air bubbles
+    for (var b2 = 0; b2 < 24; b2++) {
+      var cir = document.createElementNS(NS, 'circle');
+      cir.setAttribute('cx', (Math.random() * W).toFixed(1));
+      cir.setAttribute('cy', (Math.random() * H).toFixed(1));
+      cir.setAttribute('r',  (0.6 + Math.random() * 2.2).toFixed(2));
+      cir.setAttribute('class', 'fb-bubble');
+      decorG.appendChild(cir);
+    }
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+/*
+  BOSSFIGHT/NAHUAL — boss-4 theme: jaguar/obsidian (PLACEHOLDER, no notes yet)
+  ─────────────────────────────────────────────────────────────────────────
+  Visual brief: PLACEHOLDER. User has not given character notes yet beyond
+  the name. First-pass aesthetic: jungle obsidian — deep night-green going
+  to lacquer black, jade-stone accents, rosette jaguar-spot rosettes drift
+  across the background, copper-red blood callouts. Card backs carry a
+  simplified Maya glyph cartouche. Replace once Nahual's actual notes are
+  written. (Shapeshifter / Mesoamerican mythos is the only anchor for now.)
+
+  Scoped to .bf-theme-nahual. Loads on top of poker-base.css.
+
+  Sections:
+    1. Palette overrides
+    2. Page background — obsidian gradient + jaguar rosettes
+    3. Title — chiseled stone flavour
+    4. Card back — glyph cartouche
+    5. Seat tweaks
+  Owns selectors: .bf-theme-nahual (and pseudo-elements)
+  CSS vars (override): all --bf-* from poker-base.css
+  Consumed by: pages/bossfight-nahual.html
+  External deps: poker-base.css
+*/
+
+/* ─── 1. Palette ─── */
+.bf-theme-nahual {
+  --bf-bg:           #060a08;
+  --bf-bg-grade:     #0e1a14;
+  --bf-fg:           #d8d4c0;
+  --bf-fg-dim:       #7a8470;
+  --bf-accent:       #5fa080;   /* jade */
+  --bf-accent-deep:  #2e5a40;
+  --bf-felt:         #0a1810;
+  --bf-felt-edge:    #2e4a34;
+  --bf-card-face:    #e8e0c8;
+  --bf-card-back:    #0a0c08;
+  --bf-suit-black:   #0a0a0a;
+  --bf-suit-red:     #b04020;
+  --bf-button:       #0e1a14;
+  --bf-button-hi:    #1e3024;
+  --bf-button-text:  #d8d4c0;
+  --bf-danger:       #c04020;
+  --bf-frame:        #1a2a20;
+  --bf-frame-light:  #2e4a34;
+  /* VHS aberration — cochineal blood / jade for the shapeshifter voice. */
+  --bf-vhs-warm: rgba(176, 64, 32, 0.85);
+  --bf-vhs-cool: rgba(95, 160, 128, 0.75);
+}
+
+/* ─── 2. Page background — obsidian + jaguar rosettes ─── */
+.bf-theme-nahual {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(95, 160, 128, 0.10), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, var(--bf-bg-grade), var(--bf-bg)) fixed,
+    var(--bf-bg);
+}
+
+/* Jaguar rosettes — repeating dark spots with broken rings of dots,
+   asymmetric so the field reads as fur, not a grid */
+.bf-theme-nahual::before {
+  content: '';
+  position: fixed;
+  inset: -10%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.45;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'><g fill='%230a0c08' stroke='%23000' stroke-width='0.5'><!-- rosette 1 --><ellipse cx='60' cy='80' rx='14' ry='10'/><ellipse cx='52' cy='72' rx='2' ry='1.5' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='66' cy='70' rx='2.5' ry='1.8' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='72' cy='86' rx='2.2' ry='1.6' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='54' cy='90' rx='2' ry='1.5' fill='none' stroke='%231a2a20' stroke-width='1.2'/><!-- rosette 2 --><ellipse cx='200' cy='160' rx='18' ry='13'/><ellipse cx='188' cy='150' rx='2.5' ry='1.8' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='210' cy='148' rx='3' ry='2.2' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='218' cy='168' rx='2.5' ry='1.8' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='190' cy='172' rx='2.2' ry='1.6' fill='none' stroke='%231a2a20' stroke-width='1.2'/><!-- rosette 3 --><ellipse cx='110' cy='240' rx='13' ry='9'/><ellipse cx='102' cy='234' rx='2' ry='1.4' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='118' cy='232' rx='2.3' ry='1.6' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='122' cy='246' rx='2' ry='1.4' fill='none' stroke='%231a2a20' stroke-width='1.2'/><!-- rosette 4 --><ellipse cx='270' cy='60' rx='10' ry='7'/><ellipse cx='264' cy='56' rx='1.6' ry='1.2' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='276' cy='56' rx='1.8' ry='1.3' fill='none' stroke='%231a2a20' stroke-width='1.2'/><ellipse cx='278' cy='66' rx='1.6' ry='1.2' fill='none' stroke='%231a2a20' stroke-width='1.2'/></g></svg>");
+  background-size: 320px 320px;
+  background-repeat: repeat;
+  /* No drift — fur is fixed */
+}
+
+/* Faint Maya glyph row across the bottom */
+.bf-theme-nahual::after {
+  content: '';
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 30'><g fill='none' stroke='%235fa080' stroke-width='1'><rect x='4' y='4' width='28' height='22' rx='2'/><circle cx='18' cy='12' r='2.5'/><path d='M10 18 L26 18 M10 22 L26 22'/><rect x='36' y='4' width='28' height='22' rx='2'/><path d='M40 8 L60 8 L60 14 L50 14 L50 22 L40 22 Z'/><circle cx='55' cy='18' r='1.5'/><rect x='68' y='4' width='28' height='22' rx='2'/><circle cx='82' cy='10' r='3'/><circle cx='75' cy='20' r='2'/><circle cx='89' cy='20' r='2'/><rect x='100' y='4' width='28' height='22' rx='2'/><path d='M104 8 Q114 4 124 8 Q114 14 104 8 M104 18 Q114 14 124 18 Q114 24 104 18'/><rect x='132' y='4' width='28' height='22' rx='2'/><path d='M138 6 L138 24 M146 6 L146 24 M154 6 L154 24'/><rect x='164' y='4' width='28' height='22' rx='2'/><polygon points='178,8 184,18 172,18'/><circle cx='178' cy='22' r='1.2'/></g></svg>");
+  background-size: 400px 60px;
+  background-repeat: repeat-x;
+}
+
+/* ─── 3. Title — chiseled stone ─── */
+.bf-theme-nahual .bf-title {
+  font-family: 'Cinzel', 'Cormorant Garamond', serif;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--bf-accent);
+  text-shadow:
+    1px 1px 0 var(--bf-accent-deep),
+    -1px -1px 0 #000,
+    0 0 14px rgba(95, 160, 128, 0.4);
+}
+.bf-theme-nahual .bf-vs { color: var(--bf-danger); }
+
+/* ─── 4. Card back — glyph cartouche ─── */
+.bf-theme-nahual .bf-card-back {
+  background:
+    linear-gradient(180deg, #0e1a14, #060a08);
+  position: relative;
+  border-color: var(--bf-accent-deep);
+}
+.bf-theme-nahual .bf-card-back .bf-card-eye {
+  width: 56%; height: 78%;
+  border-radius: 4px;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(95, 160, 128, 0.5), transparent 60%);
+  border: 1px solid var(--bf-accent);
+  box-shadow: 0 0 8px rgba(95, 160, 128, 0.4);
+  position: relative;
+}
+.bf-theme-nahual .bf-card-back .bf-card-eye::after {
+  /* feline pupil — vertical slit */
+  content: '';
+  position: absolute;
+  top: 30%; bottom: 30%;
+  left: 47%; right: 47%;
+  background: var(--bf-bg);
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(176, 64, 32, 0.6);
+}
+
+/* ─── 5. Seat tweaks ─── */
+.bf-theme-nahual .bf-seat-chavez {
+  border-color: var(--bf-accent-deep);
+}
+.bf-theme-nahual .bf-seat-chavez::before {
+  content: '— shapeshifter —';
+  position: absolute;
+  top: -10px;
+  left: 14px;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--bf-accent);
+  background: var(--bf-bg);
+  padding: 2px 8px;
+  font-style: italic;
+}
+.bf-theme-nahual .bf-seat-name {
+  font-family: 'Cinzel', serif;
+  color: var(--bf-accent);
+}
+
+.bf-theme-nahual .bf-felt {
+  background:
+    radial-gradient(ellipse at 50% 50%, var(--bf-felt) 0%, var(--bf-bg) 80%),
+    repeating-linear-gradient(120deg,
+      transparent 0 22px,
+      rgba(95, 160, 128, 0.04) 22px 23px);
+}
+.bf-theme-nahual .bf-turn-status { color: var(--bf-accent); }
+
+.bf-theme-nahual .bf-end-title {
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.2em;
+}
+
+/* ─── 6. Avatar decoration — white animal emojis flanking the face ─────
+   Wolf on the left, jaguar/leopard on the right, both rendered white via
+   filter:invert + drop-shadow. Shapeshifter signal — the animals
+   bracket the face like aspects of the same being. */
+.bf-theme-nahual .bf-boss-avatar {
+  padding: 0 1.4em;
+}
+.bf-theme-nahual .bf-boss-avatar::before,
+.bf-theme-nahual .bf-boss-avatar::after {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.78em;
+  /* Whiten any colored emoji: pull to black first, then invert to white,
+     then a soft glow so it reads on dark backgrounds. */
+  filter:
+    brightness(0)
+    invert(1)
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.55));
+  pointer-events: none;
+}
+.bf-theme-nahual .bf-boss-avatar::before {
+  content: '🐺';
+  left: 0.1em;
+}
+.bf-theme-nahual .bf-boss-avatar::after {
+  content: '🐆';
+  right: 0.1em;
+}

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  PROVIDENCE & NORTH TULANE — slot-fed traffic-cam intersection         │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A fakely-nice 1950s Oak Ridge planned-community façade. The cabinet │
+  │    presents as a civic brochure / traffic authority panel: cream      │
+  │    parchment, brass trim, atomic-age accents. The cabinet is housed │
+  │    inside a .command-center bunker — Manhattan-Project subtext —    │
+  │    riveted steel walls with AEC atoms-for-peace stamps + analog    │
+  │    reactor/geiger dials in the corners + brass stencil watermarks  │
+  │    (K-25 · CLASSIFIED · Q-CLEARANCE · OAK RIDGE SUB-LEVEL B). Banks │
+  │    of mini-CRTs wrap all four sides: top (Ch 4 Luigi live + 5      │
+  │    blanks), bottom (6 blanks), left/right (3 blanks each, hidden  │
+  │    below 1240px viewport). The corner chyron rolls a random       │
+  │    broadcast image at page load from [data-broadcast-pool]. Inside │
+  │    the cabinet: a 20×20 LCD "reels" panel and a CRT traffic camera │
+  │    (Channel 7) feeding the Providence & North Tulane intersection. │
+  │    Two panels swap by flow — #slot-section (reels) and             │
+  │    #intersection-section (CRT feed + #continue-btn). Each tile is  │
+  │    a color (red/yellow/green) + an arrow. Mods: diamond (truck),   │
+  │    cow (cattle truck), gas (tanker, explodes). Bet, BEGIN COMMUTE, │
+  │    reels roll, triplets light, cabinet cuts to the camera,        │
+  │    vehicles enter the junction, chaos ensues. RUSH HOUR ENDS card │
+  │    surfaces with BACK HOME button.                                 │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, hollerworks/audio.js,       │
+  │      hollerworks/intersection.js, hollerworks/slot.js, header.js        │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #intersection-canvas, #intersection-status,        │
+  │      #slot-grid, #bet-amount, #bet-max, #spin-btn, #slot-result,         │
+  │      #debug-reset                                                        │
+  │    flow: slot.js init → buildGrid (400 .cell divs) → bind controls →    │
+  │      spin() → Wallet.spend → rollGrid → animateSpin (20 cols stagger)    │
+  │      → detectTriplets (color-match) → highlightWins →                   │
+  │      Intersection.fireCars(descriptors); intersection.js startRound →  │
+  │      laneClearForSpawn-deferred pump → AI-driven cars w/ collisions →  │
+  │      wrecks persist + emit fire/smoke + occasional body ejecta →       │
+  │      crawling bodies leak blood; splat on car collision; round ends.   │
+  │    storage R/W: sinnerbox shared (Wallet), wendys_palace_child,          │
+  │      wendys_palace_intro_seen (R), wendys_palace_death (R)               │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Providence &amp; North Tulane</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Special+Elite&family=Bowlby+One&family=Russo+One&family=Permanent+Marker&family=VT323&display=swap">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/hollerworks/hollerworks.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body>
+  <header>
+    <div class="oak-ridge-mark">★ &nbsp;OAK RIDGE · TENNESSEE&nbsp; ★</div>
+    <h1>Providence &amp; North Tulane, Oak Ridge, TN.</h1>
+    <div class="tagline">A BEAUTIFUL, GOVERNMENT PLANNED COMMUNITY · POP. <span id="tagline-pop">35,300</span></div>
+    <div class="header-meters">
+      <div class="coins-bar">
+        <span class="coins-label">Coins</span>
+        <span id="balance">0</span>
+        <button id="debug-reset">reset</button>
+      </div>
+      <div class="jackpot-bar">
+        <span class="jackpot-label">★ Jackpot ★</span>
+        <span id="jackpot-pool">0</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Atomic command center — the cheerful Oak Ridge brochure cabinet
+         is now mounted inside a sub-level bunker. Banks of CRTs wrap all
+         four sides of the central console; Ch 4 carries the Large Luigi's
+         broadcast (live, on-air); the rest are blank phosphor screens
+         awaiting content (target via [data-tv-slot="…"]). The corners
+         hold inline-SVG decorations: the AEC "atoms for peace" stamp and
+         an analog reactor/geiger dial. Riveted steel bg + brass stencil
+         watermarks (K-25 · CLASSIFIED · Q-CLEARANCE) carry the
+         Manhattan-Project subtext that the civilian brochure overlays. -->
+    <section class="command-center" aria-label="Sub-level command center">
+
+      <!-- ═════ Corner SVG decorations (atomic stamps + analog dials) ═════
+           Absolutely positioned over the bunker bg, behind the TV walls.
+           Two stamps + two dials so each corner has a different artifact. -->
+      <svg class="atomic-decor atomic-decor-tl" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="5.5" fill="currentColor"/>
+        <ellipse cx="50" cy="50" rx="40" ry="14"/>
+        <ellipse cx="50" cy="50" rx="40" ry="14" transform="rotate(60 50 50)"/>
+        <ellipse cx="50" cy="50" rx="40" ry="14" transform="rotate(-60 50 50)"/>
+      </svg>
+      <svg class="atomic-decor atomic-decor-br" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="5.5" fill="currentColor"/>
+        <ellipse cx="50" cy="50" rx="40" ry="14"/>
+        <ellipse cx="50" cy="50" rx="40" ry="14" transform="rotate(60 50 50)"/>
+        <ellipse cx="50" cy="50" rx="40" ry="14" transform="rotate(-60 50 50)"/>
+      </svg>
+
+      <svg class="atomic-decor atomic-dial atomic-dial-tr" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="0.6" opacity="0.5"/>
+        <g stroke="currentColor" stroke-width="1.2">
+          <line x1="50" y1="10" x2="50" y2="18"/>
+          <line x1="50" y1="82" x2="50" y2="90"/>
+          <line x1="10" y1="50" x2="18" y2="50"/>
+          <line x1="82" y1="50" x2="90" y2="50"/>
+          <line x1="22" y1="22" x2="27" y2="27"/>
+          <line x1="73" y1="22" x2="78" y2="27"/>
+          <line x1="22" y1="78" x2="27" y2="73"/>
+          <line x1="73" y1="78" x2="78" y2="73"/>
+        </g>
+        <line x1="50" y1="50" x2="78" y2="26" stroke="currentColor" stroke-width="2"/>
+        <circle cx="50" cy="50" r="4" fill="currentColor"/>
+      </svg>
+      <svg class="atomic-decor atomic-dial atomic-dial-bl" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="0.6" opacity="0.5"/>
+        <g stroke="currentColor" stroke-width="1.2">
+          <line x1="50" y1="10" x2="50" y2="18"/>
+          <line x1="50" y1="82" x2="50" y2="90"/>
+          <line x1="10" y1="50" x2="18" y2="50"/>
+          <line x1="82" y1="50" x2="90" y2="50"/>
+          <line x1="22" y1="22" x2="27" y2="27"/>
+          <line x1="73" y1="22" x2="78" y2="27"/>
+          <line x1="22" y1="78" x2="27" y2="73"/>
+          <line x1="73" y1="78" x2="78" y2="73"/>
+        </g>
+        <line x1="50" y1="50" x2="24" y2="36" stroke="currentColor" stroke-width="2"/>
+        <circle cx="50" cy="50" r="4" fill="currentColor"/>
+      </svg>
+
+      <!-- Stencil watermarks — sprayed-on labels of the bunker. -->
+      <div class="bunker-stencil bunker-stencil-top">ATOMIC ENERGY COMMISSION · OAK RIDGE · SUB-LEVEL B</div>
+      <div class="bunker-stencil bunker-stencil-tl-label">K-25 · CLASSIFIED</div>
+      <div class="bunker-stencil bunker-stencil-tr-label">REACTOR</div>
+      <div class="bunker-stencil bunker-stencil-bl-label">GEIGER</div>
+      <div class="bunker-stencil bunker-stencil-br-label">Q-CLEARANCE REQ'D</div>
+
+      <section class="tv-wall tv-wall-top" aria-label="North wall monitors">
+
+      <article class="mini-tv mini-tv-live mini-tv-lg" data-tv-slot="luigi">
+        <div class="mini-tv-screen">
+          <img src="../assets/images/broadcasts/luigi.png" alt="Large Luigi" class="mini-tv-broadcast-img">
+          <div class="mini-tv-overlay-strip">
+            <span class="mini-tv-live-dot"></span>LARGE LUIGI'S · PIZZAS &amp; BOMBSHELTERS
+          </div>
+          <div class="mini-tv-scanlines"></div>
+          <div class="mini-tv-vignette"></div>
+        </div>
+        <div class="mini-tv-chrome">
+          <span class="mini-tv-knob"></span>
+          <span class="mini-tv-label">CH 4 · WLTV</span>
+          <span class="mini-tv-knob"></span>
+        </div>
+      </article>
+
+      <article class="mini-tv mini-tv-sm tv-askew-1" data-tv-slot="ch-2">
+        <div class="mini-tv-screen">
+          <div class="mini-tv-scanlines"></div>
+          <div class="mini-tv-vignette"></div>
+        </div>
+        <div class="mini-tv-chrome">
+          <span class="mini-tv-knob"></span>
+          <span class="mini-tv-label">CH 2</span>
+          <span class="mini-tv-knob"></span>
+        </div>
+      </article>
+
+      <article class="mini-tv tv-dying tv-overlap-l" data-tv-slot="ch-5">
+        <div class="mini-tv-screen">
+          <div class="mini-tv-scanlines"></div>
+          <div class="mini-tv-vignette"></div>
+        </div>
+        <div class="mini-tv-chrome">
+          <span class="mini-tv-knob"></span>
+          <span class="mini-tv-label">CH 5</span>
+          <span class="mini-tv-knob"></span>
+        </div>
+      </article>
+
+      <article class="mini-tv mini-tv-lg tv-askew-5" data-tv-slot="ch-9">
+        <div class="mini-tv-screen">
+          <div class="mini-tv-scanlines"></div>
+          <div class="mini-tv-vignette"></div>
+        </div>
+        <div class="mini-tv-chrome">
+          <span class="mini-tv-knob"></span>
+          <span class="mini-tv-label">CH 9</span>
+          <span class="mini-tv-knob"></span>
+        </div>
+      </article>
+
+      <article class="mini-tv mini-tv-sm tv-askew-2 tv-broken" data-tv-slot="ch-11">
+        <div class="mini-tv-screen">
+          <div class="mini-tv-scanlines"></div>
+          <div class="mini-tv-vignette"></div>
+        </div>
+        <div class="mini-tv-chrome">
+          <span class="mini-tv-knob"></span>
+          <span class="mini-tv-label">CH 11</span>
+          <span class="mini-tv-knob"></span>
+        </div>
+      </article>
+
+      <article class="mini-tv tv-dead tv-no-signal tv-askew-6" data-tv-slot="ch-13">
+        <div class="mini-tv-screen">
+          <div class="mini-tv-scanlines"></div>
+          <div class="mini-tv-vignette"></div>
+        </div>
+        <div class="mini-tv-chrome">
+          <span class="mini-tv-knob"></span>
+          <span class="mini-tv-label">CH 13</span>
+          <span class="mini-tv-knob"></span>
+        </div>
+      </article>
+
+      </section>
+
+      <!-- ═════ Console row: side TV banks flanking the cabinet ═════ -->
+      <div class="command-row">
+
+        <section class="tv-wall tv-wall-left" aria-label="West wall monitors">
+          <article class="mini-tv tv-dying tv-bleed-in" data-tv-slot="ch-17">
+            <div class="mini-tv-screen">
+              <div class="mini-tv-scanlines"></div>
+              <div class="mini-tv-vignette"></div>
+            </div>
+            <div class="mini-tv-chrome">
+              <span class="mini-tv-knob"></span>
+              <span class="mini-tv-label">CH 17</span>
+              <span class="mini-tv-knob"></span>
+            </div>
+          </article>
+          <article class="mini-tv mini-tv-sm tv-askew-2" data-tv-slot="ch-23">
+            <div class="mini-tv-screen">
+              <div class="mini-tv-scanlines"></div>
+              <div class="mini-tv-vignette"></div>
+            </div>
+            <div class="mini-tv-chrome">
+              <span class="mini-tv-knob"></span>
+              <span class="mini-tv-label">CH 23</span>
+              <span class="mini-tv-knob"></span>
+            </div>
+          </article>
+          <article class="mini-tv tv-broken tv-overlap-up tv-askew-4" data-tv-slot="ch-31">
+            <div class="mini-tv-screen">
+              <div class="mini-tv-scanlines"></div>
+              <div class="mini-tv-vignette"></div>
+            </div>
+            <div class="mini-tv-chrome">
+              <span class="mini-tv-knob"></span>
+              <span class="mini-tv-label">CH 31</span>
+              <span class="mini-tv-knob"></span>
+            </div>
+          </article>
+          <article class="mini-tv mini-tv-lg tv-askew-3 tv-bleed-in" data-tv-slot="ch-37">
+            <div class="mini-tv-screen">
+              <div class="mini-tv-scanlines"></div>
+              <div class="mini-tv-vignette"></div>
+            </div>
+            <div class="mini-tv-chrome">
+              <span class="mini-tv-knob"></span>
+              <span class="mini-tv-label">CH 37</span>
+              <span class="mini-tv-knob"></span>
+            </div>
+          </article>
+        </section>
+
+        <div class="cabinet">
+      <div class="slot-controls">
+        <div class="row">
+          <label class="bet-label" for="bet-amount">Wager</label>
+          <input type="number" id="bet-amount" min="1" value="1" inputmode="numeric" autocomplete="off">
+          <button id="bet-max" type="button">MAX</button>
+        </div>
+        <button id="spin-btn" type="button">BEGIN COMMUTE</button>
+        <div id="slot-result"></div>
+      </div>
+
+      <section id="slot-section">
+        <div id="slot-grid"></div>
+      </section>
+
+      <section id="intersection-section" class="hidden">
+        <div class="tv-frame">
+          <div class="tv-top">
+            <span class="tv-onair"><span class="tv-onair-dot"></span>LIVE</span>
+            <span class="tv-channel-id">TRAFFIC CAM 7</span>
+            <span class="tv-broadcast">OAK RIDGE PUBLIC SAFETY</span>
+          </div>
+          <div class="tv-screen">
+            <canvas id="intersection-canvas"></canvas>
+            <div class="tv-scanlines"></div>
+            <div class="tv-vignette"></div>
+            <div class="tv-sponsor-bug">
+              <img alt="" class="tv-sponsor-img" data-broadcast-pool="luigi.png,advisory.png">
+            </div>
+            <div id="tv-summary" class="hidden">
+              <div class="tv-summary-title">RUSH HOUR ENDS</div>
+              <div class="tv-summary-stats">
+                <span class="tv-stat tv-stat-pay"><i>WRECKED</i><b id="tv-stat-wrecked">0</b></span>
+                <span class="tv-stat tv-stat-pay"><i>SPLATS</i><b id="tv-stat-splats">0</b></span>
+                <span class="tv-stat tv-stat-miss"><i>ESCAPED</i><b id="tv-stat-escaped">0</b></span>
+                <span class="tv-stat tv-stat-miss"><i>DEAD</i><b id="tv-stat-dead">0</b></span>
+                <span class="tv-stat tv-stat-payout"><i>WINNINGS</i><b id="tv-stat-payout">0</b></span>
+              </div>
+              <button id="continue-btn" type="button">BACK HOME ▸</button>
+            </div>
+          </div>
+          <div class="tv-ticker">
+            <span class="tv-ticker-label">FEED</span>
+            <span id="intersection-status">Quiet morning at the intersection.</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+        <section class="tv-wall tv-wall-right" aria-label="East wall monitors">
+          <article class="mini-tv tv-bleed-in tv-askew-2" data-tv-slot="ch-41">
+            <div class="mini-tv-screen">
+              <div class="mini-tv-scanlines"></div>
+              <div class="mini-tv-vignette"></div>
+            </div>
+            <div class="mini-tv-chrome">
+              <span class="mini-tv-knob"></span>
+              <span class="mini-tv-label">CH 41</span>
+              <span class="mini-tv-knob"></span>
+            </div>
+          </article>
+          <article class="mini-tv tv-dead tv-no-signal" data-tv-slot="ch-47">
+            <div class="mini-tv-screen">
+              <div class="mini-tv-scanlines"></div>
+              <div class="mini-tv-vignette"></div>
+            </div>
+            <div class="mini-tv-chrome">
+              <span class="mini-tv-knob"></span>
+              <span class="mini-tv-label">CH 47</span>
+              <span class="mini-tv-knob"></span>
+            </div>
+          </article>
+          <article class="mini-tv mini-tv-sm tv-overlap-dn tv-askew-5" data-tv-slot="ch-53">
+            <div class="mini-tv-screen">
+              <div class="mini-tv-scanlines"></div>
+              <div class="mini-tv-vignette"></div>
+            </div>
+            <div class="mini-tv-chrome">
+              <span class="mini-tv-knob"></span>
+              <span class="mini-tv-label">CH 53</span>
+              <span class="mini-tv-knob"></span>
+            </div>
+          </article>
+          <article class="mini-tv tv-broken tv-askew-1" data-tv-slot="ch-59">
+            <div class="mini-tv-screen">
+              <div class="mini-tv-scanlines"></div>
+              <div class="mini-tv-vignette"></div>
+            </div>
+            <div class="mini-tv-chrome">
+              <span class="mini-tv-knob"></span>
+              <span class="mini-tv-label">CH 59</span>
+              <span class="mini-tv-knob"></span>
+            </div>
+          </article>
+        </section>
+
+      </div>
+
+      <section class="tv-wall tv-wall-bottom" aria-label="South wall monitors">
+        <article class="mini-tv mini-tv-lg tv-askew-6" data-tv-slot="ch-19">
+          <div class="mini-tv-screen">
+            <div class="mini-tv-scanlines"></div>
+            <div class="mini-tv-vignette"></div>
+          </div>
+          <div class="mini-tv-chrome">
+            <span class="mini-tv-knob"></span>
+            <span class="mini-tv-label">CH 19</span>
+            <span class="mini-tv-knob"></span>
+          </div>
+        </article>
+        <article class="mini-tv tv-dying tv-askew-3 tv-overlap-r" data-tv-slot="ch-25">
+          <div class="mini-tv-screen">
+            <div class="mini-tv-scanlines"></div>
+            <div class="mini-tv-vignette"></div>
+          </div>
+          <div class="mini-tv-chrome">
+            <span class="mini-tv-knob"></span>
+            <span class="mini-tv-label">CH 25</span>
+            <span class="mini-tv-knob"></span>
+          </div>
+        </article>
+        <article class="mini-tv mini-tv-sm tv-broken tv-askew-5" data-tv-slot="ch-33">
+          <div class="mini-tv-screen">
+            <div class="mini-tv-scanlines"></div>
+            <div class="mini-tv-vignette"></div>
+          </div>
+          <div class="mini-tv-chrome">
+            <span class="mini-tv-knob"></span>
+            <span class="mini-tv-label">CH 33</span>
+            <span class="mini-tv-knob"></span>
+          </div>
+        </article>
+        <article class="mini-tv mini-tv-lg tv-overlap-r tv-askew-2" data-tv-slot="ch-39">
+          <div class="mini-tv-screen">
+            <div class="mini-tv-scanlines"></div>
+            <div class="mini-tv-vignette"></div>
+          </div>
+          <div class="mini-tv-chrome">
+            <span class="mini-tv-knob"></span>
+            <span class="mini-tv-label">CH 39</span>
+            <span class="mini-tv-knob"></span>
+          </div>
+        </article>
+        <article class="mini-tv tv-dead tv-askew-4" data-tv-slot="ch-51">
+          <div class="mini-tv-screen">
+            <div class="mini-tv-scanlines"></div>
+            <div class="mini-tv-vignette"></div>
+          </div>
+          <div class="mini-tv-chrome">
+            <span class="mini-tv-knob"></span>
+            <span class="mini-tv-label">CH 51</span>
+            <span class="mini-tv-knob"></span>
+          </div>
+        </article>
+        <article class="mini-tv mini-tv-sm tv-askew-1" data-tv-slot="ch-67">
+          <div class="mini-tv-screen">
+            <div class="mini-tv-scanlines"></div>
+            <div class="mini-tv-vignette"></div>
+          </div>
+          <div class="mini-tv-chrome">
+            <span class="mini-tv-knob"></span>
+            <span class="mini-tv-label">CH 67</span>
+            <span class="mini-tv-knob"></span>
+          </div>
+        </article>
+      </section>
+
+    </section>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/hollerworks/audio.js"></script>
+  <script src="../js/hollerworks/intersection.js"></script>
+  <script src="../js/hollerworks/slot.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+  <script>
+    // Roll one random broadcast image into the TV's corner chyron at page
+    // load. Filenames live in the [data-broadcast-pool] attribute on the
+    // img (comma-separated, no path) and resolve to ../assets/images/
+    // broadcasts/<name>. Add a new broadcast by dropping the image into
+    // assets/images/broadcasts/ and appending its filename to the pool.
+    (function(){
+      var img = document.querySelector('.tv-sponsor-bug img[data-broadcast-pool]');
+      if (!img) return;
+      var pool = img.dataset.broadcastPool.split(',').map(function(s){return s.trim();}).filter(Boolean);
+      if (!pool.length) return;
+      img.src = '../assets/images/broadcasts/' + pool[Math.floor(Math.random() * pool.length)];
+    })();
+  </script>
+</body>
+</html>

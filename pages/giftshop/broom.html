@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — BROOM (Kimi-Chan Flying Broom, 200 coins)                  │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item page for a children's plastic toy broom from a defunct           │
+  │    magical-girl anime. Pink kawaii framing on top — sparkles, a          │
+  │    floating broom, the "Believe in your wishes!" tag — then a            │
+  │    teleplay-formatted prose card narrates Ep. 6 ("The Last Lesson"):    │
+  │    Kimi-chan's mother-figure-turned-villain pushes her off a ridge.     │
+  │    The prose card burns inward as you watch (mask-image animation),     │
+  │    leaving only edges of ash. A Channel-Change interlude flashes        │
+  │    Ross-and-Chandler. Mokomoko's ASCII face is driven by child.js.      │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/child.js (for Mokomoko face ticker + kc toggle)      │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .br-sparkles, .br-broom-wrap > .br-broom, .br-title,            │
+  │      .br-prose (teleplay), #moko-face (driven by Child.describeFace —   │
+  │      doubles as the kc preview since it shows live decorated frames),   │
+  │      .kc-bay > .kc-toggle (broomstraw decoration ⌇…⌇)                   │
+  │    flow: static prose + CSS burn animation (br-burn, br-burn-edge);     │
+  │      JS: setInterval 420ms ticking moko face frames from Child state.   │
+  │      Second IIFE: .kc-toggle click→Child.setCosmetic('broom',!) which   │
+  │      reflects on the next moko tick (no manual sync needed).            │
+  │    storage R/W: reads wendys_palace_child (via Child.getState) for      │
+  │      Mokomoko face; writes wendys_palace_child.cosmetics.broom via      │
+  │      Child.setCosmetic; ownership tracked in wendys_palace_giftshop,    │
+  │      key='broom', by giftshopindex.html                                 │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Magical Schoolgirl Kimi-Chan</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bubblegum+Sans&family=Special+Elite&family=Cormorant+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background: linear-gradient(180deg, #f8d8e8 0%, #d8a8c8 100%);
+      color: #4a1a3a;
+      font-family: 'Cormorant Garamond', serif;
+      overflow-x: hidden;
+    }
+    .br-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 50px 22px 60px;
+      gap: 30px;
+      position: relative;
+    }
+    .br-sparkles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(2px 2px at 12% 20%, #fff, transparent 60%),
+        radial-gradient(2px 2px at 78% 32%, #fff, transparent 60%),
+        radial-gradient(2px 2px at 24% 70%, #fff, transparent 60%),
+        radial-gradient(2px 2px at 88% 80%, #fff, transparent 60%),
+        radial-gradient(1px 1px at 60% 50%, #fff, transparent 60%),
+        radial-gradient(2px 2px at 40% 14%, #fff, transparent 60%);
+      opacity: 0.7;
+      animation: br-twinkle 2.4s ease-in-out infinite alternate;
+    }
+    @keyframes br-twinkle {
+      from { opacity: 0.3; }
+      to   { opacity: 0.9; }
+    }
+
+    .br-broom-wrap {
+      position: relative;
+      animation: br-float 5s ease-in-out infinite;
+    }
+    @keyframes br-float {
+      0%, 100% { transform: rotate(-22deg) translateY(0); }
+      50%      { transform: rotate(-18deg) translateY(-12px); }
+    }
+    .br-broom {
+      width: 280px;
+      height: 80px;
+      position: relative;
+    }
+    .br-stick {
+      position: absolute;
+      top: 30px;
+      left: 40px;
+      width: 220px;
+      height: 14px;
+      background: linear-gradient(180deg, #d8a868 0%, #6a3a18 100%);
+      border-radius: 7px;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 230, 180, 0.4),
+        inset 0 -2px 0 rgba(40, 20, 8, 0.4),
+        0 4px 12px rgba(0,0,0,0.3);
+    }
+    .br-bristles {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      width: 70px;
+      height: 50px;
+      background:
+        repeating-linear-gradient(90deg,
+          #e0b878 0 3px,
+          #8a5418 3px 5px);
+      border-radius: 8px 4px 4px 8px;
+      border: 2px solid #4a2810;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    .br-bristles::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 60px;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 24px;
+      background: #c84088;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .br-sticker {
+      position: absolute;
+      top: 4px;
+      right: 26px;
+      background: #ffd040;
+      color: #8a3060;
+      padding: 4px 8px;
+      font-family: 'Bubblegum Sans', cursive;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      transform: rotate(-12deg);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    .br-title {
+      font-family: 'Bubblegum Sans', cursive;
+      font-size: 32px;
+      color: #d8408a;
+      text-shadow:
+        2px 2px 0 #fff,
+        4px 4px 0 rgba(216, 64, 138, 0.4);
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+    .br-title small {
+      display: block;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 16px;
+      color: #6a2a4a;
+      text-shadow: none;
+      margin-top: 4px;
+      letter-spacing: 0;
+    }
+
+    .br-prose {
+      position: relative;
+      max-width: 580px;
+      background: rgba(255, 250, 250, 0.7);
+      padding: 26px 28px;
+      border: 1px solid rgba(120, 40, 80, 0.18);
+      border-radius: 6px;
+      box-shadow: 0 8px 30px rgba(120, 40, 80, 0.18);
+      font-size: 18px;
+      line-height: 1.6;
+      color: #3a1428;
+      backdrop-filter: blur(2px);
+      -webkit-mask-image: radial-gradient(ellipse closest-side at center,
+        #000 0%, #000 52%, rgba(0,0,0,0.55) 58%, transparent 64%);
+              mask-image: radial-gradient(ellipse closest-side at center,
+        #000 0%, #000 52%, rgba(0,0,0,0.55) 58%, transparent 64%);
+      -webkit-mask-repeat: no-repeat;
+              mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+              mask-position: center;
+      -webkit-mask-size: 260% 260%;
+              mask-size: 260% 260%;
+      animation: br-burn 18s cubic-bezier(0.55, 0.05, 0.85, 0.4) 4s forwards;
+    }
+    .br-prose::after {
+      content: '';
+      position: absolute;
+      inset: -24px;
+      border-radius: 10px;
+      pointer-events: none;
+      background: radial-gradient(ellipse closest-side at center,
+        transparent 0%,
+        transparent 48%,
+        rgba(255, 200, 80, 0.55) 52%,
+        rgba(230, 110, 30, 0.75) 55%,
+        rgba(120, 30, 10, 0.85) 58%,
+        rgba(30, 12, 6, 0.9)   61%,
+        transparent 70%);
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 260% 260%;
+      mix-blend-mode: multiply;
+      filter: blur(0.6px);
+      opacity: 0;
+      animation: br-burn-edge 18s cubic-bezier(0.55, 0.05, 0.85, 0.4) 4s forwards;
+    }
+    @keyframes br-burn {
+      0%   { -webkit-mask-size: 260% 260%; mask-size: 260% 260%; }
+      96%  { -webkit-mask-size: 6% 6%;     mask-size: 6% 6%; }
+      100% { -webkit-mask-size: 0% 0%;     mask-size: 0% 0%; opacity: 0; }
+    }
+    @keyframes br-burn-edge {
+      0%   { background-size: 260% 260%; opacity: 0; }
+      3%   { opacity: 1; }
+      96%  { background-size: 6% 6%;     opacity: 1; }
+      100% { background-size: 0% 0%;     opacity: 0; }
+    }
+    .br-prose {
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .br-prose p { margin: 0 0 10px; }
+    .br-prose p:last-child { margin: 0; }
+    .br-prose .hdr {
+      text-align: center;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      color: #4a1428;
+      margin-bottom: 22px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(120, 40, 80, 0.25);
+      line-height: 1.3;
+    }
+    .br-prose .hdr span {
+      display: block;
+      font-weight: normal;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: #6a2a4a;
+      margin-top: 4px;
+    }
+    .br-prose .act {
+      text-align: center;
+      font-weight: bold;
+      letter-spacing: 0.25em;
+      color: #5a1a3a;
+      margin: 18px 0 12px;
+      font-size: 12px;
+    }
+    .br-prose .scene {
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+      color: #3a1428;
+      margin-top: 6px;
+      margin-bottom: 8px;
+    }
+    .br-prose .dir {
+      color: #4a2030;
+      padding-left: 4px;
+    }
+    .br-prose .cue {
+      display: block;
+      text-align: center;
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 0.06em;
+      color: #5a1a2a;
+      margin-top: 2px;
+      margin-bottom: 2px;
+    }
+    .br-prose p:has(> .cue) {
+      max-width: 360px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+      color: #2a1018;
+    }
+    .br-prose .end {
+      text-align: center;
+      letter-spacing: 0.18em;
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px dashed rgba(120, 40, 80, 0.3);
+      color: #2a1018;
+    }
+    .br-prose .interlude {
+      margin: 22px -14px;
+      padding: 14px 18px;
+      background: rgba(20, 20, 28, 0.85);
+      color: #c8d4dc;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      border-top: 2px solid rgba(255,255,255,0.15);
+      border-bottom: 2px solid rgba(255,255,255,0.15);
+      text-shadow: 0 0 4px rgba(200,220,228,0.4);
+      position: relative;
+    }
+    .br-prose .interlude .ch {
+      display: block;
+      text-align: center;
+      letter-spacing: 0.3em;
+      font-size: 10px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    .br-prose .interlude .static {
+      color: #707070;
+      font-style: italic;
+      font-size: 11px;
+    }
+    .br-prose .interlude .fcue {
+      color: #f0e090;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+    }
+    .br-prose .moko-line {
+      text-align: center;
+      margin: 10px 0 14px;
+    }
+    .br-prose .moko-face {
+      display: inline-block;
+      font-family: 'Courier New', monospace;
+      font-size: 28px;
+      font-weight: bold;
+      padding: 6px 14px;
+      background: #0a0a14;
+      color: #a8e090;
+      text-shadow: 0 0 10px #6acc60, 0 0 18px rgba(106,204,96,0.55);
+      border: 1px solid rgba(168, 224, 144, 0.3);
+      border-radius: 4px;
+      letter-spacing: 0.06em;
+      white-space: pre;
+      line-height: 1.05;
+      text-align: center;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .br-prose, .br-prose::after { animation: none; }
+      .br-prose { -webkit-mask-image: none; mask-image: none; }
+    }
+
+    .kc-bay {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .kc-toggle {
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: #5a1a3a;
+      padding: 12px 26px;
+      background: rgba(255, 250, 250, 0.7);
+      border: 1px solid rgba(120, 40, 80, 0.5);
+      border-radius: 4px;
+      cursor: pointer;
+      min-width: 240px;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .kc-toggle:hover { background: rgba(216, 64, 138, 0.18); border-color: #c8408a; }
+    .kc-toggle.on { background: rgba(200, 64, 138, 0.22); border-color: #c8408a; color: #2a081a; }
+
+    .br-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #5a1a3a;
+      text-decoration: none;
+      border: 1px solid rgba(120, 40, 80, 0.5);
+      border-radius: 3px;
+      background: rgba(255, 250, 250, 0.6);
+    }
+    .br-back:hover {
+      background: rgba(216, 64, 138, 0.15);
+      border-color: #c8408a;
+    }
+  </style>
+</head>
+<body>
+  <div class="br-sparkles"></div>
+  <div class="br-scene">
+    <div class="br-broom-wrap">
+      <div class="br-broom">
+        <div class="br-stick"></div>
+        <div class="br-bristles"></div>
+        <div class="br-sticker">★ FLY!</div>
+      </div>
+    </div>
+
+    <div class="br-title">
+      ★ Magical Schoolgirl Kimi-Chan ★
+      <small>Believe in your wishes!</small>
+    </div>
+
+    <div class="br-prose">
+      <p class="hdr">MAGICAL SCHOOLGIRL KIMI-CHAN<br><span>Ep. 6 — "The Last Lesson"</span></p>
+
+      <p class="act">COLD OPEN</p>
+      <p class="scene">EXT. FROZEN FOREST — DAY</p>
+      <p class="dir">Snow on the firs. KIMI-CHAN and her best friend SANKO follow a ridge trail, laughing. Sunlight through the branches.</p>
+      <p><span class="cue">SANKO</span> Kimi-chan, you're going to love the view at the top, promise!</p>
+      <p><span class="cue">KIMI-CHAN</span> Race you!</p>
+      <p class="dir">SANKO stops. Her face stretches. Stretches. Eyes slide too far apart. The mouth gapes. She is NEFARIOUS LADY MATCHA now.</p>
+      <p><span class="cue">LADY MATCHA</span> ...I'm so glad you came here, Kimi-chan!</p>
+
+      <p class="act">ACT TWO</p>
+      <p class="scene">EXT. RIDGE EDGE — CONTINUOUS</p>
+      <p class="dir">LADY MATCHA raises a gloved hand. A green beam, humming.</p>
+      <p><span class="cue">LADY MATCHA</span> GOODBYE, DAUGHTER!</p>
+      <p class="dir">The beam hits. KIMI-CHAN goes over the edge.</p>
+
+      <p class="scene">EXT. ROCKS BELOW — CONTINUOUS</p>
+      <p class="dir">She lands. Her skull splits open against a flat gray stone. CUT TO BLACK.</p>
+
+      <p class="interlude">
+        <span class="ch">— CHANNEL CHANGE —</span><br>
+        <span class="fcue">ROSS:</span> Pivot! Pivot! PIVOT!<br>
+        <span class="fcue">CHANDLER:</span> SHUT UP! SHUT UP! SHUT UP!<br>
+      </p>
+
+      <p class="act">ACT THREE</p>
+      <p class="scene">INT. HOSPITAL ROOM — NIGHT</p>
+      <p class="dir">KIMI-CHAN, bandaged, in a bed. Ceiling tiles. Her head hurts.</p>
+      <p class="dir">A small soft thing floats in through the window - her magical companion, MOKOMOKO.</p>
+      <p class="moko-line"><span class="moko-face" id="moko-face">(o_o)</span></p>
+      <p><span class="cue">MOKOMOKO</span> I came as soon as I felt you, Kimi-chan.</p>
+      <p><span class="cue">KIMI-CHAN</span> My head hurts, Moko.</p>
+      <p><span class="cue">MOKOMOKO</span> I know.</p>
+      <p class="dir end">FADE OUT.</p>
+    </div>
+
+    <div class="kc-bay">
+      <button class="kc-toggle" type="button" aria-pressed="false">Tuck the straws in</button>
+    </div>
+
+    <a class="br-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+  <script src="../../js/child.js"></script>
+  <script>
+    (function () {
+      var el = document.getElementById('moko-face');
+      if (!el || !window.Child) return;
+      var frame = 0;
+      function tick() {
+        var d = Child.describeFace(Child.getState());
+        el.textContent = d.frames[frame % d.frames.length];
+        frame++;
+      }
+      tick();
+      setInterval(tick, 420);
+    })();
+    (function () {
+      const ID = 'broom';
+      const OFF = 'Tuck the straws in';
+      const ON  = 'Sweep them away';
+      const btn = document.querySelector('.kc-toggle');
+      if (!btn || !window.Child) return;
+      function refresh() {
+        const on = Child.getCosmetic(ID);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.textContent = on ? ON : OFF;
+      }
+      btn.addEventListener('click', () => Child.setCosmetic(ID, !Child.getCosmetic(ID)));
+      Child.onChange(refresh);
+      refresh();
+    })();
+  </script>
+</body>
+</html>

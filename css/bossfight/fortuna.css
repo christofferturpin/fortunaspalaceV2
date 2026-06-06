@@ -1,0 +1,518 @@
+/*
+  BOSSFIGHT/FORTUNA — boss-5 (FINAL) theme: Virginia Frances Sterrett plate
+  ─────────────────────────────────────────────────────────────────────────
+  Visual brief: the page becomes a Virginia Frances Sterrett art-nouveau
+  illustration plate — pale ivory parchment background, deep oxblood and
+  twilight-violet ornamental shadows, gold-leaf accents. Decorative
+  art-nouveau filigree frames the table on every side; thin curling vines
+  meet at the corners; a stylized rose blooms behind the felt. Cards have
+  the appearance of illuminated playing cards — gold rule lines top and
+  bottom of each card. The boss line is more sigil than glyph; Fortuna is
+  not a PC, she is the room itself.
+
+  Scoped to .bf-theme-fortuna. Loads on top of poker-base.css.
+
+  Sections:
+    1. Palette overrides
+    2. Page background — parchment + filigree frame
+    3. Title — illuminated capital flavour
+    4. Card back — illuminated rose motif
+    5. Felt — central rose under the community
+    6. Seat tweaks
+  Owns selectors: .bf-theme-fortuna (and pseudo-elements)
+  CSS vars (override): all --bf-* from poker-base.css
+  Consumed by: pages/bossfight-fortuna.html
+  External deps: poker-base.css
+*/
+
+/* ─── 1. Palette ─── */
+.bf-theme-fortuna {
+  --bf-bg:           #1a1224;
+  --bf-bg-grade:     #2a1c3a;
+  --bf-fg:           #f0e6c8;
+  --bf-fg-dim:       #b8a484;
+  --bf-accent:       #c8a040;   /* gold leaf */
+  --bf-accent-deep:  #7a5f1c;
+  --bf-felt:         #1f1a2e;
+  --bf-felt-edge:    #5a3a52;
+  --bf-card-face:    #f4ecd4;
+  --bf-card-back:    #2a1830;
+  --bf-suit-black:   #1a0a0a;
+  --bf-suit-red:     #a83040;   /* rose madder */
+  --bf-button:       #2a1830;
+  --bf-button-hi:    #4a2a48;
+  --bf-button-text:  #f0e6c8;
+  --bf-danger:       #a83040;
+  --bf-frame:        #2a1830;
+  --bf-frame-light:  #7a5f3c;
+  /* VHS aberration — rose madder / gold leaf for the goddess's voice. */
+  --bf-vhs-warm: rgba(168, 48, 64, 0.8);
+  --bf-vhs-cool: rgba(200, 160, 64, 0.75);
+}
+
+/* ─── 2. Page background — parchment-bleed + filigree frame ─── */
+.bf-theme-fortuna {
+  background:
+    /* central plate glow — like a halo on a saint */
+    radial-gradient(ellipse at 50% 38%, rgba(200, 160, 64, 0.12) 0%, transparent 55%),
+    /* twilight-violet vignette */
+    radial-gradient(ellipse at 50% 100%, var(--bf-bg-grade), var(--bf-bg)) fixed,
+    var(--bf-bg);
+}
+
+/* Outer filigree frame — full-page border with curling corners */
+.bf-theme-fortuna::before {
+  content: '';
+  position: fixed;
+  inset: 18px;
+  pointer-events: none;
+  z-index: 1;
+  border: 1px solid rgba(200, 160, 64, 0.35);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' preserveAspectRatio='xMidYMid slice'><g fill='none' stroke='%23c8a040' stroke-width='1' opacity='0.55'><!-- top-left filigree --><path d='M0 36 Q12 18 36 18 Q24 24 22 36 Q20 48 30 56 Q18 50 12 60 Q6 50 0 56 Z'/><path d='M10 10 Q22 6 26 14 Q22 18 18 14 Z'/><path d='M44 8 L52 16 M52 8 L44 16'/><!-- top-right filigree --><path d='M200 36 Q188 18 164 18 Q176 24 178 36 Q180 48 170 56 Q182 50 188 60 Q194 50 200 56 Z'/><path d='M190 10 Q178 6 174 14 Q178 18 182 14 Z'/><path d='M156 8 L148 16 M148 8 L156 16'/><!-- bottom-left filigree --><path d='M0 164 Q12 182 36 182 Q24 176 22 164 Q20 152 30 144 Q18 150 12 140 Q6 150 0 144 Z'/><path d='M10 190 Q22 194 26 186 Q22 182 18 186 Z'/><!-- bottom-right filigree --><path d='M200 164 Q188 182 164 182 Q176 176 178 164 Q180 152 170 144 Q182 150 188 140 Q194 150 200 144 Z'/><path d='M190 190 Q178 194 174 186 Q178 182 182 186 Z'/><!-- edge vines --><path d='M40 18 Q60 14 80 18 Q100 22 120 18 Q140 14 160 18'/><path d='M40 182 Q60 186 80 182 Q100 178 120 182 Q140 186 160 182'/><path d='M18 40 Q14 60 18 80 Q22 100 18 120 Q14 140 18 160'/><path d='M182 40 Q186 60 182 80 Q178 100 182 120 Q186 140 182 160'/></g></svg>");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Central stylized rose behind the felt — large, faded, art-nouveau */
+.bf-theme-fortuna::after {
+  content: '';
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 520px;
+  height: 520px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.14;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><g fill='none' stroke='%23c8a040' stroke-width='1.2'><!-- rose petals --><path d='M100 60 Q120 70 124 90 Q108 88 100 80 Q92 88 76 90 Q80 70 100 60 Z'/><path d='M100 80 Q132 86 136 110 Q116 108 100 102 Q84 108 64 110 Q68 86 100 80 Z'/><path d='M100 102 Q140 110 144 138 Q120 132 100 124 Q80 132 56 138 Q60 110 100 102 Z'/><!-- leaves --><path d='M50 130 Q30 150 30 180 Q60 170 80 140 Q70 132 50 130 Z'/><path d='M150 130 Q170 150 170 180 Q140 170 120 140 Q130 132 150 130 Z'/><!-- stem --><path d='M100 130 L100 195'/><path d='M100 160 Q90 155 80 162 Q90 167 100 165'/><path d='M100 175 Q110 170 120 177 Q110 182 100 180'/></g><g fill='%23a83040' fill-opacity='0.18'><path d='M100 64 Q118 72 120 90 Q108 88 100 82 Q92 88 80 90 Q82 72 100 64 Z'/></g></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+/* Make header / table / log all sit above filigree (which is z-index 1) */
+.bf-theme-fortuna .bf-header,
+.bf-theme-fortuna .bf-table,
+.bf-theme-fortuna .bf-log { z-index: 2; }
+
+/* ─── 3. Title — illuminated capital ─── */
+.bf-theme-fortuna .bf-title {
+  font-family: 'Pirata One', 'IM Fell English', serif;
+  font-size: 44px;
+  letter-spacing: 0.14em;
+  color: var(--bf-accent);
+  text-shadow:
+    1px 1px 0 var(--bf-accent-deep),
+    0 0 22px rgba(200, 160, 64, 0.35),
+    0 0 40px rgba(200, 160, 64, 0.18);
+}
+.bf-theme-fortuna .bf-vs {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  color: var(--bf-fg-dim);
+}
+.bf-theme-fortuna .bf-meta {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  text-transform: none;
+}
+
+/* ─── 4. Card back — illuminated rose motif ─── */
+.bf-theme-fortuna .bf-card-back {
+  background:
+    linear-gradient(135deg, var(--bf-card-back) 0%, color-mix(in srgb, var(--bf-card-back) 70%, #0a000a) 100%);
+  border-color: var(--bf-accent-deep);
+  box-shadow:
+    inset 0 0 0 2px rgba(200, 160, 64, 0.25),
+    0 2px 8px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+.bf-theme-fortuna .bf-card-back .bf-card-eye {
+  width: 64%; height: 70%;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(200, 160, 64, 0.55), transparent 70%);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  border: 1px solid var(--bf-accent);
+  position: relative;
+  box-shadow: 0 0 6px rgba(200, 160, 64, 0.4);
+}
+.bf-theme-fortuna .bf-card-back .bf-card-eye::after {
+  /* small rose bud */
+  content: '';
+  position: absolute;
+  width: 40%; height: 40%;
+  top: 30%; left: 30%;
+  background:
+    radial-gradient(circle at 50% 50%, var(--bf-danger) 0%, transparent 60%);
+  border-radius: 50%;
+}
+
+/* ─── 5. Card face — gold rule top and bottom ─── */
+.bf-theme-fortuna .bf-card:not(.bf-card-back) {
+  background:
+    linear-gradient(180deg,
+      var(--bf-card-face) 0%,
+      var(--bf-card-face) 8%,
+      color-mix(in srgb, var(--bf-card-face) 88%, #c8a040) 9%,
+      var(--bf-card-face) 11%,
+      var(--bf-card-face) 89%,
+      color-mix(in srgb, var(--bf-card-face) 88%, #c8a040) 91%,
+      var(--bf-card-face) 92%,
+      var(--bf-card-face) 100%);
+  border-color: var(--bf-accent-deep);
+  box-shadow:
+    inset 0 0 0 1px rgba(200, 160, 64, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── 6. Felt + seats ─── */
+.bf-theme-fortuna .bf-felt {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(200, 160, 64, 0.05) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 50%, var(--bf-felt) 0%, var(--bf-bg) 90%);
+  border-color: var(--bf-frame-light);
+  box-shadow: inset 0 0 0 1px rgba(200, 160, 64, 0.18);
+}
+.bf-theme-fortuna .bf-turn-status {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  color: var(--bf-accent);
+  font-size: 18px;
+}
+.bf-theme-fortuna .bf-seat {
+  background:
+    linear-gradient(180deg, rgba(200, 160, 64, 0.04), transparent),
+    linear-gradient(180deg, var(--bf-bg-grade), var(--bf-bg));
+}
+.bf-theme-fortuna .bf-seat-chavez {
+  border-color: var(--bf-accent-deep);
+}
+.bf-theme-fortuna .bf-seat-chavez::before {
+  content: '— the Goddess —';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--bf-accent);
+  background: var(--bf-bg);
+  padding: 2px 14px;
+  letter-spacing: 0.08em;
+}
+.bf-theme-fortuna .bf-seat-name {
+  font-family: 'Pirata One', serif;
+  letter-spacing: 0.16em;
+  color: var(--bf-accent);
+}
+
+.bf-theme-fortuna .bf-end-card {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(200, 160, 64, 0.08), transparent 60%),
+    var(--bf-bg-grade);
+  border-color: var(--bf-accent);
+  box-shadow: 0 0 60px rgba(200, 160, 64, 0.35);
+}
+.bf-theme-fortuna .bf-end-title {
+  font-family: 'Pirata One', serif;
+  font-size: 32px;
+  letter-spacing: 0.14em;
+}
+.bf-theme-fortuna .bf-end-body {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+}
+
+/* ─── 7. Avatar — photobooth optics on the kaomoji face.
+   Webcam version was removed (didn't work cross-browser). The kaomoji
+   gets the full treatment via CSS-only:
+     · grayscale + contrast bump (filter on the avatar element)
+     · chromatic aberration via text-shadow red/cyan offsets
+     · horizontal scanlines every 2px (::before overlay)
+     · radial vignette darkening the edges (::before overlay)
+     · slow tearing white line crawling top-to-bottom (::after) */
+.bf-theme-fortuna .bf-boss-avatar {
+  padding: 0.2em 0.8em;
+  filter: grayscale(0.92) contrast(1.25) brightness(0.95);
+  text-shadow:
+    -2px 0 rgba(220, 0, 30, 0.55),
+     2px 0 rgba(0, 170, 210, 0.55),
+     0 0 8px rgba(255, 255, 255, 0.18);
+}
+
+.bf-theme-fortuna .bf-boss-avatar::before {
+  content: '';
+  position: absolute;
+  inset: -0.1em -0.4em;
+  pointer-events: none;
+  background:
+    /* horizontal scanlines */
+    repeating-linear-gradient(0deg,
+      transparent 0 2px,
+      rgba(0, 0, 0, 0.42) 2px 3px),
+    /* radial vignette */
+    radial-gradient(ellipse at 50% 50%,
+      transparent 30%,
+      rgba(0, 0, 0, 0.55) 100%);
+  mix-blend-mode: multiply;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+/* Slow tearing white line that crawls down the frame — photobooth's
+   signature artifact. */
+.bf-theme-fortuna .bf-boss-avatar::after {
+  content: '';
+  position: absolute;
+  left: -0.4em;
+  right: -0.4em;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+  animation: bf-fortuna-tear 6s linear infinite;
+  z-index: 2;
+}
+@keyframes bf-fortuna-tear {
+  0%   { top: -0.2em; opacity: 0.55; }
+  100% { top: 100%;   opacity: 0.55; }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   ACTIVE THEME — pearlescent aviator shades (scoped to .bf-fortuna)
+   ─────────────────────────────────────────────────────────────────────────
+   The Sterrett-parchment rules above are scoped to .bf-theme-fortuna and
+   are currently dormant (the page applies .bf-fortuna instead). This
+   section is what actually renders today: the avatar text-clips against
+   an animated iridescent gradient so the aviator-shade glyphs in each
+   face frame (⌐◖═◗¬ and variants) read as mirrored mother-of-pearl. The
+   mood-colour overrides in holdem.css would fight the gradient, so they
+   are neutralised here — mood reads through the lens glyph itself
+   (cracks, fog, sparkle) rather than through hue swings.
+   ════════════════════════════════════════════════════════════════════════ */
+
+body.bf-body.bf-fortuna .bf-boss-avatar {
+  background: linear-gradient(110deg,
+    #d8b8d0 0%,
+    #b8d0e8 16%,
+    #e8d8c0 32%,
+    #c0e0d0 48%,
+    #d0b8e0 64%,
+    #e8c0c8 80%,
+    #d8b8d0 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 6px rgba(216, 184, 208, 0.45));
+  /* Idle animation stack — four independent loops, each on its own
+     period so they never sync up. She always looks alive without any
+     one motion taking over.
+       · pearl  — iridescent gradient sweep across the text
+       · float  — vertical hover + tiny scale breath
+       · tilt   — subtle head-tilt (rotate)
+       · breath — soft glow pulse (text-shadow)
+     Uses individual transform props (translate/scale/rotate) so the
+     three transform animations compose instead of clobbering each
+     other on the shared `transform` property. */
+  animation:
+    bf-fortuna-pearl  9s   linear infinite,
+    bf-fortuna-float  4.8s ease-in-out infinite alternate,
+    bf-fortuna-tilt   6.5s ease-in-out infinite alternate,
+    bf-fortuna-breath 7.7s ease-in-out infinite alternate;
+}
+
+@keyframes bf-fortuna-pearl {
+  from { background-position:    0% 0; }
+  to   { background-position: -300% 0; }
+}
+@keyframes bf-fortuna-float {
+  from { translate: 0 -1.5px; scale: 0.995; }
+  to   { translate: 0  1.5px; scale: 1.010; }
+}
+@keyframes bf-fortuna-tilt {
+  from { rotate: -1.4deg; }
+  to   { rotate:  1.4deg; }
+}
+@keyframes bf-fortuna-breath {
+  from { text-shadow: 0 0 4px  rgba(216, 184, 208, 0.20); }
+  to   { text-shadow: 0 0 10px rgba(216, 184, 208, 0.55); }
+}
+
+/* Override holdem.css mood color/shadow swaps so the gradient stays
+   visible across every mood. broken keeps holdem's grayscale+brightness
+   filter — the pearl effectively turns to ash, which reads right. */
+body.bf-body.bf-fortuna .bf-boss-avatar[data-mood="desperate"],
+body.bf-body.bf-fortuna .bf-boss-avatar[data-mood="dominant"] {
+  color: transparent;
+  text-shadow: none;
+}
+body.bf-body.bf-fortuna .bf-boss-avatar[data-mood="dominant"] {
+  filter: drop-shadow(0 0 10px rgba(232, 216, 192, 0.7));
+}
+body.bf-body.bf-fortuna .bf-boss-avatar[data-mood="desperate"] {
+  filter: drop-shadow(0 0 6px rgba(216, 184, 208, 0.35)) saturate(0.7);
+}
+
+/* ─── Math+madness tendril bouquet — growing from the crown ──────────
+   The bouquet host sits inside the avatar wrap, anchored at the cap
+   line. Each .bf-fortuna-tendril is positioned at an --x offset along
+   the crown's horizontal extent (so tendrils emerge from along the
+   cap text rather than all from one point), with a fan direction --dir
+   (CSS rotate: 0°=right, -90°=up). A .bf-fortuna-sway child oscillates
+   the whole chain ±--sway-amp around that direction.
+   Each .bf-fortuna-seg inside applies translateX(--len) rotate(--bend)
+   in its parent's local frame — successive nested segs accumulate the
+   curve, which is what reads as a bending tendril.
+
+   "Same text as the kaomoji" treatment: glyphs use the same VT323
+   font and the same animated pearlescent gradient (background-clip:
+   text + shared bf-fortuna-pearl keyframes) as the avatar lenses, so
+   the whole bouquet shimmers in phase with her face. No per-glyph
+   spin, no hue-rotate filter — those broke text-continuity. Only the
+   tendril sway moves the chain. */
+body.bf-body.bf-fortuna .bf-boss-avatar-wrap {
+  position: relative;
+  overflow: visible;
+}
+
+/* Triptych: spirals flank the kaomoji inside the avatar frame.
+   The frame becomes a flex row so [spiral] [kaomoji] [spiral] sit
+   on one baseline. Each spiral runs its own rotate + breathe pair
+   at a different period and direction — three independent clocks
+   alongside the avatar's own pearl/float pair. */
+body.bf-body.bf-fortuna .bf-boss-avatar-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.bf-fortuna-spiral {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 24px;
+  line-height: 1;
+  margin: 0;
+  display: inline-block;
+  /* Same pearlescent gradient as the avatar — three glyphs, one fabric */
+  background: linear-gradient(110deg,
+    #d8b8d0 0%,
+    #b8d0e8 16%,
+    #e8d8c0 32%,
+    #c0e0d0 48%,
+    #d0b8e0 64%,
+    #e8c0c8 80%,
+    #d8b8d0 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 5px rgba(216, 184, 208, 0.55));
+  /* Three stacked animations per spiral: pearl shimmer (shared phase
+     across the triptych), rotate (own clock), breathe (own clock). */
+  animation:
+    bf-fortuna-pearl   9s   linear infinite,
+    bf-fortuna-spin-l  7.3s linear infinite,
+    bf-fortuna-breathe-l 3.1s ease-in-out infinite alternate;
+  will-change: transform, filter;
+}
+.bf-fortuna-spiral-r {
+  /* Right spiral runs different periods + reverse rotation so the
+     two never sync up. */
+  animation:
+    bf-fortuna-pearl    9s   linear infinite,
+    bf-fortuna-spin-r   5.4s linear infinite,
+    bf-fortuna-breathe-r 4.7s ease-in-out infinite alternate;
+}
+@keyframes bf-fortuna-spin-l {
+  to { transform: rotate(360deg); }
+}
+@keyframes bf-fortuna-spin-r {
+  to { transform: rotate(-360deg); }
+}
+@keyframes bf-fortuna-breathe-l {
+  from { font-size: 22px; opacity: 0.85; }
+  to   { font-size: 26px; opacity: 1.00; }
+}
+@keyframes bf-fortuna-breathe-r {
+  from { font-size: 26px; opacity: 1.00; }
+  to   { font-size: 22px; opacity: 0.85; }
+}
+.bf-fortuna-bouquet {
+  position: absolute;
+  /* Anchored on the crown line itself (not above it) so the first glyph
+     of every tendril sits at the crown row, z-overlaid on the crown
+     text. y math: title ~16px + frame border+padding ~9px + crown line
+     center within the pre ~11px = ~36px from wrap top. */
+  top: 36px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  /* Above the crown text (which has no z-index of its own) */
+  z-index: 2;
+}
+.bf-fortuna-tendril {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  /* --x positions this tendril along the crown line; --dir fans it out. */
+  transform: translateX(var(--x, 0px)) rotate(var(--dir, -90deg));
+}
+.bf-fortuna-sway {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  animation: bf-fortuna-sway 6s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes bf-fortuna-sway {
+  from { transform: rotate(calc(var(--sway-amp, 5deg) * -1)); }
+  to   { transform: rotate(var(--sway-amp, 5deg)); }
+}
+.bf-fortuna-seg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  transform: translateX(var(--len, 18px)) rotate(var(--bend, 0deg));
+}
+.bf-fortuna-glyph {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-block;
+  /* Center each glyph on its seg tip */
+  margin-left: -0.5em;
+  margin-top:  -0.55em;
+  font-family: 'VT323', 'Courier New', monospace;
+  line-height: 1;
+  /* Same pearlescent gradient as the avatar — they read as one
+     continuous text surface, shimmering in phase. */
+  background: linear-gradient(110deg,
+    #d8b8d0 0%,
+    #b8d0e8 16%,
+    #e8d8c0 32%,
+    #c0e0d0 48%,
+    #d0b8e0 64%,
+    #e8c0c8 80%,
+    #d8b8d0 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 4px rgba(216, 184, 208, 0.45));
+  animation: bf-fortuna-pearl 9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bf-fortuna-sway,
+  .bf-fortuna-glyph,
+  .bf-fortuna-spiral,
+  body.bf-body.bf-fortuna .bf-boss-avatar { animation: none; }
+}

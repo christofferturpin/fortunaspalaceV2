@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — catalog / storefront for 13 souvenir items                  │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Fortuna's Gift Shop. A shelf of 13 .gs-item cards, each prefaced      │
+  │    with a roman numeral (I–XIII) in the top-left corner. Items I–XII     │
+  │    are the souvenirs proper (snowglobe, broom, sticks, perfume,          │
+  │    bottlecap, lonniesunglasses, firstborn, rebecca, chessbook,           │
+  │    newspaper, pokerchip, bracelet). Item XIII (deck) stays hidden        │
+  │    entirely until I–XII are all owned; then it reveals as a full-row     │
+  │    blacklight card — deep violet ground, magenta bloom, slow UV pulse    │
+  │    — and routes the player to bossfight-fortuna.html. Price climbs       │
+  │    200, 500, 800, 1600, 3200, then a softened curve to 400k for the     │
+  │    deck. BUY spends from Wallet, marks the id owned, and navigates to    │
+  │    the item page. Already-owned items                                    │
+  │    show REVISIT instead. SHORT appears when the balance is insufficient. │
+  │    Tonally: cheap mall storefront over a grief museum — each "souvenir"  │
+  │    is a piece of the player's past dressed up as kitsch.                 │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, giftshop/page.js, header.js  │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → ../splash.html                          │
+  │      wendys_palace_death.dead → ../death.html                            │
+  │      any child stat<=0 → ../child-died.html                              │
+  │      child.lockedUntil>now → ../child.html                               │
+  │    DOM: #balance, #gs-shelf, .gs-item[data-id|data-cost|data-href],     │
+  │      .gs-numeral (roman numeral on every card),                          │
+  │      .gs-item-deck (item XIII, hidden until 12 prior owned, gets         │
+  │        .is-revealed class from giftshop/page.js maybeRevealDeck()),      │
+  │      .gs-buy buttons, #gs-toast                                          │
+  │    flow: page.js IIFE → bind .gs-buy clicks → buy(item):                 │
+  │      Wallet.spend(cost) → markOwned → navigate dataset.href.             │
+  │      refreshAll() also calls maybeRevealDeck() each pass.                │
+  │    storage R/W: wendys_palace_giftshop ({owned:string[]}),               │
+  │      sinnerbox (Wallet R/W via spend)                                    │
+  │    routes out: ../../index.html (Lobby), each item's *.html on buy      │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gift Shop</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('../child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('../child.html');}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Limelight&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/giftshop/giftshop.css">
+</head>
+<body>
+  <header>
+    <h1 class="gs-title">Fortuna's Gift Shop</h1>
+    <p class="gs-subtitle">Take a piece of the Palace home.</p>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="gs-marquee">
+      <span>★</span>
+      <span>SOUVENIRS · NOVELTIES · KEEPSAKES</span>
+      <span>★</span>
+    </div>
+
+    <section class="gs-shelf" id="gs-shelf">
+      <article class="gs-item" data-id="snowglobe" data-cost="200" data-href="snowglobe.html">
+        <span class="gs-numeral">I</span>
+        <div class="gs-item-art gs-art-snowglobe" aria-hidden="true">
+          <div class="gs-globe">
+            <div class="gs-globe-house"></div>
+            <div class="gs-globe-flame"></div>
+            <div class="gs-globe-snow"></div>
+          </div>
+          <div class="gs-globe-base">WARTBURG · TN</div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">Souvenir Snow Globe</h2>
+          <p class="gs-item-flavor">A little house at the bottom. Something flickers inside when you shake it.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">200 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="broom" data-cost="500" data-href="broom.html">
+        <span class="gs-numeral">II</span>
+        <div class="gs-item-art gs-art-broom" aria-hidden="true">
+          <div class="gs-broom">
+            <div class="gs-broom-stick"></div>
+            <div class="gs-broom-bristles"></div>
+            <div class="gs-broom-bow"></div>
+            <div class="gs-broom-sticker">★</div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">Magical Schoolgirl Kimi-Chan Flying Broom</h2>
+          <p class="gs-item-flavor">Plastic. Ages 4+. Battery compartment empty. Sticker on the handle says I CAN FLY!</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">500 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="sticks" data-cost="800" data-href="sticks.html">
+        <span class="gs-numeral">III</span>
+        <div class="gs-item-art gs-art-sticks" aria-hidden="true">
+          <div class="gs-sticks">
+            <div class="gs-stick gs-stick-1"></div>
+            <div class="gs-stick gs-stick-2 is-broken">
+              <div class="gs-stick-snap-top"></div>
+              <div class="gs-stick-snap-bot"></div>
+            </div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">Hickory Drum Sticks</h2>
+          <p class="gs-item-flavor">5A. They smell of sweat.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">800 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="perfume" data-cost="1600" data-href="perfume.html">
+        <span class="gs-numeral">IV</span>
+        <div class="gs-item-art gs-art-perfume" aria-hidden="true">
+          <div class="gs-perfume">
+            <div class="gs-perfume-cap"></div>
+            <div class="gs-perfume-collar"></div>
+            <div class="gs-perfume-body">
+              <div class="gs-perfume-label">TEA<br>ROSE</div>
+            </div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">"Tea Rose" Perfume Sample</h2>
+          <p class="gs-item-flavor">Discontinued. The kind a perfume counter lady at a Belk's would have sprayed you with.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">1,600 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="bottlecap" data-cost="3200" data-href="bottlecap.html">
+        <span class="gs-numeral">V</span>
+        <div class="gs-item-art gs-art-bottlecap" aria-hidden="true">
+          <img class="gs-bottlecap" src="../../assets/images/bottlecapred.png" alt="">
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">Beer Bottle Cap</h2>
+          <p class="gs-item-flavor">A brand whose taste you can't remember.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">3,200 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="lonniesunglasses" data-cost="4000" data-href="lonniesunglasses.html">
+        <span class="gs-numeral">VI</span>
+        <div class="gs-item-art gs-art-lonniesunglasses" aria-hidden="true">
+          <div class="gs-shades">
+            <div class="gs-shades-lens gs-shades-lens-l"></div>
+            <div class="gs-shades-lens gs-shades-lens-r"></div>
+            <div class="gs-shades-bridge"></div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">Lonnie's Sunglasses</h2>
+          <p class="gs-item-flavor">Aviators. Scratched lenses. One arm slightly bent. Smells of WD-40 and his truck.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">4,000 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="firstborn" data-cost="7500" data-href="firstborn.html">
+        <span class="gs-numeral">VII</span>
+        <div class="gs-item-art" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;">
+          <div style="position:relative;width:78px;height:96px;border-radius:3px;overflow:hidden;border:1px solid rgba(255,255,255,0.5);background:linear-gradient(135deg, rgba(232,244,252,0.88) 0%, rgba(178,210,230,0.78) 50%, rgba(126,168,198,0.82) 100%);box-shadow: inset 0 0 14px rgba(255,255,255,0.45), inset 0 0 26px rgba(120,160,190,0.5), 0 4px 14px rgba(0,0,0,0.35), 0 0 18px rgba(180,220,255,0.22);">
+            <div style="position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);width:22px;height:34px;background: radial-gradient(ellipse 6px 4px at 50% 8%, #4a0000 0%, transparent 60%), radial-gradient(ellipse 8px 14px at 50% 66%, #4a0000 0%, transparent 60%);opacity:0.72;filter:blur(0.5px);"></div>
+            <div style="position:absolute;inset:0;pointer-events:none;background: linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.28) 50%, transparent 68%);"></div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">Commemorative Ice Block</h2>
+          <p class="gs-item-flavor">Cold to the touch. Something small at the center. The shop sells it with a chisel.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">7,500 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="rebecca" data-cost="14000" data-href="rebecca.html">
+        <span class="gs-numeral">VIII</span>
+        <div class="gs-item-art" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;">
+          <div style="position:relative;width:62px;height:94px;background:linear-gradient(135deg,#1a1a1e 0%,#0e0e12 50%,#1a1a1e 100%);border-radius:7px;padding:6px 4px 12px;box-shadow:0 6px 12px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,0,0,0.5);">
+            <div style="width:100%;height:100%;background:repeating-linear-gradient(0deg, rgba(0,0,0,0.025) 0 1px, transparent 1px 4px),linear-gradient(180deg,#efe6cf 0%,#e4d8b8 100%);box-shadow:inset 0 0 0 1px #0a0a0c;border-radius:2px;position:relative;overflow:hidden;">
+              <div style="position:absolute;top:3px;left:0;right:0;text-align:center;font-family:'Special Elite',monospace;font-size:5px;letter-spacing:0.14em;color:rgba(40,28,14,0.6);">52%  11:42</div>
+              <div style="position:absolute;top:30%;left:0;right:0;text-align:center;font-family:'Cinzel',serif;font-weight:700;font-size:10px;letter-spacing:0.16em;color:#2a1a08;">REBECCA</div>
+              <div style="position:absolute;top:50%;left:0;right:0;text-align:center;font-family:'EB Garamond',serif;font-style:italic;font-size:6px;color:#5a3210;">du Maurier</div>
+              <div style="position:absolute;bottom:6px;left:0;right:0;text-align:center;font-family:'Special Elite',monospace;font-size:4.5px;letter-spacing:0.16em;color:rgba(40,28,14,0.55);">PAGE 8 / 384</div>
+            </div>
+            <div style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a2a2e 0%,#0c0c10 70%,#000 100%);box-shadow:inset 0 1px 1px rgba(255,255,255,0.1);"></div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">Palace Reader, MK II</h2>
+          <p class="gs-item-flavor">Cracked-bezel e-reader. The Rebecca .epub is bookmarked at page 8, where it has been bookmarked for three years. Six other books loaded. One is on a shelf you can't get off of.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">14,000 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="chessbook" data-cost="26000" data-href="aggressive-opening.html">
+        <span class="gs-numeral">IX</span>
+        <div class="gs-item-art" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;">
+          <div style="position:relative;width:70px;height:96px;background:linear-gradient(180deg, #c8a878 0%, #a08858 100%);border:1px solid #5a4020;box-shadow: 0 6px 12px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(80,50,20,0.3);font-family:'Limelight',serif;color:#2a1808;border-radius:1px;">
+            <div style="position:absolute;top:12%;left:6%;right:6%;font-size:7px;letter-spacing:0.18em;text-align:center;color:#3a2008;">HOW TO PLAY</div>
+            <div style="position:absolute;top:24%;left:0;right:0;font-size:22px;text-align:center;color:#2a1808;letter-spacing:0.04em;">CHESS</div>
+            <div style="position:absolute;top:50%;left:50%;transform:translateX(-50%);font-size:34px;color:#1a1008;line-height:1;">♚</div>
+            <div style="position:absolute;bottom:8%;left:6%;right:6%;font-size:6px;letter-spacing:0.20em;text-align:center;color:#5a3a18;font-family:'Special Elite',monospace;">A BEGINNER'S PRIMER</div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">How to Play Chess</h2>
+          <p class="gs-item-flavor">A beginner's primer. Mom's name in pencil inside the front cover. Spine cracked at Chapter Seven.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">26,000 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="newspaper" data-cost="50000" data-href="newspaper.html">
+        <span class="gs-numeral">X</span>
+        <div class="gs-item-art" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;">
+          <div style="position:relative;width:78px;height:96px;background:linear-gradient(180deg,#f0e6c8 0%,#e0d4a0 100%);border:1px solid #2a1a08;box-shadow:0 6px 12px rgba(0,0,0,0.5);font-family:'Playfair Display',serif;color:#1a0e08;overflow:hidden;">
+            <div style="position:absolute;top:5px;left:0;right:0;text-align:center;font-size:8px;font-weight:900;letter-spacing:0.04em;">OAK RIDGER</div>
+            <div style="position:absolute;top:15px;left:6%;right:6%;height:1px;background:#1a0e08;"></div>
+            <div style="position:absolute;top:20px;left:6%;right:6%;height:3px;background:#1a0e08;"></div>
+            <div style="position:absolute;top:26px;left:6%;right:24%;height:3px;background:#1a0e08;"></div>
+            <div style="position:absolute;top:36px;left:6%;right:6%;height:1.5px;background:rgba(40,20,8,0.6);"></div>
+            <div style="position:absolute;top:41px;left:6%;width:74%;height:1.5px;background:rgba(40,20,8,0.6);"></div>
+            <div style="position:absolute;top:46px;left:6%;right:18%;height:1.5px;background:rgba(40,20,8,0.6);"></div>
+            <div style="position:absolute;top:53px;left:6%;width:32%;height:6px;background:#1a0e08;"></div>
+            <div style="position:absolute;top:53px;right:6%;width:36%;height:6px;background:#1a0e08;"></div>
+            <div style="position:absolute;top:62px;left:6%;right:6%;height:1.5px;background:rgba(40,20,8,0.55);"></div>
+            <div style="position:absolute;top:67px;left:6%;right:20%;height:1.5px;background:rgba(40,20,8,0.55);"></div>
+            <div style="position:absolute;bottom:6px;right:6px;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#d8a868 0%,#8a6438 70%,#5a3818 100%);border:1px solid #2a1808;display:flex;align-items:center;justify-content:center;font-size:7px;color:#e8d4a4;font-family:'Special Elite',monospace;box-shadow:inset 0 0 0 4px rgba(40,20,8,0.5);">A</div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">Folded Newspaper &amp; Decoder Ring</h2>
+          <p class="gs-item-flavor">From your aunt's attic. Folded in quarters inside an encyclopedia. The cereal-box decoder ring was in the same box.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">50,000 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="pokerchip" data-cost="100000" data-href="pokerchip.html">
+        <span class="gs-numeral">XI</span>
+        <div class="gs-item-art" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;">
+          <div style="position:relative;width:74px;height:74px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#e85858 0%,#b03030 40%,#8a1818 75%,#4a0808 100%);box-shadow:inset 0 -4px 10px rgba(0,0,0,0.55), inset 0 2px 4px rgba(255,200,200,0.32), 0 4px 12px rgba(0,0,0,0.55);">
+            <div style="position:absolute;inset:5px;border-radius:50%;border:2px dashed rgba(255,240,220,0.55);"></div>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f4e0c0 0%,#c8a878 60%,#8a6840 100%);border:1px solid #4a2808;display:flex;align-items:center;justify-content:center;font-family:'UnifrakturCook',serif;font-size:18px;color:#2a1018;line-height:1;">✠</div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">St. Mary's Poker Chip</h2>
+          <p class="gs-item-flavor">Red clay. $5 buy-in. Youth Ministry, Summer Festival 2024. Flip it if you want to.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">100,000 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item" data-id="bracelet" data-cost="200000" data-href="bracelet.html">
+        <span class="gs-numeral">XII</span>
+        <div class="gs-item-art" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;">
+          <div style="position:relative;width:100px;height:50px;border-radius:24px / 14px;background:linear-gradient(180deg,#f5ecd6 0%,#e4d7b5 60%,#d8c89c 100%);border:1px solid rgba(80,60,30,0.4);box-shadow:inset 0 1px 0 rgba(255,250,230,0.55), inset 0 -4px 8px rgba(110,80,30,0.18), 0 4px 10px rgba(0,0,0,0.5);transform:perspective(160px) rotateX(14deg);">
+            <div style="position:absolute;top:6px;left:14px;right:14px;font-family:'Special Elite',monospace;font-size:5px;letter-spacing:0.10em;color:#2a1a08;text-align:center;">MAYER, FORTUNA S.</div>
+            <div style="position:absolute;top:14px;left:14px;right:14px;font-family:'Special Elite',monospace;font-size:4px;letter-spacing:0.10em;color:rgba(60,36,12,0.7);text-align:center;">L&amp;D · POSTPARTUM</div>
+            <div style="position:absolute;bottom:8px;left:18px;right:18px;height:8px;background:repeating-linear-gradient(90deg, #1c1004 0 1px, transparent 1px 2px, #1c1004 2px 4px, transparent 4px 5px, #1c1004 5px 6px, transparent 6px 8px);"></div>
+            <div style="position:absolute;top:50%;left:4px;transform:translateY(-50%);width:6px;height:14px;border-radius:2px;background:linear-gradient(180deg,#f8efd6 0%,#c9b486 100%);border:1px solid rgba(80,50,20,0.45);"></div>
+            <div style="position:absolute;top:50%;right:4px;transform:translateY(-50%);width:6px;height:14px;border-radius:2px;background:linear-gradient(180deg,#f8efd6 0%,#c9b486 100%);border:1px solid rgba(80,50,20,0.45);"></div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">Hospital Wristband</h2>
+          <p class="gs-item-flavor">Cream PVC. Mother's postpartum band, Roane Medical Center, admitted three days ago. Cut from her wrist on discharge. Comes with sliders.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">200,000 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="gs-item gs-item-deck" data-id="deck" data-cost="400000" data-href="deck.html">
+        <span class="gs-numeral">XIII</span>
+        <div class="gs-item-art" aria-hidden="true" style="display:flex;align-items:center;justify-content:center;">
+          <div style="position:relative;width:62px;height:88px;border-radius:6px;background:linear-gradient(150deg,#2a1832 0%,#1c0e22 38%,#110610 100%);border:1px solid rgba(232,196,96,0.55);box-shadow: 0 6px 12px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,232,180,0.18), inset 0 -4px 10px rgba(0,0,0,0.5);">
+            <div style="position:absolute;inset:6px;border:1px solid rgba(232,196,96,0.5);border-radius:3px;"></div>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'UnifrakturCook',serif;font-weight:700;font-size:28px;color:#e8c460;text-shadow:0 0 8px rgba(232,196,96,0.5);line-height:1;">F</div>
+            <div style="position:absolute;top:50%;left:-6px;right:-6px;transform:translateY(-50%);height:14px;background:linear-gradient(180deg,#f5ecd6 0%,#c8a878 100%);box-shadow:inset 0 1px 0 rgba(255,250,220,0.6), 0 1px 2px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;">
+              <div style="font-family:'Special Elite',monospace;font-size:4px;letter-spacing:0.10em;color:#1a0a04;text-transform:uppercase;">F. S. MAYER</div>
+            </div>
+            <div style="position:absolute;top:50%;right:-8px;transform:translateY(-50%);width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#d8302a 0%,#9a1c18 55%,#5a0a08 100%);box-shadow:inset 0 -1px 2px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:'UnifrakturCook',serif;font-size:7px;color:#2a0808;">✠</div>
+          </div>
+        </div>
+        <div class="gs-item-body">
+          <h2 class="gs-item-name">The House Deck</h2>
+          <p class="gs-item-flavor">Her own deck. Plum and gold. The paper band is signed FORTUNA STONECIPHER MAYER in her hand. She is sitting at the table already.</p>
+          <div class="gs-item-foot">
+            <span class="gs-price">400,000 coins</span>
+            <button class="gs-buy" type="button">BUY</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <p class="gs-footer-note">All sales final. One per customer. Receipts on request — we don't have any.</p>
+  </main>
+
+  <div class="gs-toast" id="gs-toast" hidden></div>
+
+  <script src="../../js/wallet.js"></script>
+  <script src="../../js/expenses.js"></script>
+  <script src="../../js/child.js"></script>
+  <script src="../../js/giftshop/page.js"></script>
+  <script src="../../js/header.js"></script>
+</body>
+</html>

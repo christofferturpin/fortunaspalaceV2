@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  FORGET — confession-gated wipe; name a regret, then start over          │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    The player's escape hatch — reachable from death.html and other       │
+  │    end-states. A textarea asks the player to name what they wish they    │
+  │    had done differently. Confess & Forget appends the typed regret       │
+  │    (with timestamp) to the persistent wendys_palace_regrets ledger,      │
+  │    then wipes every other wendys_palace_* key + the sinnerbox wallet,    │
+  │    shows "It is done. You will not remember this.", and after 3.2s       │
+  │    redirects to splash.html so the game can begin again with a clean    │
+  │    slate. Take Me Back returns via history.back() (or death.html).       │
+  │    js/forget.js owns all of this — see its top-of-file diagram. Empty    │
+  │    textarea triggers an error warning instead of wiping. The regrets    │
+  │    ledger is intentionally preserved — it's a permanent confession      │
+  │    log shaped {timestamp,text} for future dynamodb migration.            │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: forget.js                                                      │
+  │    inline route-guards: none                                             │
+  │    DOM ids: #forget-form, #forget-regret, #forget-warning,               │
+  │      #forget-actions, #forget-yes, #forget-no, #forget-message           │
+  │    flow: forget.js IIFE → bind #forget-yes → validate trimmed text       │
+  │      (empty → setWarning('error') + focus + return); appendRegret(text)  │
+  │      → push {timestamp:now,text} into wendys_palace_regrets[];           │
+  │      KEYS.forEach localStorage.removeItem; hide form; messageEl='It is   │
+  │      done...'; setTimeout 3200 → location.replace('splash.html').        │
+  │      #forget-no → history.length>1 ? history.back() : death.html         │
+  │    storage R/W:                                                          │
+  │      wiped: wendys_palace_intro_seen, _death, _child, _expenses,         │
+  │             _sinnerbox_jackpot, sinnerbox                                │
+  │      preserved/appended: wendys_palace_regrets (the confession ledger)   │
+  │    routes out: splash.html (after confession), history.back()/death.html │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Forget</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Special+Elite&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/forget/forget.css">
+</head>
+<body>
+  <div class="forget-container">
+    <h1 class="forget-title">FORGET</h1>
+    <p class="forget-prose">
+      <strong>Maybe none of it happened.</strong>
+    </p>
+    <p class="forget-prose">
+      None of it ever happened.
+    </p>
+
+    <div id="forget-form" class="forget-form">
+      <label class="forget-label" for="forget-regret">Tell me about your regrets.</label>
+      <textarea
+        id="forget-regret"
+        class="forget-textarea"
+        rows="6"
+        placeholder="What you wish you had done differently…"
+        autocomplete="off"
+        spellcheck="false"
+      ></textarea>
+      <p id="forget-warning" class="forget-warning">
+        Be free of your mistakes. 
+      </p>
+      <div id="forget-actions" class="forget-actions">
+        <button id="forget-yes" class="forget-btn" type="button">Confess &amp; Forget</button>
+        <button id="forget-no" class="forget-back" type="button">Take Me Back</button>
+      </div>
+    </div>
+
+    <p class="forget-message" id="forget-message"></p>
+  </div>
+  <script src="../js/forget.js"></script>
+</body>
+</html>

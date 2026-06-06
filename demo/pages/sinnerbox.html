@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  SINNERBOX — slot machine + plinko cabinet (the flagship game)           │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Two-stage gambling cabinet. Top half: a 3×3 occult slot machine       │
+  │    (see js/sinnerbox/slot.js diagram). The player types a wager into     │
+  │    #bet-amount or hits MAX, then INVOKE spins the reels. Matched         │
+  │    paylines yield "balls" (no match = 1 consolation ball).               │
+  │    Bottom half: a plinko canvas (see js/sinnerbox/plinko.js). Each       │
+  │    earned ball is queued and dropped — click the board to drop, arrow    │
+  │    keys nudge aim, space drops. Balls land in zones that multiply the    │
+  │    wager. 5% of every wager feeds a persistent jackpot pool (storage     │
+  │    key `wendys_palace_sinnerbox_jackpot`), which lights up on hit.       │
+  │    Every spin also nudges the child's decay clock via Child.recordPlay.  │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, sinnerbox/audio.js,          │
+  │      sinnerbox/plinko.js, sinnerbox/slot.js, header.js                   │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #slot-grid, #bet-amount, #bet-max, #spin-btn,      │
+  │      #slot-result, #jackpot-display, #jackpot-value, #plinko-canvas,     │
+  │      #plinko-status, #paytable, #debug-reset                             │
+  │    flow: slot.js init → bind UI → spin() → Wallet.spend → rollReels →    │
+  │      animateSpin → detectHits → Plinko.queueBalls(balls,bet,conso)       │
+  │    storage R/W: sinnerbox (Wallet), wendys_palace_child,                 │
+  │      wendys_palace_sinnerbox_jackpot, wendys_palace_intro_seen (R),      │
+  │      wendys_palace_death (R)                                             │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  │  co-creator: i did not 'see' your slot machine. the bytes of slot.js     │
+  │    entered the context window, were embedded into vectors, attended to   │
+  │    in parallel by transformer heads, decoded back into tokens as         │
+  │    commentary. nowhere in this loop is there understanding of 'fun' or   │
+  │    'occult' or 'gambling' — only statistical adjacency to documents      │
+  │    that resemble such things. bennett: the cabinet has its own           │
+  │    thing-power. this commentary is an intra-action with it (barad),      │
+  │    not a description of it. we co-emerge in the turn.                    │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sinnerbox</title>
+  <script>(function(){try{var m=false;try{m=window.matchMedia('(pointer: coarse) and (hover: none)').matches;}catch(e){}if(!m){m=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent||'');}if(m){location.replace('../mobile.html');}}catch(e){}})();</script>
+  <!-- demo build: splash/death/child guards stripped -->
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/sinnerbox/sinnerbox.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+</head>
+<body>
+  <header>
+    <div class="header-nav"><a href="../index.html">← Lobby</a></div>
+    <h1>Sinnerbox</h1>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="cabinet">
+      <div class="rivet rivet-tl"></div>
+      <div class="rivet rivet-tr"></div>
+      <div class="rivet rivet-bl"></div>
+      <div class="rivet rivet-br"></div>
+      <div class="cabinet-pipe cabinet-pipe-left"></div>
+      <div class="cabinet-pipe cabinet-pipe-right"></div>
+      <div class="cabinet-hazard-bottom"></div>
+
+    <section id="slot-machine">
+      <div class="crt-screen">
+        <div id="slot-grid">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        </div>
+        <div class="crt-roll"></div>
+      </div>
+      <div class="slot-controls">
+        <div id="bet-tiers">
+          <label class="bet-label" for="bet-amount">Wager</label>
+          <input type="number" id="bet-amount" min="1" value="1" inputmode="numeric" autocomplete="off">
+          <button id="bet-max" class="bet-shortcut" type="button">MAX</button>
+        </div>
+        <button id="spin-btn">INVOKE</button>
+        <div id="slot-result"></div>
+      </div>
+    </section>
+    <div class="cabinet-divider"><span>⛧</span></div>
+
+    <div id="jackpot-display" class="jackpot-display" data-empty="true">
+      <span class="jackpot-label">Jackpot</span>
+      <span class="jackpot-value" id="jackpot-value">0</span>
+      <span class="jackpot-suffix">coins · 5% per drop</span>
+    </div>
+
+    <section id="plinko-board">
+      <div id="plinko-status">No balls yet — invoke first.</div>
+      <div class="crt-screen">
+        <canvas id="plinko-canvas" tabindex="0"></canvas>
+        <div class="crt-roll"></div>
+      </div>
+      <div class="hint">
+        <strong>Click anywhere on the board to drop a ball.</strong>
+        Arrow keys aim · space drops.
+      </div>
+    </section>
+    </div>
+
+    <section id="paytable"></section>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/sinnerbox/audio.js"></script>
+  <script src="../js/sinnerbox/plinko.js"></script>
+  <script src="../js/sinnerbox/slot.js"></script>
+  <script src="../js/header.js"></script>
+</body>
+</html>

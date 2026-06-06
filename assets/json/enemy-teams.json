@@ -1,0 +1,234 @@
+{
+  "_comment": "Enemy team library, keyed by team size. Each size has a list of named teams; main.js picks one at random per round. Each bot follows the same program shape as a player bot ({ name, type, default:{attack,target,move}, trigger, special }). Active specials require a trigger.",
+
+  "1": [
+    { "name": "Sentinel",   "bots": [
+      { "name": "Sentinel",   "type": "heart",   "default": { "attack": "melee",   "target": "nearestEnemy",   "move": "approachNearestEnemy" }, "trigger": null,             "special": { "kind": "passive", "passive": "reinforced" } }
+    ]},
+    { "name": "Striker",    "bots": [
+      { "name": "Striker",    "type": "spade",   "default": { "attack": "melee",   "target": "nearestEnemy",   "move": "approachNearestEnemy" }, "trigger": null,             "special": { "kind": "passive", "passive": "sharpened" } }
+    ]},
+    { "name": "Skirmisher", "bots": [
+      { "name": "Skirmisher", "type": "diamond", "default": { "attack": "snipe",   "target": "nearestEnemy",   "move": "kiteLong"             }, "trigger": null,             "special": { "kind": "passive", "passive": "sharpened" } }
+    ]},
+    { "name": "Templar",    "bots": [
+      { "name": "Templar",    "type": "heart",   "default": { "attack": "melee",   "target": "nearestEnemy",   "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",    "special": { "kind": "active",  "effect": "aegis" } }
+    ]},
+    { "name": "Stalker",    "bots": [
+      { "name": "Stalker",    "type": "diamond", "default": { "attack": "shotgun", "target": "nearestEnemy",   "move": "chargeNearestEnemy"   }, "trigger": "hitRecently",    "special": { "kind": "active",  "effect": "adrenaline" } }
+    ]}
+  ],
+
+  "2": [
+    { "name": "Brace",           "bots": [
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30", "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,          "special": { "kind": "passive", "passive": "vampiric" } }
+    ]},
+    { "name": "Crossfire",       "bots": [
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,          "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,          "special": { "kind": "passive", "passive": "sharpened" } }
+    ]},
+    { "name": "Twin Hammers",    "bots": [
+      { "name": "Striker",   "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,          "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,          "special": { "kind": "passive", "passive": "berserk" } }
+    ]},
+    { "name": "Sniper Doctor",   "bots": [
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,          "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",      "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Beam Tank",       "bots": [
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30", "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Hexer",     "type": "diamond", "default": { "attack": "beam",  "target": "nearestEnemy",  "move": "kiteMedium"           }, "trigger": "enemyInMelee","special": { "kind": "active",  "effect": "lockdown" } }
+    ]}
+  ],
+
+  "3": [
+    { "name": "Trident",       "bots": [
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Three Hammers", "bots": [
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "berserk" } },
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "berserk" } },
+      { "name": "Striker",   "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } }
+    ]},
+    { "name": "Lockdown",      "bots": [
+      { "name": "Inquisitor","type": "spade",   "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "approachNearestEnemy" }, "trigger": "always",        "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Hexer",     "type": "diamond", "default": { "attack": "beam",  "target": "nearestEnemy",  "move": "kiteMedium"           }, "trigger": "enemyInMelee",  "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } }
+    ]},
+    { "name": "Twin Aegis",    "bots": [
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Bloodthirst",   "bots": [
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Striker",   "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Conductor", "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "rally" } }
+    ]}
+  ],
+
+  "4": [
+    { "name": "Crossfire",   "bots": [
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Hexer",     "type": "diamond", "default": { "attack": "beam",  "target": "nearestEnemy",  "move": "kiteMedium"           }, "trigger": "enemyInMelee",  "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Onslaught",   "bots": [
+      { "name": "Striker",   "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "berserk" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Conductor", "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "rally" } }
+    ]},
+    { "name": "Watchtower",  "bots": [
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Inquisitor","type": "spade",   "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "approachNearestEnemy" }, "trigger": "always",        "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Vanguard",    "bots": [
+      { "name": "Stalker",   "type": "diamond", "default": { "attack": "shotgun","target": "nearestEnemy", "move": "chargeNearestEnemy"   }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "adrenaline" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Iron Wall",   "bots": [
+      { "name": "Sentinel",  "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,            "special": { "kind": "passive", "passive": "reinforced" } },
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]}
+  ],
+
+  "5": [
+    { "name": "Phalanx",      "bots": [
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Crucible",     "bots": [
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "berserk" } },
+      { "name": "Inquisitor","type": "spade",   "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "approachNearestEnemy" }, "trigger": "always",        "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Conductor", "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "rally" } }
+    ]},
+    { "name": "Avalanche",    "bots": [
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "berserk" } },
+      { "name": "Striker",   "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Stalker",   "type": "diamond", "default": { "attack": "shotgun","target": "nearestEnemy", "move": "chargeNearestEnemy"   }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "adrenaline" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Bombardment",  "bots": [
+      { "name": "Slinger",   "type": "diamond", "default": { "attack": "bomb",  "target": "highestHpEnemy", "move": "kiteMedium"          }, "trigger": "allyJustDied",  "special": { "kind": "active",  "effect": "loadedShot" } },
+      { "name": "Slinger",   "type": "diamond", "default": { "attack": "bomb",  "target": "highestHpEnemy", "move": "kiteMedium"          }, "trigger": "allyJustDied",  "special": { "kind": "active",  "effect": "loadedShot" } },
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Hexer",     "type": "diamond", "default": { "attack": "beam",  "target": "nearestEnemy",  "move": "kiteMedium"           }, "trigger": "enemyInMelee",  "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Tide",         "bots": [
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } },
+      { "name": "Conductor", "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "rally" } }
+    ]}
+  ],
+
+  "6": [
+    { "name": "Tempest",       "bots": [
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "berserk" } },
+      { "name": "Hexer",     "type": "diamond", "default": { "attack": "beam",  "target": "nearestEnemy",  "move": "kiteMedium"           }, "trigger": "always",        "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Slinger",   "type": "diamond", "default": { "attack": "bomb",  "target": "highestHpEnemy", "move": "kiteMedium"          }, "trigger": "allyJustDied",  "special": { "kind": "active",  "effect": "loadedShot" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Twin Tide",     "bots": [
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Onslaught-6",   "bots": [
+      { "name": "Striker",   "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "berserk" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Avenger",   "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": "allyJustDied",  "special": { "kind": "active",  "effect": "rally" } },
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Reign",         "bots": [
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Hexer",     "type": "diamond", "default": { "attack": "beam",  "target": "nearestEnemy",  "move": "kiteMedium"           }, "trigger": "enemyInMelee",  "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Slinger",   "type": "diamond", "default": { "attack": "bomb",  "target": "highestHpEnemy", "move": "kiteMedium"          }, "trigger": "allyJustDied",  "special": { "kind": "active",  "effect": "loadedShot" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Conductor", "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "rally" } }
+    ]},
+    { "name": "Conflagration", "bots": [
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Slinger",   "type": "diamond", "default": { "attack": "bomb",  "target": "highestHpEnemy", "move": "kiteMedium"          }, "trigger": "allyJustDied",  "special": { "kind": "active",  "effect": "loadedShot" } },
+      { "name": "Hexer",     "type": "diamond", "default": { "attack": "beam",  "target": "nearestEnemy",  "move": "kiteMedium"           }, "trigger": "enemyInMelee",  "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]}
+  ],
+
+  "7": [
+    { "name": "Final Court",   "bots": [
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "berserk" } },
+      { "name": "Inquisitor","type": "spade",   "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "approachNearestEnemy" }, "trigger": "always",        "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Conductor", "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "rally" } }
+    ]},
+    { "name": "Royal Guard",   "bots": [
+      { "name": "Sentinel",  "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,            "special": { "kind": "passive", "passive": "reinforced" } },
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Marksman",  "type": "diamond", "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "kiteLong"             }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } },
+      { "name": "Conductor", "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "rally" } }
+    ]},
+    { "name": "Slaughter",     "bots": [
+      { "name": "Striker",   "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,            "special": { "kind": "passive", "passive": "sharpened" } },
+      { "name": "Berserker", "type": "spade",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "berserk" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Stalker",   "type": "diamond", "default": { "attack": "shotgun","target": "nearestEnemy", "move": "chargeNearestEnemy"   }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "adrenaline" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } }
+    ]},
+    { "name": "Crucible-7",    "bots": [
+      { "name": "Templar",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "myHpUnder30",   "special": { "kind": "active",  "effect": "aegis" } },
+      { "name": "Inquisitor","type": "spade",   "default": { "attack": "snipe", "target": "lowestHpEnemy", "move": "approachNearestEnemy" }, "trigger": "always",        "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Hexer",     "type": "diamond", "default": { "attack": "beam",  "target": "nearestEnemy",  "move": "kiteMedium"           }, "trigger": "always",        "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Hexer",     "type": "diamond", "default": { "attack": "beam",  "target": "nearestEnemy",  "move": "kiteMedium"           }, "trigger": "enemyInMelee",  "special": { "kind": "active",  "effect": "lockdown" } },
+      { "name": "Slinger",   "type": "diamond", "default": { "attack": "bomb",  "target": "highestHpEnemy", "move": "kiteMedium"          }, "trigger": "allyJustDied",  "special": { "kind": "active",  "effect": "loadedShot" } },
+      { "name": "Pyromancer","type": "diamond", "default": { "attack": "whirl", "target": "nearestEnemy",  "move": "kiteShort"            }, "trigger": "hitRecently",   "special": { "kind": "active",  "effect": "detonate" } },
+      { "name": "Conductor", "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "rally" } }
+    ]},
+    { "name": "Endless Tide",  "bots": [
+      { "name": "Sentinel",  "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": null,            "special": { "kind": "passive", "passive": "reinforced" } },
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Bulwark",   "type": "heart",   "default": { "attack": "melee", "target": "nearestEnemy",  "move": "approachNearestEnemy" }, "trigger": "allyHpUnder40", "special": { "kind": "active",  "effect": "bulwark" } },
+      { "name": "Reaper",    "type": "spade",   "default": { "attack": "melee", "target": "lowestHpEnemy", "move": "chargeNearestEnemy"   }, "trigger": null,            "special": { "kind": "passive", "passive": "vampiric" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } },
+      { "name": "Chaplain",  "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "pulseHeal" } },
+      { "name": "Conductor", "type": "club",    "default": { "attack": "heal",  "target": "mostDamagedAlly", "move": "goToAttackedAlly"    }, "trigger": "always",        "special": { "kind": "active",  "effect": "rally" } }
+    ]}
+  ]
+}

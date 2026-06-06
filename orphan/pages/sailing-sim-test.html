@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  SAILING SIM TEST HARNESS  —  no game UI, runs battles and prints log    │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Pre-UI verification page for the js/sailing/* simulation. On load,    │
+  │    runs a default battle (2 Cutters vs 1 Man-o-war) and writes a text    │
+  │    report into #report plus the snapshot/volley/sunk events into the     │
+  │    devtools console. "Rerun" reseeds and runs again. Inputs let you      │
+  │    set seed, wind, and lineups. This page exists only to confirm the     │
+  │    sim behaves sanely before any rendering is built.                     │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/sailing/{world,ship,sail,physics,mapgen,combat,          │
+  │           pathfind,controller,ai,sim}.js                                 │
+  │    DOM ids: #seed, #wind-from, #wind-strength, #lineups, #run, #report   │
+  │    flow: #run.click → Sim.runBattle(opts) → #report.text = textReport    │
+  │           → console.table(events.filter(volley|sunk|ground))             │
+  │    storage R/W: none (test harness only)                                 │
+  │    routes out: none (terminal test page)                                 │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sailing Sim — Test Harness</title>
+  <style>
+    body {
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      background: #0d0e10;
+      color: #d8d2c4;
+      margin: 0;
+      padding: 16px;
+    }
+    h1 { margin: 0 0 8px; font-size: 16px; color: #c9b48a; }
+    .subtitle { font-size: 12px; color: #8c8478; margin-bottom: 14px; }
+    fieldset {
+      border: 1px solid #2a2c30;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      background: #14161a;
+    }
+    legend { color: #c9b48a; padding: 0 6px; font-size: 12px; }
+    label { display: inline-block; margin-right: 12px; font-size: 12px; }
+    input, select, textarea {
+      background: #1c1f24; color: #d8d2c4;
+      border: 1px solid #3a3d44; padding: 3px 6px;
+      font-family: inherit; font-size: 12px;
+    }
+    textarea { width: 380px; height: 60px; vertical-align: top; }
+    button {
+      background: #4a2c1a; color: #f4e4c8;
+      border: 1px solid #6a4030; padding: 6px 14px;
+      cursor: pointer; font-family: inherit; font-size: 13px;
+    }
+    button:hover { background: #5a3826; }
+    #report {
+      background: #0a0b0d; border: 1px solid #2a2c30;
+      padding: 12px; white-space: pre;
+      font-size: 12px; line-height: 1.45;
+      min-height: 320px;
+    }
+    .hint { color: #6a665b; font-size: 11px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <h1>SAILING SIM — test harness</h1>
+  <div class="subtitle">Pre-UI verification. Runs a battle headlessly and prints the result.</div>
+
+  <fieldset>
+    <legend>battle config</legend>
+    <label>seed <input id="seed" type="number" value="1" style="width:80px"></label>
+    <label>wind from° <input id="wind-from" type="number" value="0" min="0" max="359" style="width:60px"></label>
+    <label>wind strength m/s <input id="wind-strength" type="number" value="8" min="1" max="20" step="0.5" style="width:60px"></label>
+    <br><br>
+    <label>lineups (JSON)
+      <textarea id="lineups">[
+  {"side":"A","types":["Cutter","Cutter"]},
+  {"side":"B","types":["ManOWar"]}
+]</textarea>
+    </label>
+    <br><br>
+    <button id="run">RUN BATTLE</button>
+    <span class="hint">→ result in #report. Open devtools console for event stream.</span>
+  </fieldset>
+
+  <div id="report">(press RUN BATTLE)</div>
+
+  <script src="../js/sailing/world.js"></script>
+  <script src="../js/sailing/ship.js"></script>
+  <script src="../js/sailing/sail.js"></script>
+  <script src="../js/sailing/physics.js"></script>
+  <script src="../js/sailing/mapgen.js"></script>
+  <script src="../js/sailing/combat.js"></script>
+  <script src="../js/sailing/pathfind.js"></script>
+  <script src="../js/sailing/controller.js"></script>
+  <script src="../js/sailing/ai.js"></script>
+  <script src="../js/sailing/sim.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      const $ = (id) => document.getElementById(id);
+      const reportEl = $('report');
+
+      function run() {
+        let lineups;
+        try {
+          lineups = JSON.parse($('lineups').value);
+        } catch (e) {
+          reportEl.textContent = 'Bad lineups JSON: ' + e.message;
+          return;
+        }
+        const opts = {
+          seed: parseInt($('seed').value, 10) || 1,
+          wind: {
+            from: parseFloat($('wind-from').value) || 90,
+            strength: parseFloat($('wind-strength').value) || 8,
+          },
+          lineups,
+          snapshotEvery: 15,
+          maxSimSeconds: 600,
+        };
+        const t0 = performance.now();
+        const result = window.Sailing.Sim.runBattle(opts);
+        const wall = (performance.now() - t0).toFixed(0);
+        const report = window.Sailing.Sim.textReport(result);
+        reportEl.textContent = report + '\n\nWall time: ' + wall + ' ms\n';
+
+        const interesting = result.events.filter((e) =>
+          e.type === 'volley' || e.type === 'sunk' || e.type === 'ground'
+        );
+        console.log('Sailing battle complete — winner:', result.winner);
+        console.log('Events of note:');
+        console.table(interesting.map((e) => ({
+          t: +e.t.toFixed(1),
+          type: e.type,
+          shooter: e.shooter,
+          target: e.target,
+          side: e.side,
+          hits: e.hits,
+          damage: e.damage,
+          dist: e.dist,
+          ship: e.ship,
+          by: e.by,
+        })));
+        window.lastBattle = result;
+      }
+
+      $('run').addEventListener('click', run);
+      window.addEventListener('DOMContentLoaded', run);
+    })();
+  </script>
+</body>
+</html>

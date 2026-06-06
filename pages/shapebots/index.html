@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GLADIATRIX.EXE — neon-arena shapebots auto-battler (programming + sim)  │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Pages-of-rome hub: the player programs a legion of card-shape bots    │
+  │    (heart/spade/diamond/club chassis × attack/target/move/trigger/       │
+  │    special slots), bets denarii from the Wallet, and runs a 7-round     │
+  │    gauntlet of fixed-timestep canvas battles. Note: unlike sinnerbox     │
+  │    and the other minigames, this page has NO inline head route-guard —  │
+  │    it is reachable directly without splash/death/child checks. Wallet,   │
+  │    Expenses, and Child still load (Child widget will mount, Expenses    │
+  │    settles rent in the background).                                     │
+  │    The page is one big phase state machine driven by main.js:           │
+  │      programming  →  battle  →  resolution (round won / lost / cashed)  │
+  │    Programming phase shows the team-builder UI: a left column with the  │
+  │    Team header, the saved-team Library (load/save/delete plus           │
+  │    file-export and file-import via teamStore.js), bot tiles, and the    │
+  │    START BATTLE button; a right column with the selected-bot detail    │
+  │    card and the drag-drop Palette (chassis/attack/target/move/trigger/  │
+  │    special tiles). Slot fills, swaps, and clears all go through         │
+  │    programming.js.                                                      │
+  │    On START, main.js spends the bet, draws an enemy team from the      │
+  │    Fisher–Yates bag for the current round size, calls                  │
+  │    BT.createBattle(playerSpecs, enemySpecs), and switches to the       │
+  │    battle panel: HUD (timer + per-side alive counts + ABANDON button), │
+  │    canvas (#sb-canvas, 900×540), and rolling log. A requestAnimationFrame│
+  │    loop steps the simulation at a fixed tickHz, renders via            │
+  │    ShapebotsRender, and watches for battle.winner. On player win it    │
+  │    either ends the run (final round) or shows the Pick-2 unlock panel  │
+  │    (Cash Out vs Continue with chosen unlock). Enemy win or ABANDON     │
+  │    short-circuits to finishRun(), which resets the run, restores the   │
+  │    default team, and reshuffles the enemy bag.                         │
+  │    Payouts scale rw × 0.5 per round won: 0.5× on R1, 1× at R2, up to   │
+  │    3.5× at R7. ABANDON pays out 50% of the mid-round pot.              │
+  │                                                                          │
+  │  For AI (terse):                                                        │
+  │    loads (in order): ../../js/wallet.js, ../../js/expenses.js,         │
+  │      ../../js/child.js, ../../js/shapebots/data.js,                    │
+  │      ../../js/shapebots/audio.js, ../../js/shapebots/bot.js,           │
+  │      ../../js/shapebots/battle.js, ../../js/shapebots/render.js,       │
+  │      ../../js/shapebots/programming.js,                                │
+  │      ../../js/shapebots/teamStore.js, ../../js/shapebots/main.js,      │
+  │      ../../js/header.js                                                │
+  │    inline route-guards: NONE (page is open; relies on lobby gating)    │
+  │    DOM ids:                                                            │
+  │      runbar: #sb-runbar, #sb-runbar-pre, #sb-runbar-active,           │
+  │        #sb-runbar-coins, #sb-bet-input, #sb-runbar-coins-active,      │
+  │        #sb-rb-bet, #sb-rb-round, #sb-rb-pot, #sb-rb-mult,             │
+  │        #sb-rb-nextmult, #sb-rb-matchup                                │
+  │      programming: #sb-programming, #sb-starter-picker, #sb-library,   │
+  │        #sb-library-select, #sb-lib-load, #sb-lib-save, #sb-lib-delete,│
+  │        #sb-lib-export, #sb-lib-import, #sb-lib-file, #sb-bot-tiles,   │
+  │        #sb-start, #sb-bot-detail, #sb-palette                         │
+  │      battle: #sb-battle, #sb-hud, #sb-timer, #sb-palive, #sb-ealive,  │
+  │        #sb-abandon, #sb-canvas (900×540), #sb-log                     │
+  │      resolution: #sb-resolution, #sb-result-text, #sb-result-detail,  │
+  │        #sb-result-actions                                             │
+  │    flow (refs to CODE blocks in modules):                              │
+  │      DOMContentLoaded → main.init() → PG.buildPalette,                │
+  │        refreshRoster, refreshRunbar, bind start/abandon/bet/library  │
+  │      onStartClick → Wallet.spend(bet) → startBattle():                │
+  │        _drawEnemyTeam(size) → BT.createBattle → phase='battle' → rAF │
+  │      loop(now): accumulator → BT.step(battle,fixed) (battle.js sim   │
+  │        steps: projectiles → effects age → per-bot AI                 │
+  │        [evalTrigger/fireEffect/resolveProgram/pickTarget/regen/      │
+  │        pickMoveTarget/knockback/separation/fireAttack] →             │
+  │        checkWin) → RN.render(ctx,battle) → updateHud/updateLog →    │
+  │        if winner → onBattleEnd                                       │
+  │      onBattleEnd: player win → onRoundWon (final → W.add(pot)+      │
+  │        finishRun, else Pick-2 unlock panel); enemy → onRoundLost →  │
+  │        finishRun                                                     │
+  │      onAbandon: W.add(potMidRound(bet,roundsWon)) → finishRun        │
+  │      payout math: multiplierFor(rw)=rw*0.5; potBetween/potMidRound  │
+  │    storage R/W:                                                      │
+  │      sinnerbox (Wallet — bet spend, payout add, lifetimeEarned)     │
+  │      wendys_palace_expenses (Expenses passive hourly settle)        │
+  │      wendys_palace_child (Child state for header widget; no decay  │
+  │        from shapebots play directly)                                │
+  │      wendys_palace_shapebots_teams (TeamStore CRUD: load/save/     │
+  │        delete saved teams; export/import via JSON blob+FileReader) │
+  │    routes out: ../../index.html (via injected .lobby-pill, header.js)│
+  │                                                                       │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gladiatr.exe</title>
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/palace.css">
+  <link rel="stylesheet" href="../../css/shapebots/shapebots.css">
+  <link rel="stylesheet" href="../../css/bet-input.css">
+  <link rel="stylesheet" href="../../css/game-intro.css">
+</head>
+<body class="sb-body">
+  <div class="sb-pillar sb-pillar-l" aria-hidden="true"><span class="sb-pillar-cap"></span><span class="sb-pillar-base"></span></div>
+  <div class="sb-pillar sb-pillar-r" aria-hidden="true"><span class="sb-pillar-cap"></span><span class="sb-pillar-base"></span></div>
+  <div class="sb-haze" aria-hidden="true"></div>
+  <header class="sb-header">
+    <h1 class="sb-title" data-text="GLADIATRIX.EXE">GLADIATR<span class="sb-title-exe">.EXE</span></h1>
+    <p class="sb-subtitle">Program your legion. Bet your denarii. H@1L C3@ZAR!</p>
+    <div class="sb-spqr" aria-hidden="true">▚ S · P · Q · R ▚</div>
+  </header>
+  <div class="sb-fresco" aria-hidden="true"></div>
+
+  <main class="sb-main">
+    <div class="sb-runbar" id="sb-runbar">
+      <div class="sb-runbar-pre" id="sb-runbar-pre">
+        <span class="sb-runbar-label">Wallet</span>
+        <span class="sb-runbar-coins" id="sb-runbar-coins">0</span>
+        <span class="sb-runbar-label">Bet</span>
+        <input type="number" id="sb-bet-input" class="sb-bet-input" min="1" value="50">
+        <span class="sb-runbar-hint">Round 1: 2 v 1 — payout 0.5× on R1, break even at R2, up to 3.5× at R7.</span>
+      </div>
+      <div class="sb-runbar-active" id="sb-runbar-active" hidden>
+        <span class="sb-runbar-cell"><span class="sb-runbar-label">WALLET</span><span id="sb-runbar-coins-active">0</span></span>
+        <span class="sb-runbar-cell"><span class="sb-runbar-label">BET</span><span id="sb-rb-bet">0</span></span>
+        <span class="sb-runbar-cell"><span class="sb-runbar-label">ROUND</span><span id="sb-rb-round">1</span><span class="sb-runbar-faint">/7</span></span>
+        <span class="sb-runbar-cell"><span class="sb-runbar-label">POT</span><span id="sb-rb-pot">0</span><span class="sb-runbar-mult" id="sb-rb-mult">×0</span></span>
+        <span class="sb-runbar-cell"><span class="sb-runbar-label">NEXT</span><span id="sb-rb-nextmult">×0.5</span></span>
+        <span class="sb-runbar-cell sb-runbar-matchup"><span class="sb-runbar-label">MATCH</span><span id="sb-rb-matchup">2v1</span></span>
+      </div>
+    </div>
+    <section id="sb-programming" class="sb-programming">
+      <aside class="sb-left-col">
+        <h2 class="sb-section-title">Team</h2>
+        <div id="sb-starter-picker" class="sb-starter-picker" hidden></div>
+        <div id="sb-library" class="sb-library">
+          <div class="sb-library-header">Library</div>
+          <select id="sb-library-select" class="sb-library-select">
+            <option value="">— saved teams —</option>
+          </select>
+          <div class="sb-library-actions">
+            <button id="sb-lib-load"   type="button" class="sb-lib-btn" disabled>Load</button>
+            <button id="sb-lib-save"   type="button" class="sb-lib-btn">Save…</button>
+            <button id="sb-lib-delete" type="button" class="sb-lib-btn" disabled>Delete</button>
+          </div>
+          <div class="sb-library-actions">
+            <button id="sb-lib-export" type="button" class="sb-lib-btn" disabled>Save to file</button>
+            <button id="sb-lib-import" type="button" class="sb-lib-btn">Load from file</button>
+            <input id="sb-lib-file" type="file" accept="application/json,.json" hidden>
+          </div>
+        </div>
+        <div id="sb-bot-tiles" class="sb-bot-tiles"></div>
+        <button id="sb-start" type="button" class="sb-btn sb-btn-primary sb-start-btn" disabled>START BATTLE</button>
+      </aside>
+      <div class="sb-right-col">
+        <div id="sb-bot-detail" class="sb-bot-detail"></div>
+        <div class="sb-palette-wrap">
+          <h2 class="sb-section-title">Palette — drag onto a slot. Click a filled slot to clear.</h2>
+          <div id="sb-palette" class="sb-palette"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sb-battle" class="sb-battle" hidden>
+      <div id="sb-hud" class="sb-hud">
+        <div class="sb-hud-stat"><span class="sb-hud-label">Time</span><span id="sb-timer">60.0s</span></div>
+        <div class="sb-hud-stat sb-hud-player"><span class="sb-hud-label">You</span><span id="sb-palive">5</span></div>
+        <div class="sb-hud-stat sb-hud-enemy"><span class="sb-hud-label">Enemy</span><span id="sb-ealive">5</span></div>
+        <button id="sb-abandon" type="button" class="sb-btn sb-btn-warning">ABANDON (cash 50%)</button>
+      </div>
+      <canvas id="sb-canvas" width="900" height="540"></canvas>
+      <div id="sb-log" class="sb-log"></div>
+      <div id="sb-resolution" class="sb-resolution" hidden>
+        <div class="sb-result-box">
+          <div id="sb-result-text" class="sb-result-text">—</div>
+          <div id="sb-result-detail" class="sb-result-detail"></div>
+          <div class="sb-result-actions" id="sb-result-actions"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="../../js/wallet.js"></script>
+  <script src="../../js/bet-input.js"></script>
+  <script src="../../js/expenses.js"></script>
+  <script src="../../js/child.js"></script>
+  <script src="../../js/shapebots/data.js"></script>
+  <script src="../../js/shapebots/audio.js"></script>
+  <script src="../../js/shapebots/bot.js"></script>
+  <script src="../../js/shapebots/battle.js"></script>
+  <script src="../../js/shapebots/render.js"></script>
+  <script src="../../js/shapebots/programming.js"></script>
+  <script src="../../js/shapebots/teamStore.js"></script>
+  <script src="../../js/shapebots/main.js"></script>
+  <script src="../../js/header.js"></script>
+  <script src="../../js/game-intro.js"></script>
+</body>
+</html>

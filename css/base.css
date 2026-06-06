@@ -1,0 +1,856 @@
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Cormorant+Garamond:wght@400;600;700&family=Pirata+One&family=VT323&family=Limelight&family=Special+Elite&family=Cinzel:wght@400;600;700&family=Frank+Ruhl+Libre:wght@500;700;900&family=Cardo:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  /* ===== Fortuna's Palace — gothic palette =====
+     Canonical values are inferred from sinnerbox.css's literal rgba() usage
+     (blood = rgba(184,0,31), ember = rgba(255,106,0), phosphor =
+     rgba(26,255,127), sulfur = #d4af37). Pages and shared chrome should
+     consume these vars rather than hard-coding hex. */
+
+  /* Voids / panel backgrounds */
+  --bg-void:    #050203;
+  --bg-deep:    #0a0405;
+  --bg-panel:   #1a1012;
+  --bg-warm:    #2a1408;
+
+  /* Iron — frames, buttons, dividers */
+  --iron:       #1a1612;
+  --iron-light: #3a2e24;
+
+  /* Paper / cream text */
+  --bone:       #d8c8b0;
+  --bone-dim:   #a89878;
+
+  /* Reds */
+  --blood:      #b8001f;
+  --blood-dim:  #5a0010;
+
+  /* Embers / oranges */
+  --ember:      #ff6a00;
+  --ember-dim:  #8a3010;
+
+  /* Gold */
+  --sulfur:     #d4af37;
+  --sulfur-dim: #8a6e1e;
+
+  /* LCD phosphor (Tamagotchi-style readouts, balance) */
+  --phosphor:   #1aff7f;
+
+  /* Fonts */
+  --font-title: 'Pirata One', 'IM Fell English', 'Times New Roman', serif;
+  --font-ui:    'VT323', 'Courier New', monospace;
+  --font-body:  'IM Fell English', 'Cormorant Garamond', 'Times New Roman', serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-size: 20px;
+  line-height: 1.35;
+  color: var(--bone);
+  font-family: var(--font-body);
+  background-color: var(--bg-void);
+}
+/* base.css does NOT paint a body background image — each page owns its own
+   theme. Per-page CSS is responsible for backgrounds, gradients, and
+   atmospheric layers. */
+
+/* ========== Shared page chrome — defaults pages can override ========== */
+
+header {
+  text-align: center;
+  padding: 18px 16px 10px;
+  border-bottom: 1px solid var(--iron-light);
+  position: relative;
+}
+h1 {
+  font-family: var(--font-title);
+  font-size: 2.4rem;
+  letter-spacing: 0.18em;
+  color: var(--blood);
+  margin: 0 0 6px;
+  text-shadow:
+    0 0 6px rgba(184, 0, 31, 0.55),
+    0 0 16px rgba(184, 0, 31, 0.3);
+}
+.header-nav {
+  position: absolute;
+  top: 18px;
+  left: 14px;
+  font-size: 0.9rem;
+  font-family: var(--font-ui);
+  letter-spacing: 0.18em;
+}
+.header-nav a {
+  color: var(--bone-dim);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--iron-light);
+  padding-bottom: 1px;
+}
+.header-nav a:hover {
+  color: var(--blood);
+  border-bottom-color: var(--blood);
+}
+.coins-bar {
+  position: absolute;
+  top: 18px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-ui);
+  letter-spacing: 0.08em;
+  color: var(--bone);
+}
+.coins-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+}
+#balance {
+  color: var(--phosphor);
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-shadow: 0 0 6px rgba(26, 255, 127, 0.5);
+}
+#debug-reset {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--iron-light);
+  border-radius: 2px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+#debug-reset:hover {
+  color: var(--blood);
+  border-color: var(--blood);
+}
+
+/* ========== Always-visible "back to Lobby" pill ==========
+   Injected by js/header.js into <body> on every game page (and added inline
+   on pages that don't load header.js). Sits in the top-left corner; high
+   z-index so themed page chrome can't bury it. The Your Child widget lives
+   on the right so the two don't collide.
+   Themed pages can restyle but should keep position fixed top-left. */
+.lobby-pill {
+  position: fixed;
+  top: 8px;
+  left: 12px;
+  z-index: 200;
+  padding: 4px 12px;
+  background: rgba(10, 4, 5, 0.86);
+  border: 1px solid rgba(216, 200, 176, 0.4);
+  border-radius: 3px;
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bone);
+  text-decoration: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.lobby-pill:hover {
+  border-color: var(--blood);
+  color: var(--blood);
+  transform: translateY(-1px);
+}
+
+/* ========== "Your Child" status widget — same on every page ========== */
+
+.child-status {
+  position: fixed;
+  top: 44px;
+  right: 12px;
+  width: 200px;
+  background:
+    radial-gradient(ellipse at top, rgba(184, 0, 31, 0.18), transparent 70%),
+    rgba(10, 4, 5, 0.94);
+  border: 1px solid rgba(184, 0, 31, 0.38);
+  border-radius: 3px;
+  padding: 10px 12px;
+  font-family: 'Cormorant Garamond', 'Special Elite', 'Courier New', serif;
+  color: var(--bone);
+  font-size: 12px;
+  box-shadow:
+    0 4px 18px rgba(0, 0, 0, 0.7),
+    0 0 12px rgba(184, 0, 31, 0.14),
+    inset 0 1px 0 rgba(216, 200, 176, 0.1);
+  z-index: 100;
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.child-status:hover {
+  border-color: var(--blood);
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 22px rgba(0, 0, 0, 0.75),
+    0 0 16px rgba(184, 0, 31, 0.3),
+    inset 0 1px 0 rgba(216, 200, 176, 0.15);
+}
+
+.child-status-title {
+  text-align: center;
+  font-family: 'Cinzel', 'Limelight', serif;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blood);
+  margin-bottom: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(184, 0, 31, 0.32);
+  text-shadow: 0 0 6px rgba(184, 0, 31, 0.4);
+}
+
+.child-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.child-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.child-stat-name {
+  flex: 0 0 64px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(216, 200, 176, 0.85);
+}
+
+.child-stat-gauge {
+  flex: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(216, 200, 176, 0.18);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.child-stat-fill {
+  height: 100%;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.child-stat-low .child-stat-fill {
+  background: linear-gradient(90deg, #5a0010, var(--blood));
+}
+
+.child-stat-mid .child-stat-fill {
+  background: linear-gradient(90deg, #6a4a18, var(--sulfur));
+}
+
+.child-stat-high .child-stat-fill {
+  background: linear-gradient(90deg, #2a5040, #5a8a6a);
+}
+
+.child-stat-value {
+  flex: 0 0 16px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bone);
+}
+
+@media (max-width: 720px) {
+  .child-status {
+    width: 170px;
+    font-size: 11px;
+  }
+  .child-stat-name {
+    flex-basis: 56px;
+    font-size: 10px;
+  }
+}
+
+/* ========== Tamagotchi face — shared across pages ========== */
+
+.tama-face {
+  display: inline-block;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  transform-origin: center;
+  will-change: transform, opacity, color;
+}
+
+.tama-face.face-dying {
+  color: #5a0010;
+  animation: tama-flicker 0.5s steps(2) infinite;
+}
+.tama-face.face-starving {
+  color: #7a4a18;
+  animation: tama-shiver 0.42s ease-in-out infinite;
+}
+.tama-face.face-sick {
+  color: #4a7a5a;
+  animation: tama-sway 2.2s ease-in-out infinite;
+}
+.tama-face.face-crying {
+  color: #4a5878;
+  animation: tama-sob 1.6s ease-in-out infinite;
+}
+.tama-face.face-bored {
+  color: #6a5a48;
+  animation: tama-droop 4s ease-in-out infinite;
+}
+.tama-face.face-distressed {
+  color: #7a3030;
+  animation: tama-shake 0.7s ease-in-out infinite;
+}
+.tama-face.face-peckish,
+.tama-face.face-queasy,
+.tama-face.face-wistful,
+.tama-face.face-dull {
+  animation: tama-breathe-soft 3.4s ease-in-out infinite;
+}
+.tama-face.face-subdued {
+  color: #6a5a48;
+  animation: tama-breathe-soft 4s ease-in-out infinite;
+}
+.tama-face.face-uneasy {
+  color: #8a7858;
+  animation: tama-breathe-soft 3.6s ease-in-out infinite;
+}
+.tama-face.face-neutral {
+  color: var(--bone-dim);
+  animation: tama-breathe 3.6s ease-in-out infinite;
+}
+.tama-face.face-okay {
+  color: #5a8a78;
+  animation: tama-breathe 3.2s ease-in-out infinite;
+}
+.tama-face.face-pleased {
+  color: #6aa088;
+  animation: tama-bob 3s ease-in-out infinite;
+}
+.tama-face.face-content {
+  color: #7ab088;
+  animation: tama-bob 2.4s ease-in-out infinite;
+}
+.tama-face.face-cheerful {
+  color: var(--sulfur);
+  animation: tama-bob 2s ease-in-out infinite;
+}
+.tama-face.face-happy {
+  color: var(--phosphor);
+  animation: tama-bob 1.6s ease-in-out infinite;
+}
+.tama-face.face-ecstatic {
+  color: var(--sulfur);
+  animation: tama-sparkle 1.2s ease-in-out infinite;
+  text-shadow:
+    0 0 8px rgba(212, 175, 55, 0.7),
+    0 0 18px rgba(255, 106, 0, 0.4);
+}
+
+@keyframes tama-flicker {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+@keyframes tama-shiver {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-1.5px); }
+  75%      { transform: translateX(1.5px); }
+}
+@keyframes tama-sway {
+  0%, 100% { transform: rotate(-2deg) translateY(0); }
+  50%      { transform: rotate(2deg) translateY(1px); }
+}
+@keyframes tama-sob {
+  0%, 100% { transform: translateY(0); }
+  20%      { transform: translateY(-1px); }
+  40%      { transform: translateY(2px); }
+  60%      { transform: translateY(0); }
+}
+@keyframes tama-droop {
+  0%, 100% { transform: scaleY(1) translateY(0); }
+  50%      { transform: scaleY(0.93) translateY(2px); }
+}
+@keyframes tama-shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25%      { transform: translateX(-2px) rotate(-1deg); }
+  75%      { transform: translateX(2px) rotate(1deg); }
+}
+@keyframes tama-breathe-soft {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.02); }
+}
+@keyframes tama-breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50%      { transform: scale(1.03) translateY(-1px); }
+}
+@keyframes tama-bob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-3px) scale(1.04); }
+}
+@keyframes tama-sparkle {
+  0%, 100% { transform: scale(1) rotate(-1deg); }
+  25%      { transform: scale(1.08) rotate(2deg); }
+  50%      { transform: scale(1.05) rotate(-1deg); }
+  75%      { transform: scale(1.1) rotate(2deg); }
+}
+
+/* widget-scoped face — small LCD-style strip above the stats */
+.child-status-face-frame {
+  margin: 0 0 8px;
+  padding: 6px 0 7px;
+  background: linear-gradient(180deg, #0a0405 0%, #050203 100%);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(212, 175, 55, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+
+.child-status-face-frame .tama-face {
+  font-size: 18px;
+  font-family: 'VT323', 'Courier New', monospace;
+  color: var(--phosphor);
+  text-shadow: 0 0 4px rgba(26, 255, 127, 0.55);
+  white-space: pre;
+  line-height: 1.05;
+  text-align: center;
+}
+
+/* "Til hungry" feeding clock — buffer tag + percent + flash on hit */
+
+.child-status-feed {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(216, 200, 176, 0.22);
+}
+
+.child-status-feed-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+  margin-bottom: 5px;
+  text-align: left;
+}
+
+.child-status-feed-buffer-tag {
+  margin-top: 4px;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--sulfur);
+  text-shadow: 0 0 6px rgba(212, 175, 55, 0.5);
+  text-align: center;
+}
+
+.child-status-feed-pct {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--bone);
+  margin-left: auto;
+  display: inline-block;
+  transform-origin: center right;
+}
+
+.child-status-feed-pct.is-bumped {
+  animation: feed-pct-bump 0.7s ease-out;
+}
+
+@keyframes feed-pct-bump {
+  0%   { transform: scale(1);   color: var(--bone);   text-shadow: none; }
+  25%  { transform: scale(1.45); color: var(--ember); text-shadow: 0 0 10px var(--ember), 0 0 18px var(--ember); }
+  100% { transform: scale(1);   color: var(--bone);   text-shadow: none; }
+}
+
+.child-status-feed.is-flashing {
+  animation: feed-hit-flash 0.85s ease-out;
+}
+
+@keyframes feed-hit-flash {
+  0%   { background: hsl(0, 70%, 40%);   box-shadow: 0 0 14px hsl(0, 70%, 50%), inset 0 0 10px rgba(255, 200, 200, 0.7); }
+  60%  { background: hsla(0, 70%, 32%, 0.4); box-shadow: 0 0 6px hsl(0, 70%, 40%); }
+  100% { background: transparent; box-shadow: none; }
+}
+
+.child-status-feed-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.child-status-feed-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 6px 4px 5px;
+  background: linear-gradient(180deg, rgba(40, 18, 22, 0.9) 0%, rgba(18, 8, 10, 0.9) 100%);
+  border: 1px solid rgba(184, 0, 31, 0.45);
+  border-radius: 2px;
+  color: var(--bone);
+  font-family: 'Cormorant Garamond', 'Special Elite', serif;
+  cursor: pointer;
+  transition: border-color 0.12s ease, transform 0.1s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.child-status-feed-btn:hover:not(:disabled) {
+  border-color: var(--blood);
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 0 8px rgba(184, 0, 31, 0.32);
+}
+
+.child-status-feed-btn:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.92);
+}
+
+.child-status-feed-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+.child-status-feed-btn-name {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(216, 200, 176, 0.92);
+  line-height: 1.1;
+  text-align: center;
+}
+
+.child-status-feed-btn-effect {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--phosphor);
+  text-shadow: 0 0 5px rgba(26, 255, 127, 0.4);
+}
+
+.child-status-feed-btn-cost {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--sulfur);
+  text-shadow: 0 0 4px rgba(212, 175, 55, 0.35);
+}
+
+.child-status-coins {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(216, 200, 176, 0.22);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.child-status-coins-label {
+  color: var(--bone-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 10px;
+}
+
+.child-status-coins-value {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--phosphor);
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 6px rgba(26, 255, 127, 0.45);
+}
+
+.child-status-bill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(216, 200, 176, 0.22);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.child-status-bill-label {
+  color: var(--bone-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 10px;
+}
+
+.child-status-bill-timer {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sulfur);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 5px rgba(212, 175, 55, 0.35);
+}
+
+.child-status-bill-timer.child-status-bill-soon {
+  color: var(--blood);
+  animation: bill-pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes bill-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+/* ── Boss-kill badges at the bottom of the Your-Child widget ──
+   Rendered inline by js/header.js when wendys_palace_bosses_beaten
+   has any entries. Each badge is a 28px circular plate with the boss
+   token SVG inside, gold-trimmed and softly glowing. Only earned
+   bosses appear — no greyed-out slots, keeps the widget compact. */
+.child-status-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(216, 200, 176, 0.18);
+  justify-content: center;
+}
+.child-status-badge {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid var(--sulfur);
+  box-shadow:
+    0 0 0 1px rgba(212, 175, 55, 0.3),
+    0 0 10px rgba(212, 175, 55, 0.35);
+}
+.child-status-badge svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+/* Chavez badge — Eye of Chavez. Moved from the lobby into this widget;
+   small ivory ellipse with gold + phosphor halo, red pupil, pulsing
+   animation. The standard badge wrapper around it provides the gold
+   ring + dark plate; this rule strips the wrapper's plate when the
+   eye is the content so the eye's own halo reads cleanly. */
+.child-status-badge:has(.badge-eye) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  width: 30px;
+  height: 18px;
+  border-radius: 50%;
+}
+.badge-eye {
+  position: relative;
+  width: 24px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bone);
+  border: 1px solid var(--sulfur);
+  box-shadow:
+    0 0 6px rgba(212, 175, 55, 0.95),
+    0 0 14px rgba(212, 175, 55, 0.55),
+    0 0 24px rgba(26, 255, 127, 0.30);
+  animation: badge-eye-pulse 2.6s ease-in-out infinite;
+}
+.badge-eye-pupil {
+  position: absolute;
+  inset: 17% 32%;
+  background: var(--blood);
+  border-radius: 50%;
+  box-shadow: 0 0 3px rgba(184, 0, 31, 0.85);
+}
+@keyframes badge-eye-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 6px rgba(212, 175, 55, 0.95),
+      0 0 14px rgba(212, 175, 55, 0.55),
+      0 0 24px rgba(26, 255, 127, 0.30);
+  }
+  50% {
+    box-shadow:
+      0 0 11px rgba(255, 235, 160, 1),
+      0 0 22px rgba(212, 175, 55, 0.80),
+      0 0 38px rgba(26, 255, 127, 0.50);
+  }
+}
+
+/* Malechstone badge — the ASCII missile glyph in phosphor yellow with
+   a hot exhaust glow trailing behind. No plate. */
+.child-status-badge:has(.badge-missile) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  width: 38px;
+}
+.badge-missile {
+  font-family: var(--font-ui, monospace);
+  font-size: 14px;
+  font-weight: 700;
+  color: #d4d488;
+  letter-spacing: -0.06em;
+  text-shadow:
+    -2px 0 0 rgba(255, 136, 0, 0.85),
+    -5px 0 4px rgba(220, 20, 10, 0.55),
+    0 0 6px rgba(255, 230, 120, 0.6);
+}
+
+/* Nahual badge — jaguar emoji pushed into pure pink via a filter
+   chain. Common technique: brightness(0) flattens the source to black
+   silhouette, then invert/sepia/saturate/hue-rotate maps that into a
+   specific pink hue. Works across emoji-rendering platforms because
+   the source colors are zeroed out first. */
+.badge-jaguar {
+  font-size: 22px;
+  line-height: 1;
+  filter:
+    brightness(0) saturate(100%)
+    invert(62%) sepia(78%) saturate(2400%)
+    hue-rotate(290deg) brightness(105%) contrast(105%);
+}
+
+/* Fortuna badge — burn-cigarette hole punched through the widget.
+   Plate stripped; charred outer ring + smoldering inset shadow + deep
+   void core. Reads as a perforation rather than a coin. */
+.child-status-badge:has(.badge-burn) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.badge-burn {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%,
+      #050203 0%,
+      #1a0608 55%,
+      #4a1c10 78%,
+      #8a3010 92%,
+      transparent 100%);
+  box-shadow:
+    inset 0 0 6px rgba(0, 0, 0, 0.95),
+    inset 0 0 12px rgba(74, 28, 16, 0.75),
+    0 0 4px rgba(138, 48, 16, 0.45);
+}
+.badge-burn-core {
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  background: #000;
+  box-shadow:
+    inset 0 0 4px rgba(255, 106, 0, 0.35);
+}
+
+/* ========== "While you were gone" expense banner ========== */
+
+.expense-banner {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  background:
+    radial-gradient(ellipse at top, rgba(184, 0, 31, 0.22), transparent 70%),
+    rgba(10, 4, 5, 0.96);
+  border: 1px solid var(--blood);
+  border-radius: 3px;
+  padding: 10px 38px 11px 16px;
+  font-family: 'Special Elite', 'Courier Prime', 'Courier New', monospace;
+  color: var(--bone);
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.75),
+    0 0 16px rgba(184, 0, 31, 0.28),
+    inset 0 1px 0 rgba(216, 200, 176, 0.16);
+  min-width: 280px;
+  max-width: 440px;
+  animation: expense-banner-in 0.45s ease;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.expense-banner-fading {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-16px);
+}
+
+.expense-banner-title {
+  font-family: 'Limelight', 'Old Standard TT', serif;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--blood);
+  margin-bottom: 4px;
+  text-align: center;
+  text-shadow: 0 0 6px rgba(184, 0, 31, 0.45);
+}
+
+.expense-banner-body {
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.expense-banner-body strong {
+  color: var(--sulfur);
+  font-weight: 700;
+  text-shadow: 0 0 5px rgba(212, 175, 55, 0.4);
+}
+
+.expense-banner-shortfall {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--blood);
+  letter-spacing: 0.02em;
+}
+
+.expense-banner-dismiss {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--bone-dim);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-family: inherit;
+}
+.expense-banner-dismiss:hover { color: var(--blood); }
+
+@keyframes expense-banner-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-22px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

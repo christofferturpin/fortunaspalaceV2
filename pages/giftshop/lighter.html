@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — LIGHTER ("Semper Fi" Zippo, 25,600 coins)                  │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item-display page for the engraved Zippo. Single-screen CSS scene:    │
+  │    a CSS-drawn lighter under a flickering flame, with a short italic     │
+  │    prose vignette about kneeling, flicking the wheel, and not staying    │
+  │    to watch. The item itself is the player's act of arson on her         │
+  │    husband's house. No interactivity beyond the back link.               │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: (none — self-contained <style>, no <script src>)              │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .lt-room > .lt-lighter-wrap (.lt-flame, .lt-lighter), .lt-prose │
+  │    flow: static page; CSS animations only (sway, flame flicker)         │
+  │    storage R/W: none on this page (catalog page handles ownership in    │
+  │      wendys_palace_giftshop, key='lighter')                              │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Lighter</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background: #060403;
+      color: #d8c8b0;
+      font-family: 'EB Garamond', serif;
+      overflow-x: hidden;
+    }
+    .lt-room {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 50px 22px 60px;
+      gap: 36px;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(255, 160, 60, 0.18) 0%, rgba(255, 100, 30, 0.05) 30%, transparent 60%),
+        #060403;
+    }
+    .lt-room::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0 1px, transparent 1px 4px);
+      pointer-events: none;
+    }
+    .lt-lighter-wrap {
+      position: relative;
+      perspective: 600px;
+    }
+    .lt-lighter {
+      width: 140px;
+      height: 220px;
+      background:
+        linear-gradient(180deg,
+          #d8d0c0 0%,
+          #888078 12%,
+          #6a6258 14%,
+          #4a4540 40%,
+          #2a2620 100%);
+      border-radius: 10px 10px 12px 12px;
+      position: relative;
+      box-shadow:
+        inset 2px 0 0 rgba(255,255,255,0.18),
+        inset -2px 0 0 rgba(0,0,0,0.4),
+        0 22px 50px rgba(0,0,0,0.7);
+      animation: lt-sway 8s ease-in-out infinite;
+    }
+    @keyframes lt-sway {
+      0%, 100% { transform: rotate(-2deg); }
+      50%      { transform: rotate(2deg); }
+    }
+    .lt-lid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 44px;
+      background: linear-gradient(180deg, #e0d8c8 0%, #908878 100%);
+      border-radius: 10px 10px 0 0;
+      border-bottom: 2px solid #1a1612;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+    }
+    .lt-hinge {
+      position: absolute;
+      top: 40px;
+      left: 10px;
+      right: 10px;
+      height: 4px;
+      background: #1a1612;
+      border-radius: 2px;
+    }
+    .lt-engraving {
+      position: absolute;
+      top: 70px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-family: 'Limelight', 'Special Elite', monospace;
+      font-size: 22px;
+      letter-spacing: 0.18em;
+      line-height: 1.1;
+      color: #1a1612;
+      text-shadow:
+        0 1px 0 rgba(255,255,255,0.3),
+        0 -1px 0 rgba(0,0,0,0.4);
+    }
+    .lt-engraving small {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 0.32em;
+      margin-top: 8px;
+      opacity: 0.7;
+    }
+    .lt-spark {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 50px;
+      height: 6px;
+      background: linear-gradient(180deg, #3a3530 0%, #1a1612 100%);
+      border-radius: 2px;
+    }
+    .lt-flame {
+      position: absolute;
+      top: -64px;
+      left: 50%;
+      width: 36px;
+      height: 78px;
+      background: radial-gradient(ellipse at center 75%, #fffadc 0%, #ffd060 25%, #ffa030 55%, #c8501a 85%, transparent 100%);
+      border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+      transform: translateX(-50%);
+      filter: blur(1px);
+      box-shadow:
+        0 0 30px rgba(255, 160, 60, 0.7),
+        0 0 80px rgba(255, 110, 30, 0.4);
+      animation: lt-flame 0.18s ease-in-out infinite alternate;
+    }
+    @keyframes lt-flame {
+      0%   { transform: translateX(-50%) scaleY(1)    scaleX(1)    translateY(0); }
+      100% { transform: translateX(-50%) scaleY(1.18) scaleX(0.92) translateY(-3px); }
+    }
+    .lt-flame-core {
+      position: absolute;
+      top: -52px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 16px;
+      height: 36px;
+      background: radial-gradient(ellipse at center 70%, #fff 0%, #80c0ff 30%, transparent 70%);
+      border-radius: 50%;
+      filter: blur(0.6px);
+      mix-blend-mode: screen;
+    }
+    .lt-prose {
+      max-width: 560px;
+      font-size: 19px;
+      line-height: 1.6;
+      color: rgba(216, 200, 176, 0.92);
+      text-align: center;
+      font-style: italic;
+      z-index: 2;
+    }
+    .lt-prose p { margin: 0 0 14px; }
+    .lt-prose p:last-child { margin: 0; }
+    .lt-prose .em {
+      font-style: normal;
+      color: #f0c890;
+    }
+    .lt-prose .quiet {
+      color: rgba(216, 200, 176, 0.55);
+      font-size: 16px;
+    }
+    .lt-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8b0;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+      z-index: 2;
+    }
+    .lt-back:hover {
+      background: rgba(201, 161, 74, 0.15);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="lt-room">
+    <div class="lt-lighter-wrap">
+      <div class="lt-flame-core"></div>
+      <div class="lt-flame"></div>
+      <div class="lt-lighter">
+        <div class="lt-lid"></div>
+        <div class="lt-hinge"></div>
+        <div class="lt-engraving">SEMPER FI<small>· · ·</small></div>
+        <div class="lt-spark"></div>
+      </div>
+    </div>
+
+    <div class="lt-prose">
+      <p>He bought it himself at a flea market in Sweetwater. He was never a Marine. He liked Marines movies, Marvel, anything with heroes. You never knew if thought him self one or wished for one.</p>
+      <p>He kept it on the kitchen counter and you knew where it was without thinking, like you know where the salt is.</p>
+      <p class="em">When you needed, it was where it always was.</p>
+      <p> You flicked the wheel. Louder than drunken snoring. It caught on the first try, the way his never did.</p>
+      <p class="quiet">You did not stay to see what happened next but you could smell it as you left, like breakfast.</p>
+    </div>
+
+    <a class="lt-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+</body>
+</html>

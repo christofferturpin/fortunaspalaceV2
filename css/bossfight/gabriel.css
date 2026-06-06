@@ -1,0 +1,576 @@
+/*
+  GABRIEL — page-specific theming on top of the shared holdem.css shell.
+  ─────────────────────────────────────────────────────────────────────────
+  Backdrop is a single fixed pseudo-element: eyesurgery.gif tiled across a
+  square sized 160vmax (large enough to cover the viewport at any rotation
+  angle), slowly rotating. One compositor layer, GPU-accelerated transform,
+  one decoded GIF — memory cost is constant regardless of how many tiles
+  are visible. Foreground panels get a two-layer static gold halo; player
+  cards keep the arterial-red glow; the boss avatar gets a red two-line
+  MAGA-style ball cap drawn entirely via a ::before pseudo-element.
+
+  Sections:
+    1. Page background + spinning eye + shared CSS vars
+    2. Panel glow — gold halo on framing; status cells darkened separately
+    3. Boss avatar — simple red cap (::before) + CSWS badge (::after)
+    4. Player cards — black border + arterial-red glow
+    5. Header title — Cinzel illuminated medieval/biblical logo
+    6. Orbital eyes — one rotating ring per panel
+    7. Gabriel's monologue — bottom-right italic whisper, JS-cycled
+    8. White stroke on gold text — uses --gabriel-stroke
+    9. Contrast bumps for any text not otherwise specified
+  Owns selectors: body-class-scoped overrides on .bf-gabriel, plus the
+    .bf-gabriel ::before tile layer, .bf-boss-avatar ::before/::after,
+    .bf-gabriel-orbit / .bf-gabriel-orbit-eye, .bf-gabriel-monologue,
+    .bf-gabriel-vs and .bf-gabriel-name (header spans).
+  Consumed by: pages/bossfight-chavez.html (body class .bf-gabriel)
+*/
+
+/* ─── 1. Background — tiled, slowly rotating eye ─────────────────────── */
+/* Body is intentionally transparent so the ::before pseudo (which fills
+   the viewport with the tiled, spinning eye) is what shows in every gap
+   between play divs. The dark fallback colour lives on the pseudo, not
+   the body — that way nothing paints "behind" the tile and the gaps
+   never go solid black. */
+body.bf-body.bf-gabriel {
+  background: transparent;
+  /* Shared values used across §3 / §8 / §9. --gabriel-stroke is a 1px
+     white outline + soft white glow applied to any gold-coloured text
+     (the boss face, pot value, seat names, log amounts, action buttons…
+     everywhere except the §5 title which owns its own gilded treatment).
+     --gabriel-bright is the high-contrast parchment shade for any text
+     sitting on a dark backdrop (the back-link, status cell values, etc.) */
+  --gabriel-stroke:
+    -1px 0 0 #ffffff,
+     1px 0 0 #ffffff,
+     0 -1px 0 #ffffff,
+     0  1px 0 #ffffff,
+     0 0 8px rgba(255, 255, 255, 0.85),
+     0 0 18px rgba(255, 255, 255, 0.4);
+  --gabriel-bright: #ece3cf;
+  /* VHS aberration channels — seraph red / lapis from the boss palette
+     so the monologue + recap fringe reads as illuminated-manuscript
+     rather than generic neon. */
+  --bf-vhs-warm: rgba(155, 29, 32, 0.75);
+  --bf-vhs-cool: rgba(42, 72, 112, 0.75);
+}
+body.bf-body.bf-gabriel::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 160vmax;
+  height: 160vmax;
+  margin-left: -80vmax;
+  margin-top: -80vmax;
+  background-color: #0a0604;
+  background-image: url('../../assets/images/eyesurgery.gif');
+  background-repeat: repeat;
+  background-size: 280px 280px;
+  z-index: -1;
+  pointer-events: none;
+  /* Circular vignette mask — element is 160vmax × 160vmax and rotates;
+     without this the bare square corners sweep visibly through the viewport.
+     Mask is rotation-symmetric so the spin reads as motion of the eye-tile,
+     not motion of a rectangle. Fades to transparent well inside the
+     element's far corner so the dark backdrop bleeds in cleanly. */
+  -webkit-mask-image: radial-gradient(circle at center, #000 28vmax, transparent 62vmax);
+          mask-image: radial-gradient(circle at center, #000 28vmax, transparent 62vmax);
+  animation: gabriel-eye-spin 90s linear infinite;
+  will-change: transform;
+}
+@keyframes gabriel-eye-spin {
+  /* Counter-clockwise — opposite to the orbit rings (which still spin
+     clockwise via gabriel-orbit-spin). The orbit eyes themselves pinwheel
+     counter-clockwise on their own centers (gabriel-eye-counter-spin),
+     so the whole composition reads as nested wheels turning against each
+     other rather than as one synchronised drift. */
+  from { transform: rotate(0deg);    }
+  to   { transform: rotate(-360deg); }
+}
+
+/* Second tile layer — spins the OPPOSITE direction (clockwise) and runs
+   through an SVG turbulence/displacement filter for a watery distortion.
+   Multiplied against the ::before tile so where both layers' eyes overlap
+   the pixels darken — gives a poor-man's ambient-occlusion pooling in the
+   crevices between rotating wheels. Tile size + period differ from the
+   ::before so the two layers never align and the AO never sits still.
+   The inline SVG data-URL defines a fractalNoise + displacementMap filter
+   referenced by fragment id (#d). */
+body.bf-body.bf-gabriel::after {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 160vmax;
+  height: 160vmax;
+  margin-left: -80vmax;
+  margin-top: -80vmax;
+  background-image:
+    radial-gradient(ellipse at center,
+      transparent 28%,
+      rgba(0, 0, 0, 0.35) 70%,
+      rgba(0, 0, 0, 0.85) 110%),
+    url('../../assets/images/eyesurgery.gif');
+  background-repeat: no-repeat, repeat;
+  background-size: 100% 100%, 380px 380px;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><filter id='d'><feTurbulence type='fractalNoise' baseFrequency='0.014' numOctaves='2' seed='7'><animate attributeName='baseFrequency' dur='28s' values='0.012;0.020;0.012' repeatCount='indefinite'/></feTurbulence><feDisplacementMap in='SourceGraphic' scale='22'/></filter></svg>#d");
+  will-change: transform;
+  animation: gabriel-eye-spin-ao 140s linear infinite;
+}
+@keyframes gabriel-eye-spin-ao {
+  /* Clockwise — opposite to ::before (which now goes counter-clockwise).
+     Slower period (140s vs 90s) so the two layers drift past each other
+     instead of locking. */
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+/* ─── 2. Panel glow — two-layer static gold halo ─────────────────────── */
+/* Status cells (hand/blinds/street) are intentionally OMITTED from this
+   rule and get a darker, subdued treatment below — without it they read
+   as too bright on top of the spinning eye tile. */
+body.bf-body.bf-gabriel .bf-seat,
+body.bf-body.bf-gabriel .bf-community-row,
+body.bf-body.bf-gabriel .bf-log,
+body.bf-body.bf-gabriel .bf-pot-display,
+body.bf-body.bf-gabriel .bf-actions {
+  border-color: var(--bf-accent);
+  box-shadow:
+    0 0 0 1px var(--bf-accent),
+    0 0 16px color-mix(in srgb, var(--bf-accent) 70%, transparent),
+    0 0 36px color-mix(in srgb, var(--bf-accent) 30%, transparent);
+}
+
+/* Status cells — darker, more opaque so the eye behind doesn't bleed
+   through and wash out the labels; muted accent-deep border instead of
+   the bright gold halo other panels get. */
+body.bf-body.bf-gabriel .bf-status-cell {
+  background: rgba(0, 0, 0, 0.82);
+  border-color: var(--bf-accent-deep);
+  box-shadow: 0 0 0 1px var(--bf-accent-deep);
+  color: var(--bf-fg-dim);          /* dim olive label */
+}
+body.bf-body.bf-gabriel .bf-status-cell b {
+  color: var(--gabriel-bright);     /* bright value for contrast */
+}
+
+/* ─── 3. Boss avatar — simple red cap + CSWS badge under face + halo ─── */
+/* The <pre> stacks three rows top-to-bottom:
+     ::before  — red two-line ASCII ball cap (first child)
+     textContent — face frame from page.js (mood-keyed kaomoji)
+     ::after   — small red CSWS badge (last child)
+   ::after uses `display: block; width: fit-content; margin: 0 auto`
+   so it sits as a compact centered pill beneath the face line. */
+body.bf-body.bf-gabriel .bf-boss-avatar {
+  text-shadow: var(--gabriel-stroke);
+}
+body.bf-body.bf-gabriel .bf-boss-avatar::before {
+  content: '_/¯¯\\_';
+  display: block;
+  white-space: pre;
+  color: #d61120;
+  text-shadow:
+    0 0 4px  rgba(214, 17, 32, 0.95),
+    0 0 12px rgba(214, 17, 32, 0.55);
+}
+body.bf-body.bf-gabriel .bf-boss-avatar::after {
+  content: 'CSWS';
+  display: block;
+  width: fit-content;
+  margin: 8px auto 0;
+  padding: 2px 8px;
+  background-color: #d61120;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  border-radius: 3px;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 0 0 1px #ffffff,
+    0 0 6px rgba(214, 17, 32, 0.65);
+}
+body.bf-body.bf-gabriel .bf-boss-avatar-wrap {
+  border-color: var(--bf-accent);
+  box-shadow:
+    inset 0 0 12px rgba(255, 245, 208, 0.35),
+    0 0 18px color-mix(in srgb, var(--bf-accent) 70%, transparent);
+}
+
+/* ─── 4. Player cards — black border + arterial-red glow ─────────────── */
+body.bf-body.bf-gabriel .bf-seat-player .bf-card {
+  border-color: #1a0606;
+  box-shadow:
+    0 0 0 1px #1a0606,
+    0 0 12px rgba(155, 29, 32, 0.7);
+}
+body.bf-body.bf-gabriel .bf-seat-player .bf-card.is-best {
+  border-color: #b80020;
+  box-shadow:
+    0 0 0 2px #b80020,
+    0 0 16px rgba(255, 0, 30, 0.85);
+}
+
+/* ─── 5. Header title — illuminated medieval/biblical logo ───────────── */
+/* The header switches from a left-aligned row layout to a centred column
+   so the title reads as a stacked logo:
+     YOU VS.                      (small italic preamble)
+     ☩ AGENT GABRIEL ☩            (large Cinzel display name with crosses)
+     a standard visit from …       (small italic epithet)
+   Cinzel is already loaded by base.css — Roman inscriptional capitals,
+   used widely for religious/medieval logotypes. The back-link is
+   positioned absolutely so the title can centre across full width. */
+body.bf-body.bf-gabriel .bf-header {
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  gap: 4px;
+}
+body.bf-body.bf-gabriel .bf-back-link {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+/* ─── Title card — Templar crest plate ────────────────────────────────
+   The h1 itself is the card. Dark parchment fill, a double-ring gold
+   border, a big faded red Templar cross watermark behind the text,
+   and an inner gilt frame for the carved-relief register. Spans inside
+   sit above the watermark. The whole composition reads as a heraldic
+   plate carved out of altar furniture rather than a UI label. */
+body.bf-body.bf-gabriel .bf-header h1 {
+  font-family: 'Cinzel', serif;
+  font-variant: small-caps;
+  text-align: center;
+  position: relative;
+  margin: 8px auto 4px;
+  padding: 16px 40px 14px;
+  max-width: 520px;
+  line-height: 1.15;
+  background:
+    /* central parchment glow */
+    radial-gradient(ellipse at 50% 30%,
+      rgba(255, 245, 208, 0.20) 0%,
+      transparent 70%),
+    /* base dark vellum */
+    linear-gradient(180deg,
+      #1a1208 0%,
+      #0a0604 100%);
+  /* Double-ring gold border for the templar plate; the inner gilt
+     frame rides on ::after. */
+  border: 3px double #c9a14a;
+  box-shadow:
+    /* inner parchment highlight */
+    inset 0 0 0 1px rgba(255, 245, 208, 0.18),
+    /* deep cast shadow */
+    0 8px 30px rgba(0, 0, 0, 0.75),
+    /* outer altar-candle halo */
+    0 0 28px rgba(201, 161, 74, 0.35),
+    0 0 64px rgba(201, 161, 74, 0.15);
+  overflow: visible;
+  isolation: isolate;          /* contain the watermark blend */
+}
+/* Red Templar cross watermark — large, faded, centered behind text. */
+body.bf-body.bf-gabriel .bf-header h1::before {
+  content: '☩';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Cinzel', 'Times New Roman', serif;
+  font-size: 220px;
+  font-weight: 900;
+  line-height: 1;
+  color: rgba(155, 29, 32, 0.16);  /* faded seraph red */
+  text-shadow:
+    0 0 24px rgba(155, 29, 32, 0.18),
+    0 0 60px rgba(74, 12, 14, 0.25);
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+}
+/* Inner gilt frame — a thin gold line 6px in from the card edge. */
+body.bf-body.bf-gabriel .bf-header h1::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(201, 161, 74, 0.55);
+  pointer-events: none;
+  z-index: 0;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.5);
+}
+body.bf-body.bf-gabriel .bf-header h1 > span {
+  display: block;
+  position: relative;
+  z-index: 1;            /* sit above the watermark + frame */
+}
+/* Epithet keeps its inline-block plate from the shared VHS rule. */
+body.bf-body.bf-gabriel .bf-header h1 > span.bf-epithet {
+  display: inline-block;
+}
+/* "You vs." preamble — small-caps gilt italic, sitting on the dark
+   parchment with a deep red drop so it reads as a missal heading. */
+body.bf-body.bf-gabriel .bf-gabriel-vs {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-style: italic;
+  font-variant: small-caps;
+  letter-spacing: 0.36em;
+  color: #c9a14a;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  text-shadow:
+    0 1px 0 #4a1208,
+    0 0 8px rgba(155, 29, 32, 0.55);
+}
+/* "Agent Gabriel" + flanking crosses: three concentric layers via
+   text-shadow — white interior, 1px gold ring around the white, 2px
+   black ring around the gold, plus a soft outer gold halo for the
+   biblical-illumination feel. Order matters: first-listed shadows
+   paint on top of later ones, so the gold ring is listed before the
+   black ring so it stays inside the black. */
+body.bf-body.bf-gabriel .bf-gabriel-name {
+  /* Multi-color, multi-effect title for the evil Catholic angel.
+     Vertical gradient face — bright halo gold drifting through pale
+     gilt, parchment, seraph red, lapis (stained-glass blue), and back
+     to gold — clipped to the glyph shape and panning slowly so the
+     gilt looks like it's catching cathedral light. Behind the face:
+     chromatic-aberration ghosts (seraph red ↖, lapis ↘), parchment
+     top-highlight, blood engraved drop, cast shadow, three gold halos,
+     and a lapis outer halo for the "stained glass at altar" register. */
+  font-family: 'Cinzel', 'IM Fell English', 'EB Garamond',
+               'Times New Roman', serif;
+  font-weight: 900;
+  font-size: 42px;
+  letter-spacing: 0.20em;
+  font-variant: small-caps;
+  margin-top: 6px;
+  background:
+    linear-gradient(180deg,
+      #ffe8a8   0%,
+      #c9a14a  18%,
+      #fff5d0  38%,
+      #9b1d20  58%,
+      #2a4870  78%,
+      #c9a14a 100%);
+  background-size: 100% 320%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: bf-gabriel-name-gilt 11s ease-in-out infinite;
+  -webkit-text-stroke: 1.5px #2a1808;
+          text-stroke: 1.5px #2a1808;
+  paint-order: stroke fill;
+  text-shadow:
+    /* color-channel ghosts behind the gradient face */
+    -3px -2px 0 rgba(155, 29, 32, 0.65),    /* seraph red ↖ */
+     3px  2px 0 rgba(42, 72, 112, 0.65),    /* lapis      ↘ */
+    /* parchment top-highlight + crimson engraved drop + cast shadow */
+     0 -1px 0  rgba(255, 250, 220, 0.95),
+     0  2px 0  rgba(74, 12, 14, 0.95),
+     0  5px 6px rgba(0, 0, 0, 0.9),
+    /* gold ring (8 directions, 1px) — kept short so the gradient face
+       reads cleanly; cardinal directions only at this layer */
+     0 -1px 0 #c9a14a,    1px  0 0 #c9a14a,
+     0  1px 0 #c9a14a,   -1px  0 0 #c9a14a,
+    /* black ring (8 directions, 2px) — separates everything from the
+       spinning eye-tile backdrop */
+     0 -2px 0 #000,        2px -2px 0 #000,
+     2px  0 0 #000,        2px  2px 0 #000,
+     0  2px 0 #000,       -2px  2px 0 #000,
+    -2px  0 0 #000,       -2px -2px 0 #000,
+    /* triple gold halo + lapis outer */
+     0 0 12px rgba(201, 161, 74, 0.75),
+     0 0 28px rgba(201, 161, 74, 0.45),
+     0 0 56px rgba(201, 161, 74, 0.22),
+     0 0 78px rgba(42, 72, 112, 0.38);
+}
+@keyframes bf-gabriel-name-gilt {
+  0%   { background-position: 0%   0%; }
+  50%  { background-position: 0% 100%; }
+  100% { background-position: 0%   0%; }
+}
+body.bf-body.bf-gabriel .bf-header h1 .bf-epithet {
+  font-size: 14px;
+  font-style: italic;
+  font-variant: normal;
+  letter-spacing: 0.05em;
+  margin: 4px 0 0;
+  color: var(--gabriel-bright);
+  text-transform: none;
+}
+
+/* ─── 7. Gabriel's monologue — italic whisper under the community row ── */
+/* Sits in normal flow as a body flex child between .bf-community-row and
+   the player seat, so each new line appears RIGHT under the community
+   cards. min-height reserves a line of vertical space so the page
+   doesn't reflow on swap; opacity transition gives the soft fade. */
+.bf-gabriel-monologue {
+  width: 100%;
+  max-width: 560px;
+  margin-top: -6px;         /* snug against the cards row above */
+  font-family: var(--font-body, serif);
+  font-size: 17px;
+  font-style: italic;
+  line-height: 1.5;
+  color: rgba(255, 250, 220, 0.88);
+  text-align: center;
+  /* 1px dark stroke (8 directions) keeps the parchment letters legible
+     against the spinning eye behind; the warm glow beyond gives the
+     italic whisper its mood. First-listed shadows paint on top, so the
+     stroke sits closest to the text and the glow bleeds outside it. */
+  text-shadow:
+    -1px -1px 0 rgba(0, 0, 0, 0.85),
+     0  -1px 0 rgba(0, 0, 0, 0.85),
+     1px -1px 0 rgba(0, 0, 0, 0.85),
+     1px  0  0 rgba(0, 0, 0, 0.85),
+     1px  1px 0 rgba(0, 0, 0, 0.85),
+     0   1px 0 rgba(0, 0, 0, 0.85),
+    -1px  1px 0 rgba(0, 0, 0, 0.85),
+    -1px  0  0 rgba(0, 0, 0, 0.85),
+    0 0 6px  rgba(255, 250, 220, 0.85),
+    0 0 14px color-mix(in srgb, var(--bf-accent) 80%, white);
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 420ms ease;
+  min-height: 1.5em;
+}
+.bf-gabriel-monologue.is-fading { opacity: 0; }
+
+/* ─── 6. Orbital eyes — one rotating ring per panel ──────────────────── */
+/* Math-share trick: each ring has ONE rotation animation. The eyes inside
+   are positioned statically at angles θ_i = (i * 60°) on a circle of
+   radius --radius from the ring's centre; they orbit because the parent
+   ring spins, not because they themselves animate. Cost is 4 animations
+   total instead of 24, and each eye has a single small drop-shadow
+   instead of a 3-layer filter chain. Eyes tumble as they orbit (no
+   counter-rotation) — one less transform op per child, and it's creepier. */
+
+body.bf-body.bf-gabriel .bf-seat,
+body.bf-body.bf-gabriel .bf-community-row {
+  position: relative;  /* anchor the orbit ring's top/left:50% to the panel */
+}
+/* .bf-log intentionally NOT in this rule — it keeps holdem.css's
+   position:fixed top:78px right:14px right-side panel placement so it
+   matches Malechstone / Zashiki / Nahual. position:fixed is also a
+   positioning context, so the orbit ring inside the log still anchors
+   to the panel via top:50% / left:50%. */
+
+.bf-gabriel-orbit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 4;
+  animation: gabriel-orbit-spin var(--period, 28s) linear infinite;
+  will-change: transform;
+}
+@keyframes gabriel-orbit-spin {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+.bf-gabriel-orbit-eye {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  font-size: 24px;
+  line-height: 24px;
+  margin-left: -12px;
+  margin-top:  -12px;
+  user-select: none;
+  /* Position: rotate to its angular slot on the ring, then push outward by
+     the orbit radius. The trailing rotate(...) animates as a counter-spin
+     — the ring carries the eye clockwise (like the body tile), each eye
+     pinwheels the other way on its own center. */
+  transform:
+    rotate(calc(var(--idx) * 60deg))
+    translateY(calc(var(--radius, 220px) * -1))
+    rotate(0deg);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--bf-accent) 75%, white));
+  animation: gabriel-eye-counter-spin var(--eye-period, 7s) linear infinite;
+}
+@keyframes gabriel-eye-counter-spin {
+  from {
+    transform:
+      rotate(calc(var(--idx) * 60deg))
+      translateY(calc(var(--radius, 220px) * -1))
+      rotate(0deg);
+  }
+  to {
+    transform:
+      rotate(calc(var(--idx) * 60deg))
+      translateY(calc(var(--radius, 220px) * -1))
+      rotate(-360deg);
+  }
+}
+
+/* Per-panel orbit radius + period (stagger so panels don't sync up). The
+   --eye-period drives each eye's counter-spin; varied so the four panels
+   pinwheel at different tempos. */
+body.bf-body.bf-gabriel .bf-seat-opp      .bf-gabriel-orbit { --radius: 200px; --period: 26s; --eye-period: 6s; }
+body.bf-body.bf-gabriel .bf-community-row .bf-gabriel-orbit { --radius: 260px; --period: 30s; --eye-period: 8s; }
+body.bf-body.bf-gabriel .bf-seat-player   .bf-gabriel-orbit { --radius: 210px; --period: 22s; --eye-period: 5s; }
+body.bf-body.bf-gabriel .bf-log           .bf-gabriel-orbit { --radius: 280px; --period: 34s; --eye-period: 9s; }
+
+/* ─── 8. White stroke on gold text ──────────────────────────────────── */
+/* Every gold-coloured or gold-glowing UI element gets the shared
+   --gabriel-stroke (1px white cardinal outline + soft white glow) so the
+   text reads cleanly against the spinning eye and felt panels.
+   The §5 header logo is intentionally NOT in this list — it owns its
+   own gilded biblical treatment. Boss avatar handled in §3. */
+body.bf-body.bf-gabriel .bf-pot-value,
+body.bf-body.bf-gabriel .bf-pot-label,
+body.bf-body.bf-gabriel .bf-seat-name,
+body.bf-body.bf-gabriel .bf-seat-stack,
+body.bf-body.bf-gabriel .bf-seat-stack-coins,
+body.bf-body.bf-gabriel .bf-log-header,
+body.bf-body.bf-gabriel .bf-log-amt,
+body.bf-body.bf-gabriel .bf-log-entry.is-result,
+body.bf-body.bf-gabriel .bf-actions button,
+body.bf-body.bf-gabriel .bf-raise-value,
+body.bf-body.bf-gabriel .bf-boss-avatar-title {
+  text-shadow: var(--gabriel-stroke);
+}
+
+/* ─── 9. Contrast bumps for any text not otherwise specified ────────── */
+/* The Chavez palette (parchment cream felt, olive dim, near-black fg)
+   was designed for a light backdrop. Gabriel's actual backdrop is the
+   dark spinning eye + opaque dark panels, so any element sitting on a
+   dark bg needs brighter ink than --bf-fg-dim olive can give. */
+
+/* Back link in the header corner — now sits over the spinning eye */
+body.bf-body.bf-gabriel .bf-back-link {
+  color: var(--gabriel-bright);
+  background: rgba(0, 0, 0, 0.6);
+  border-color: var(--bf-accent);
+}
+body.bf-body.bf-gabriel .bf-back-link:hover {
+  color: #ffffff;
+}
+
+/* Log panel + entries — log bg is dark; default --bf-fg / --bf-fg-dim
+   on a dark bg reads weakly. Brighten to parchment. */
+body.bf-body.bf-gabriel .bf-log-scroll,
+body.bf-body.bf-gabriel .bf-log-entry {
+  color: var(--gabriel-bright);
+}
+body.bf-body.bf-gabriel .bf-log-entry.is-street,
+body.bf-body.bf-gabriel .bf-log-entry.is-action.is-opp {
+  color: color-mix(in srgb, var(--gabriel-bright) 75%, transparent);
+}
+
+/* Action bar — dark bg, buttons currently use dim/accent. Bump base
+   button text to parchment so the labels read at a glance. */
+body.bf-body.bf-gabriel .bf-actions button {
+  color: var(--gabriel-bright);
+}

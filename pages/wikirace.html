@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  WIKIRACE — dev harness (not a gambler-facing page)                      │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Internal test/tuning page for the Wikirace engine. NOT linked from    │
+  │    the Palace lobby — it has no route-guards, no Wallet UI, no Child     │
+  │    stats. Two columns of buttons drive the same race + sim primitives    │
+  │    that horserace.html uses in production: MOCK runs use the 30 stub     │
+  │    horses in horses.js with hard-coded speeds; REAL runs hit Wikimedia   │
+  │    pageviews via api.js (cached 24h in localStorage). Output dumps into  │
+  │    the #output <pre> for the developer to read house-edge bands.         │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wikirace/horses.js, articles.js, api.js, betting.js, race.js,  │
+  │      realhorses.js, sim.js, page.js                                      │
+  │    inline route-guards: none                                             │
+  │    DOM ids: #output, #cache-status, #run-race, #sim-1k, #sim-10k,        │
+  │      #warm-cache, #run-race-real, #sim-1k-real, #sim-10k-real,           │
+  │      #clear-cache                                                        │
+  │    flow: page.js IIFE → bind buttons → mock: Race.generateRace →         │
+  │      runRace → log; sim: Sim.simulateAllStrategies(N,100,useReal) →      │
+  │      reportStrategy×4 + tag(edge,lo,hi); warm: API.warmCache(Articles,   │
+  │      onProg) → refreshCacheStatus; real-race: RealHorses.generateRealRace│
+  │      → Race.runRace → Betting.resolveBetDetailed                         │
+  │    storage R/W: wikirace pageview cache (R/W via WikiraceAPI, keyed by   │
+  │      article title, 24h TTL); no wendys_palace_* keys touched            │
+  │    routes out: none (no nav)                                             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wikirace — Dev Harness</title>
+  <link rel="stylesheet" href="../css/wikirace/wikirace.css">
+</head>
+<body>
+  <header>
+    <h1>WIKIRACE</h1>
+    <p class="subtitle">Level 2 — Real Wikipedia integration</p>
+  </header>
+
+  <section class="control-block">
+    <div class="control-label">MOCK DATA (Level 1)</div>
+    <div class="controls">
+      <button id="run-race">Run One Mock Race</button>
+      <button id="sim-1k">Sim 1k Mock</button>
+      <button id="sim-10k">Sim 10k Mock</button>
+    </div>
+  </section>
+
+  <section class="control-block">
+    <div class="control-label">REAL DATA (Level 2)</div>
+    <div class="controls">
+      <button id="warm-cache" class="btn-real">Warm Cache</button>
+      <button id="run-race-real" class="btn-real">Run One Real Race</button>
+      <button id="sim-1k-real" class="btn-real">Sim 1k Real</button>
+      <button id="sim-10k-real" class="btn-real">Sim 10k Real</button>
+      <button id="clear-cache" class="btn-warn">Clear Cache</button>
+    </div>
+    <div id="cache-status" class="cache-status">Cache: —</div>
+  </section>
+
+  <pre id="output">Click a button to begin.
+
+MOCK pipeline lets you tune multipliers without burning API calls.
+REAL pipeline fetches Wikipedia pageviews and races on real article popularity.
+
+Workflow for Level 2:
+  1. Click "Warm Cache" — fetches all article pageviews (one-time, ~30s).
+  2. Click "Run One Real Race" — see horses with their real pageview totals.
+  3. Click "Sim 10k Real" — verify house edge stays in target band with real data.
+
+Cache is keyed by article title in localStorage with a 24-hour TTL.</pre>
+
+  <p class="note">Targets: favorites strategy 5–10% house edge, random strategy 15–20%.</p>
+
+  <script src="../js/wikirace/horses.js"></script>
+  <script src="../js/wikirace/articles.js"></script>
+  <script src="../js/wikirace/api.js"></script>
+  <script src="../js/wikirace/betting.js"></script>
+  <script src="../js/wikirace/race.js"></script>
+  <script src="../js/wikirace/realhorses.js"></script>
+  <script src="../js/wikirace/sim.js"></script>
+  <script src="../js/wikirace/page.js"></script>
+</body>
+</html>

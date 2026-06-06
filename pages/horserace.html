@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  HORSERACE — Noah's Derby (parimutuel on Wikipedia pageviews)            │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A 9-horse race where each horse carries two Wikipedia articles on    │
+  │    its back. The pair with the most combined pageviews over the last   │
+  │    30 days wins. The player clicks three horses to fill the WIN /      │
+  │    PLACE / SHOW slots, sets a per-pick tithe (total = tithe × 3), and  │
+  │    clicks TITHE. Pageview totals are hidden until after the race. The  │
+  │    page warms a 24h-TTL article-views cache on first load (200-sample  │
+  │    progress shown in #hr-loading). Once the race runs (10s animated    │
+  │    bar fill, with ark-tink/horseDie SFX per finisher) the bet resolves │
+  │    via the cascading payout rules (WIN: 6×/3×/1.85×, PLACE: 3×/1.85×,  │
+  │    SHOW: 1.85×) and pays out.                                           │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, wikirace/horses.js,          │
+  │      articles.js, api.js, betting.js, race.js, realhorses.js, audio.js, │
+  │      game.js, header.js                                                  │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #hr-field, #hr-slot-{win,place,show}, #hr-wager,   │
+  │      #hr-wager-max, #hr-total-wager, #hr-place-bet, #hr-clear,           │
+  │      #hr-race-panel, #hr-result, #hr-mode-note, #hr-loading,             │
+  │      #hr-loading-bar, #hr-loading-status                                 │
+  │    flow: game.js init → ensureLiveData (warmCache if cold, 200 sample,  │
+  │      progress→updateLoading) → newRace (RealHorses.canGenerate?         │
+  │      generateRealRace:Race.generateRace) → selectHorse/assignToSlot →   │
+  │      placeBet: Wallet.spend(wager·3) + Child.recordPlay +               │
+  │      Race.runRace(field) → Betting.resolveBetDetailed → phase='racing'  │
+  │      → startRaceAnimation (rAF bar fill, deathTimes 0.3→1.0·DURATION    │
+  │      by rank, arkTink for 1st/2nd/3rd) → onRaceComplete: Wallet.add     │
+  │      (totalPayout), winChime|loss, phase='resolved'                     │
+  │    storage R/W: sinnerbox (Wallet), wendys_palace_child (R/W via        │
+  │      Child.recordPlay), wikirace pageview cache (R/W, 24h TTL),         │
+  │      wendys_palace_intro_seen (R), wendys_palace_death (R)              │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Noah's Derby</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/horserace/horserace.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body>
+  <header>
+    <h1>Noah's Derby</h1>
+    <p class="hr-subtitle">Two by two, race the rising flood. God waits for no creature.</p>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+    </div>
+  </header>
+
+  <main>
+    <p id="hr-mode-note">…</p>
+
+    <details class="hr-rules">
+      <summary>How the Derby Works</summary>
+      <div class="hr-rules-body">
+        <p>Each animal carries two Wikipedia articles on its back to Noah's Ark. The pair with the <strong>most popular pages</strong> over the last 30 days reaches Noah first. The rest are washed away by God's righteous judgement!</p>
+
+        <h3>Make Your Picks</h3>
+        <ul class="hr-rules-list">
+          <li>Click three animals to fill the <strong>Win</strong>, <strong>Place</strong>, and <strong>Show</strong> slots.</li>
+          <li>Choose a tithe per pick. Your total offering is tithe × 3.</li>
+          <li>Pageview totals are hidden until the race ends. Pick on faith, not reason.</li>
+        </ul>
+
+        <h3>How Noah Pays</h3>
+        <div class="hr-rules-payout">
+          <div class="hr-rules-row">
+            <span class="hr-rules-tier hr-tier-win">WIN</span>
+            <span class="hr-rules-cascade">1st → <strong>6×</strong> · 2nd → <strong>3×</strong> · 3rd → <strong>1.85×</strong> · 4th-9th washed away</span>
+          </div>
+          <div class="hr-rules-row">
+            <span class="hr-rules-tier hr-tier-place">PLACE</span>
+            <span class="hr-rules-cascade">1st or 2nd → <strong>3×</strong> · 3rd → <strong>1.85×</strong> · 4th-9th washed away</span>
+          </div>
+          <div class="hr-rules-row">
+            <span class="hr-rules-tier hr-tier-show">SHOW</span>
+            <span class="hr-rules-cascade">1st, 2nd, or 3rd → <strong>1.85×</strong> · else washed away</span>
+          </div>
+        </div>
+
+        <p class="hr-rules-flavor">A Win pick that only places still pays — at the Place rate. A Win or Place pick that only shows still pays — at the Show rate. May God bless all his creatures.</p>
+      </div>
+    </details>
+
+    <section class="hr-section">
+      <div class="hr-section-label">This Race's Flock!</div>
+      <div id="hr-field"></div>
+    </section>
+
+    <section class="hr-section">
+      <div class="hr-section-label">Your Offering</div>
+      <div class="hr-slip">
+        <button class="hr-slot" id="hr-slot-win"   data-slot="win"   type="button"></button>
+        <button class="hr-slot" id="hr-slot-place" data-slot="place" type="button"></button>
+        <button class="hr-slot" id="hr-slot-show"  data-slot="show"  type="button"></button>
+      </div>
+
+      <div class="hr-wager-row">
+        <label class="hr-wager-label" for="hr-wager">Tithe per pick</label>
+        <input type="number" id="hr-wager" min="1" value="1" inputmode="numeric" autocomplete="off">
+        <button id="hr-wager-max" type="button">MAX</button>
+        <span class="hr-wager-total">Total offering <strong id="hr-total-wager">0</strong></span>
+      </div>
+
+      <div class="hr-actions">
+        <button id="hr-place-bet" type="button">TITHE!</button>
+        <button id="hr-clear" type="button">Reconsider</button>
+      </div>
+    </section>
+
+    <section id="hr-race-panel" class="hr-section"></section>
+
+    <section id="hr-result"></section>
+  </main>
+
+  <div id="hr-loading" class="hr-loading hr-hidden">
+    <div class="hr-loading-content">
+      <h2 class="hr-loading-title">Gathering the Flock</h2>
+      <p class="hr-loading-sub">Consulting divine APIs…</p>
+      <div class="hr-loading-track">
+        <div id="hr-loading-bar" class="hr-loading-bar"></div>
+      </div>
+      <p id="hr-loading-status" class="hr-loading-status">0 / 200</p>
+      <p class="hr-loading-note">One-time per 24 hours. After this, every race is instant.</p>
+    </div>
+  </div>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/wikirace/horses.js"></script>
+  <script src="../js/wikirace/articles.js"></script>
+  <script src="../js/wikirace/api.js"></script>
+  <script src="../js/wikirace/betting.js"></script>
+  <script src="../js/wikirace/race.js"></script>
+  <script src="../js/wikirace/realhorses.js"></script>
+  <script src="../js/wikirace/audio.js"></script>
+  <script src="../js/wikirace/game.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

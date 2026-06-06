@@ -1,0 +1,1124 @@
+/*
+  MODULE NAME — Palace lobby (gothic Persian-rug front-of-house) — consumed by index.html
+  ─────────────────────────────────────────────────────────────────────────
+  Sections:
+    1. body / carpet background (consumes --carpet-* vars set inline by index.html)
+    2. carpet dirt (.carpet-dirt + .dirt-stain/-burn/-drink/-fade)
+    3. tutorial overlay (.tutorial-overlay, .tutorial-card, .tutorial-cta)
+    4. palace header (h1, .palace-subtitle, .palace-flourish, .coins-bar override)
+    5. game-grid + .game-card (+ per-theme accents)
+    6. per-card title treatments — each card name renders in its game's
+       signature font + effects, scaled to plaque size
+    7. lobby sections (.lobby-section, .lobby-section-title) — six grouped
+       grids: Entrance / Slots / Cards / Dice / API / Experimental
+  Owns selectors: html.tutorial-skip, body.tutorial-active, .palace-header,
+    .palace-subtitle, .palace-flourish, .game-grid, .game-card[data-theme],
+    .lobby-section, .lobby-section-title,
+    .game-card-glyph, .game-card-name, .game-card-desc, .sb-card-exe,
+    .carpet-dirt, .dirt-stain, .dirt-burn, .dirt-drink, .dirt-fade,
+    .tutorial-overlay, .tutorial-card, .tutorial-title, .tutorial-line,
+    .tutorial-line-warn, .tutorial-line-soft, .tutorial-tama-wrap,
+    .tutorial-tama-frame, .tutorial-tama-screen, .tutorial-tama-face,
+    .tutorial-cta
+  CSS vars: --carpet-base, --carpet-deep, --carpet-accent, --carpet-motif,
+    --carpet-gold (set inline by index.html's carpet randomizer IIFE)
+  Consumed by: index.html
+  External deps: base.css (palette + shared chrome + .child-status widget)
+*/
+@import url('https://fonts.googleapis.com/css2?family=Monoton&family=Creepster&family=Playfair+Display:wght@900&family=Bungee&display=swap');
+
+/* ============ Body — Persian-rug carpet ============ */
+
+html { overflow-x: hidden; }
+
+body {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 28px 16px 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-body);
+  color: var(--bone);
+  background-color: var(--carpet-base, #1a0606);
+  /* Persian-rug carpet — many layers:
+     1. Repeating 8-petal palmette ornament (SVG tile, tinted earth-gold)
+     2. Diagonal knot grid (warp threads) — very fine 45° hatch
+     3. Center medallion (stacked radial rings — motif core, accent halo,
+        gold rim)
+     4. Inset border bands (gold pinstripe near the edges)
+     5. Field vertical fade — deepens at top + bottom like a long rug
+        running away under foot */
+  background-image:
+    /* 8-petal palmette tile — earthtone alpha, lets carpet vars show through */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><g fill='rgba(212,175,55,0.16)' stroke='rgba(0,0,0,0.32)' stroke-width='0.4'><circle cx='60' cy='60' r='3.2'/><ellipse cx='60' cy='40' rx='2.4' ry='9'/><ellipse cx='60' cy='80' rx='2.4' ry='9'/><ellipse cx='40' cy='60' rx='9' ry='2.4'/><ellipse cx='80' cy='60' rx='9' ry='2.4'/><ellipse cx='46' cy='46' rx='7' ry='2.2' transform='rotate(-45 46 46)'/><ellipse cx='74' cy='46' rx='7' ry='2.2' transform='rotate(45 74 46)'/><ellipse cx='46' cy='74' rx='7' ry='2.2' transform='rotate(45 46 74)'/><ellipse cx='74' cy='74' rx='7' ry='2.2' transform='rotate(-45 74 74)'/></g><g fill='rgba(184,0,31,0.22)'><circle cx='0' cy='0' r='2'/><circle cx='120' cy='0' r='2'/><circle cx='0' cy='120' r='2'/><circle cx='120' cy='120' r='2'/><circle cx='60' cy='0' r='1.4'/><circle cx='60' cy='120' r='1.4'/><circle cx='0' cy='60' r='1.4'/><circle cx='120' cy='60' r='1.4'/></g></svg>"),
+    /* Diagonal knot-warp threads — fine 45° hatch, both directions */
+    repeating-linear-gradient( 45deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 4px),
+    /* Center medallion — solid motif core */
+    radial-gradient(ellipse 26% 18% at 50% 54%,
+      var(--carpet-motif, #8a3333) 0%,
+      var(--carpet-motif, #8a3333) 28%,
+      transparent 62%),
+    /* Center medallion — accent halo */
+    radial-gradient(ellipse 36% 26% at 50% 54%,
+      transparent 0%,
+      transparent 56%,
+      var(--carpet-accent, #5a1a22) 58%,
+      var(--carpet-accent, #5a1a22) 72%,
+      transparent 82%),
+    /* Center medallion — gold filigree rim */
+    radial-gradient(ellipse 42% 30% at 50% 54%,
+      transparent 0%,
+      transparent 86%,
+      var(--carpet-gold, #b8965c) 87%,
+      transparent 90%),
+    /* Inset border band — top */
+    linear-gradient(180deg,
+      var(--carpet-deep, #0c0303) 0 4px,
+      var(--carpet-gold, #b8965c) 4px 5px,
+      var(--carpet-accent, #5a1a22) 5px 16px,
+      var(--carpet-gold, #b8965c) 16px 17px,
+      transparent 17px),
+    /* Inset border band — bottom */
+    linear-gradient(0deg,
+      var(--carpet-deep, #0c0303) 0 4px,
+      var(--carpet-gold, #b8965c) 4px 5px,
+      var(--carpet-accent, #5a1a22) 5px 16px,
+      var(--carpet-gold, #b8965c) 16px 17px,
+      transparent 17px),
+    /* Field — slight vertical depth fade */
+    linear-gradient(180deg,
+      var(--carpet-deep, #0c0303) 0%,
+      var(--carpet-base, #1a0606) 14%,
+      var(--carpet-base, #1a0606) 86%,
+      var(--carpet-deep, #0c0303) 100%);
+  background-repeat: repeat, repeat, repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+  background-size:
+    120px 120px,   /* palmette tile */
+    8px 8px,       /* warp /  */
+    8px 8px,       /* warp \  */
+    100% 100vh,    /* medallion core */
+    100% 100vh,    /* medallion halo */
+    100% 100vh,    /* medallion rim */
+    100% 100%,     /* top border */
+    100% 100%,     /* bottom border */
+    100% 100%;     /* field */
+  background-position:
+    0 0, 0 0, 0 0,
+    50% 50%, 50% 50%, 50% 50%,
+    50% 0%, 50% 100%, 50% 50%;
+  background-attachment: fixed;
+  animation: carpet-drift 124s linear infinite;
+  will-change: background-position;
+}
+
+/* The rug breathes — palmette walks one full tile diagonally (seamless loop)
+   while the two warp directions slide opposite ways. Medallion, border bands,
+   and field stay anchored so the room itself doesn't move, only the threads. */
+@keyframes carpet-drift {
+  from {
+    background-position:
+      0 0, 0 0, 0 0,
+      50% 50%, 50% 50%, 50% 50%,
+      50% 0%, 50% 100%, 50% 50%;
+  }
+  to {
+    background-position:
+      -120px 120px, 0 32px, 0 -32px,
+      50% 50%, 50% 50%, 50% 50%,
+      50% 0%, 50% 100%, 50% 50%;
+  }
+}
+
+/* High-frequency SVG turbulence — knotted-pile thread fuzz, sinnerbox-style
+   (cabinet::after uses the same technique with warmer color matrix). Drifts
+   at a different rate than the palmette to create parallax depth. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='k'><feTurbulence type='fractalNoise' baseFrequency='2.4' numOctaves='3' seed='7'/><feColorMatrix values='0 0 0 0 0.10  0 0 0 0 0.04  0 0 0 0 0.02  0 0 0 0.85 0'/></filter><rect width='260' height='260' filter='url(%23k)'/></svg>");
+  background-size: 260px 260px;
+  background-position: 0 0;
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  animation: carpet-noise-drift 88s linear infinite;
+  will-change: background-position;
+}
+
+@keyframes carpet-noise-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 260px -260px; }
+}
+
+/* Outer vignette — corners deepen, the room is dim */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 30%,
+    rgba(0, 0, 0, 0.55) 78%,
+    rgba(0, 0, 0, 0.88) 100%);
+}
+
+/* Keep content above carpet + vignette */
+.palace-header,
+main,
+.tutorial-overlay { position: relative; z-index: 2; }
+
+/* ============ Carpet dirt ============ */
+
+.carpet-dirt {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 50%;
+}
+
+.dirt-stain {
+  background: radial-gradient(ellipse at center,
+    rgba(14, 6, 2, 0.62) 0%,
+    rgba(36, 16, 6, 0.42) 38%,
+    rgba(50, 22, 10, 0.18) 65%,
+    transparent 85%);
+  filter: blur(2.5px);
+  mix-blend-mode: multiply;
+}
+
+.dirt-burn {
+  background:
+    radial-gradient(circle at center,
+      #000 0%,
+      #1a0a04 30%,
+      rgba(60, 20, 6, 0.55) 60%,
+      transparent 88%);
+  box-shadow:
+    0 0 3px rgba(0, 0, 0, 0.7),
+    inset 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+.dirt-drink {
+  background: radial-gradient(ellipse at 40% 50%,
+    rgba(74, 10, 4, 0.48) 0%,
+    rgba(40, 8, 4, 0.32) 45%,
+    rgba(24, 6, 2, 0.16) 70%,
+    transparent 88%);
+  filter: blur(1.5px);
+  mix-blend-mode: multiply;
+}
+
+.dirt-fade {
+  background: radial-gradient(ellipse at center,
+    rgba(216, 200, 176, 0.22) 0%,
+    rgba(216, 200, 176, 0.08) 50%,
+    transparent 85%);
+  mix-blend-mode: screen;
+}
+
+/* ============ Tutorial overlay ============ */
+
+/* Pre-paint hide for returning players */
+html.tutorial-skip .tutorial-overlay { display: none !important; }
+
+body.tutorial-active { overflow: hidden; }
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at center, rgba(10, 4, 5, 0.85) 0%, rgba(0, 0, 0, 0.94) 80%);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.tutorial-overlay.lit { opacity: 1; }
+
+.tutorial-overlay.dismissed {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.1s ease;
+}
+
+.tutorial-card {
+  max-width: 520px;
+  width: 100%;
+  background:
+    radial-gradient(ellipse at top, rgba(184, 0, 31, 0.10), transparent 60%),
+    linear-gradient(180deg, #1a0c0a 0%, #0a0405 100%);
+  border: 1px solid var(--sulfur-dim);
+  border-radius: 4px;
+  padding: 28px 32px 24px;
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(212, 175, 55, 0.18),
+    inset 0 0 60px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(184, 0, 31, 0.15);
+  color: var(--bone);
+  text-align: center;
+  position: relative;
+}
+
+.tutorial-card::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed rgba(212, 175, 55, 0.28);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.tutorial-title {
+  font-family: 'Pirata One', 'IM Fell English', serif;
+  font-size: 36px;
+  color: var(--blood);
+  letter-spacing: 0.06em;
+  margin: 0 0 16px;
+  text-shadow:
+    0 0 6px rgba(184, 0, 31, 0.65),
+    0 0 14px rgba(184, 0, 31, 0.35);
+}
+
+.tutorial-line {
+  font-family: 'IM Fell English', 'Cormorant Garamond', serif;
+  font-size: 17px;
+  line-height: 1.45;
+  margin: 8px 0;
+  color: var(--bone);
+}
+
+.tutorial-line em {
+  font-style: italic;
+  color: var(--ember);
+  text-shadow: 0 0 4px rgba(255, 106, 0, 0.4);
+}
+
+.tutorial-line strong {
+  color: var(--sulfur);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 5px rgba(212, 175, 55, 0.4);
+}
+
+.tutorial-line-warn {
+  color: rgba(216, 200, 176, 0.92);
+  font-size: 16px;
+  margin: 14px 0 14px;
+  padding: 10px 12px;
+  border-top: 1px dashed rgba(184, 0, 31, 0.35);
+  border-bottom: 1px dashed rgba(184, 0, 31, 0.35);
+}
+
+.tutorial-line-soft {
+  font-style: italic;
+  color: var(--bone-dim);
+  font-size: 15px;
+  margin-top: 14px;
+}
+
+.tutorial-tama-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0 14px;
+}
+
+.tutorial-tama-frame {
+  display: inline-block;
+  padding: 6px;
+  background:
+    linear-gradient(180deg, #3a2e24 0%, #1a1612 50%, #3a2e24 100%);
+  border: 1px solid #050203;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(216, 200, 176, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.7),
+    0 4px 10px rgba(0, 0, 0, 0.6);
+}
+
+.tutorial-tama-screen {
+  background: linear-gradient(180deg, #0a0a04 0%, #050402 100%);
+  border: 1px solid #050203;
+  border-radius: 4px;
+  padding: 12px 28px;
+  min-width: 110px;
+  box-shadow:
+    inset 0 0 14px rgba(0, 0, 0, 0.9),
+    inset 0 0 30px rgba(26, 255, 127, 0.06);
+}
+
+.tutorial-tama-face {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 28px;
+  color: var(--phosphor);
+  letter-spacing: 0.06em;
+  text-shadow:
+    0 0 4px rgba(26, 255, 127, 0.7),
+    0 0 10px rgba(26, 255, 127, 0.4);
+  animation: tutorial-tama-blink 3.6s ease-in-out infinite;
+}
+
+@keyframes tutorial-tama-blink {
+  0%, 92%, 100% { opacity: 1; }
+  94%           { opacity: 0.3; }
+  95%           { opacity: 1; }
+}
+
+.tutorial-cta {
+  display: inline-block;
+  margin-top: 18px;
+  font-family: 'Cinzel', 'Limelight', serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  padding: 12px 32px;
+  color: var(--sulfur);
+  background: linear-gradient(180deg, #1a0c0a 0%, #0a0405 100%);
+  border: 1px solid var(--sulfur);
+  border-radius: 2px;
+  cursor: pointer;
+  text-shadow: 0 0 6px rgba(212, 175, 55, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(212, 175, 55, 0.18),
+    0 0 12px rgba(212, 175, 55, 0.18),
+    0 2px 6px rgba(0, 0, 0, 0.6);
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.18s;
+}
+
+.tutorial-cta:hover {
+  background: linear-gradient(180deg, #2a1408 0%, #1a0a08 100%);
+  color: var(--bone);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(212, 175, 55, 0.32),
+    0 0 18px rgba(212, 175, 55, 0.35),
+    0 3px 8px rgba(0, 0, 0, 0.7);
+}
+
+/* ============ Palace header ============ */
+
+.palace-header {
+  width: 100%;
+  max-width: 720px;
+  text-align: center;
+  margin: 8px 0 24px;
+  padding: 12px 16px 14px;
+  border: none;
+}
+
+.palace-header h1 {
+  font-family: 'Pirata One', 'IM Fell English', serif;
+  font-weight: normal;
+  font-size: 58px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  margin: 0 0 10px;
+  color: var(--blood);
+  text-shadow:
+    0 0 4px rgba(255, 200, 180, 0.55),
+    0 0 10px rgba(220, 30, 50, 0.9),
+    0 0 22px rgba(184, 0, 31, 0.75),
+    0 0 44px rgba(255, 106, 0, 0.5),
+    0 0 72px rgba(255, 106, 0, 0.3),
+    2px 2px 0 rgba(0, 0, 0, 0.85);
+  animation: palace-title-flicker 6.4s ease-in-out infinite;
+}
+
+@keyframes palace-title-flicker {
+  0%, 88%, 100% { opacity: 1; }
+  89%           { opacity: 0.5; }
+  90%           { opacity: 1; }
+  93%           { opacity: 0.7; }
+  94%           { opacity: 1; }
+}
+
+.palace-subtitle {
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+  font-style: italic;
+  color: var(--bone-dim);
+  font-size: 17px;
+  margin: 0 0 10px;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  transition: letter-spacing 0.12s, color 0.12s, transform 0.12s;
+  will-change: letter-spacing, color, transform, text-shadow;
+}
+
+.palace-flourish {
+  color: var(--sulfur);
+  letter-spacing: 0.6em;
+  font-size: 13px;
+  margin-bottom: 14px;
+  opacity: 0.78;
+  text-shadow: 0 0 6px rgba(212, 175, 55, 0.5);
+}
+
+/* ============ Coins bar (lobby override — inline beneath flourish) ============ */
+
+.palace-header .coins-bar {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  color: var(--bone);
+  background: linear-gradient(180deg, #1a0c0a 0%, #0a0405 100%);
+  border: 1px solid var(--sulfur-dim);
+  padding: 5px 16px;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(212, 175, 55, 0.16),
+    0 2px 8px rgba(0, 0, 0, 0.65),
+    0 0 10px rgba(212, 175, 55, 0.12);
+}
+
+.palace-header .coins-bar .coins-label {
+  color: var(--bone-dim);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.palace-header #balance {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 22px;
+  color: var(--phosphor);
+  text-shadow:
+    0 0 4px rgba(26, 255, 127, 0.6),
+    0 0 12px rgba(26, 255, 127, 0.35);
+}
+
+.palace-header #debug-reset {
+  background: #0a0405;
+  border: 1px solid var(--sulfur-dim);
+  color: var(--bone-dim);
+  font-family: 'Special Elite', monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  border-radius: 1px;
+}
+.palace-header #debug-reset:hover {
+  background: #1a0c0a;
+  color: var(--blood);
+  border-color: var(--blood);
+}
+
+/* ============ Main + game grid ============ */
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 720px;
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+/* ============ Game cards — brass plaques set into the rug ============ */
+
+.game-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 28px 16px;
+  background:
+    radial-gradient(ellipse at top, rgba(184, 0, 31, 0.12), transparent 70%),
+    linear-gradient(180deg, rgba(26, 12, 10, 0.94) 0%, rgba(10, 4, 5, 0.96) 100%);
+  border: 1px solid var(--sulfur-dim);
+  border-radius: 2px;
+  text-decoration: none;
+  color: var(--bone);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.18s, transform 0.18s, box-shadow 0.18s, color 0.18s;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(212, 175, 55, 0.14),
+    inset 0 -28px 48px rgba(0, 0, 0, 0.55),
+    0 4px 14px rgba(0, 0, 0, 0.7);
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='9'/><feColorMatrix values='0 0 0 0 0.18  0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0.35 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>");
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Inner gilt frame line, like an engraved plaque */
+.game-card::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px dashed rgba(212, 175, 55, 0.22);
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+.game-card:hover {
+  border-color: var(--sulfur);
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(212, 175, 55, 0.28),
+    inset 0 -28px 48px rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(212, 175, 55, 0.32),
+    0 6px 18px rgba(0, 0, 0, 0.75);
+}
+
+.game-card-glyph {
+  font-size: 38px;
+  line-height: 1;
+  color: var(--sulfur);
+  text-shadow:
+    0 0 4px rgba(255, 230, 160, 0.75),
+    0 0 10px rgba(212, 175, 55, 0.85),
+    0 0 22px rgba(212, 175, 55, 0.55),
+    0 0 40px rgba(255, 106, 0, 0.32);
+  position: relative;
+  z-index: 1;
+}
+
+.game-card-name {
+  font-family: 'Cinzel', 'Pirata One', serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--blood);
+  text-shadow:
+    0 0 6px rgba(184, 0, 31, 0.45),
+    0 1px 0 rgba(0, 0, 0, 0.85);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.game-card-desc {
+  font-family: 'IM Fell English', 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--bone-dim);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Persistent jackpot ticker — injected by the lobby IIFE for games whose
+   localStorage pot key is non-empty. Small, brass-on-soot, sits below desc. */
+.game-card-jackpot {
+  font-family: 'Cinzel', 'Pirata One', serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sulfur, #d4af37);
+  text-shadow:
+    0 0 6px rgba(212, 175, 55, 0.55),
+    0 1px 0 rgba(0, 0, 0, 0.85);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  margin-top: 4px;
+  padding: 4px 6px;
+  border-top: 1px dashed rgba(212, 175, 55, 0.28);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.game-card-jackpot .jp-amount {
+  display: block;
+  color: var(--bone, #e9e0c8);
+  font-family: 'Cinzel', 'Pirata One', serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  margin-left: 0;
+  text-shadow:
+    0 0 8px rgba(255, 230, 160, 0.55),
+    0 0 16px rgba(212, 175, 55, 0.35),
+    0 1px 0 rgba(0, 0, 0, 0.9);
+}
+
+/* ============ Per-theme accent tints ============
+   Subtle — the rug + brass plaque base stays consistent, but each game's
+   data-theme nudges the glyph color and the radial wash hint at top. */
+
+.game-card[data-theme="child"]    { --tone: #d4af37; }
+.game-card[data-theme="roulette"] { --tone: #b8001f; }
+.game-card[data-theme="sinnerbox"]{ --tone: #ff6a00; }
+.game-card[data-theme="jackandgin"]{ --tone: #5a8a6a; }
+.game-card[data-theme="horserace"]{ --tone: #8a6a3a; }
+.game-card[data-theme="photobooth"]{ --tone: #c8a060; }
+.game-card[data-theme="craps"]    { --tone: #d4af37; }
+.game-card[data-theme="opossumer"]{ --tone: #b8001f; }
+.game-card[data-theme="bearbaiting"]{ --tone: #8a3010; }
+.game-card[data-theme="isitraining"]{ --tone: #6a8aa0; }
+.game-card[data-theme="doublehappiness"]{ --tone: #b8001f; }
+.game-card[data-theme="giftshop"] { --tone: #c8a060; }
+.game-card[data-theme="gladiatrix"]{ --tone: #b8001f; }
+.game-card[data-theme="tarot"]    { --tone: #8a6a8a; }
+.game-card[data-theme="hollerworks"]{ --tone: #d4af37; }
+
+.game-card[data-theme] .game-card-glyph {
+  color: var(--tone, var(--sulfur));
+  text-shadow:
+    0 0 4px color-mix(in srgb, var(--tone, var(--sulfur)) 85%, white 15%),
+    0 0 10px color-mix(in srgb, var(--tone, var(--sulfur)) 80%, transparent),
+    0 0 22px color-mix(in srgb, var(--tone, var(--sulfur)) 55%, transparent),
+    0 0 40px color-mix(in srgb, var(--tone, var(--sulfur)) 32%, transparent);
+}
+
+@media (max-width: 480px) {
+  .game-grid { grid-template-columns: 1fr; gap: 12px; }
+  .palace-header h1 { font-size: 44px; }
+}
+
+/* ============ Lobby sections — Entrance / Slots / Cards / Dice / API / Experimental ============
+   Six labeled groupings of game-cards. Each .lobby-section wraps a
+   .lobby-section-title heading above a .game-grid. The grid styling itself
+   is unchanged — sections just stack inside <main>'s flex column. */
+
+.lobby-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.lobby-section .game-grid {
+  margin-top: 0;
+}
+
+.lobby-section-title {
+  margin: 0 0 12px;
+  padding: 0 0 6px;
+  font-family: var(--font-title);
+  font-weight: 400;
+  font-size: 1.35rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--sulfur);
+  border-bottom: 1px dotted var(--sulfur-dim);
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.8),
+    0 0 12px rgba(212, 175, 55, 0.18);
+}
+
+.lobby-section + .lobby-section {
+  margin-top: 10px;
+}
+
+@media (max-width: 480px) {
+  .lobby-section-title { font-size: 1.15rem; letter-spacing: 0.22em; }
+}
+
+/* ============ Carpet quotes — woven, embroidered, whispered ============
+   Spawned by an IIFE in index.html that fetches assets/json/quotes.json. Three
+   variants. All sit at z-index 1 (between carpet and content). Per-element
+   rotation is set inline via CSS var --rot so the keyframe can preserve it. */
+
+.carpet-quote {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  max-width: 200px;
+  font-family: 'IM Fell English', 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: center;
+  letter-spacing: 0.02em;
+  color: rgba(216, 200, 176, 0.20);
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.7);
+  mix-blend-mode: overlay;
+  transform: rotate(var(--rot, 0deg));
+  transform-origin: center;
+  animation: carpet-quote-breath 42s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.carpet-quote-embroidered {
+  color: rgba(212, 175, 55, 0.28);
+  font-family: 'Cinzel', 'Pirata One', serif;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-style: normal;
+  text-shadow: 0 0 2px rgba(212, 175, 55, 0.18);
+  mix-blend-mode: screen;
+}
+
+.carpet-quote-whispered {
+  color: rgba(216, 200, 176, 0.45);
+  font-size: 14px;
+  text-shadow:
+    0 0 3px rgba(0, 0, 0, 0.7),
+    0 0 8px rgba(184, 0, 31, 0.18);
+  mix-blend-mode: normal;
+  animation: carpet-quote-drift 55s ease-in-out infinite;
+}
+
+@keyframes carpet-quote-breath {
+  0%, 100% { opacity: 0.55; transform: rotate(var(--rot, 0deg)) scale(1); }
+  50%      { opacity: 1;    transform: rotate(var(--rot, 0deg)) scale(1.015); }
+}
+
+@keyframes carpet-quote-drift {
+  0%   { opacity: 0;   transform: rotate(var(--rot, 0deg)) translateY(24px); }
+  20%  { opacity: 0.9; transform: rotate(var(--rot, 0deg)) translateY(0); }
+  80%  { opacity: 0.9; transform: rotate(var(--rot, 0deg)) translateY(-32px); }
+  100% { opacity: 0;   transform: rotate(var(--rot, 0deg)) translateY(-56px); }
+}
+
+/* ============ Per-card title treatments ============
+   Each card's name is the actual game's <h1> rendered in its real font
+   and effects, scaled down to plaque size. Source rules live in each
+   game's own CSS; these are lobby miniatures. Each rule overrides the
+   base .game-card-name styling for its data-theme. */
+
+.game-card[data-theme="child"] .game-card-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: #d8a8b8;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.4),
+    0 0 12px rgba(216, 168, 184, 0.4);
+}
+
+.game-card[data-theme="roulette"] .game-card-name {
+  font-family: 'IM Fell English', 'Pirata One', serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #cdb8a4;
+  text-shadow:
+    0 0 1px rgba(255, 245, 230, 0.55),
+    1px 2px 0 #5a0010,
+    2px 4px 0 #2a0008,
+    0 7px 10px rgba(140, 0, 24, 0.75),
+    0 0 22px rgba(184, 0, 31, 0.45);
+}
+
+.game-card[data-theme="sinnerbox"] .game-card-name {
+  font-family: 'Pirata One', 'Limelight', serif;
+  font-weight: normal;
+  font-size: 24px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg,
+    #ffe066   0%,
+    #ffa040  28%,
+    #ff6a00  58%,
+    #c8001f 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: none;
+  filter:
+    drop-shadow(0 0 5px rgba(255, 160, 60, 0.85))
+    drop-shadow(0 0 14px rgba(255, 100, 30, 0.5))
+    drop-shadow(0 2px 0 rgba(0, 0, 0, 0.7));
+  animation: sb-card-ember 3.2s ease-in-out infinite;
+}
+
+@keyframes sb-card-ember {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 5px rgba(255, 160, 60, 0.8))
+      drop-shadow(0 0 14px rgba(255, 100, 30, 0.45))
+      drop-shadow(0 2px 0 rgba(0, 0, 0, 0.7));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 11px rgba(255, 210, 90, 1))
+      drop-shadow(0 0 26px rgba(255, 120, 40, 0.7))
+      drop-shadow(0 2px 0 rgba(0, 0, 0, 0.7));
+  }
+}
+
+.game-card[data-theme="jackandgin"] .game-card-name {
+  font-family: 'Cinzel', 'Trajan Pro', serif;
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg,
+    #fff5b8   0%,
+    #ffdd55  20%,
+    #e3b821  42%,
+    #8b6f1c  52%,
+    #e3b821  62%,
+    #ffdd55  82%,
+    #fff5b8 100%);
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: none;
+  filter:
+    drop-shadow(0 1px 0 #8b6f1c)
+    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 6px rgba(245, 215, 110, 0.5));
+  animation: jg-card-shine 5.5s ease-in-out infinite;
+}
+
+@keyframes jg-card-shine {
+  0%, 100% {
+    filter:
+      drop-shadow(0 1px 0 #8b6f1c)
+      drop-shadow(0 1px 0 rgba(0, 0, 0, 0.55))
+      drop-shadow(0 0 5px rgba(245, 215, 110, 0.4));
+  }
+  50% {
+    filter:
+      drop-shadow(0 1px 0 #8b6f1c)
+      drop-shadow(0 1px 0 rgba(0, 0, 0, 0.55))
+      drop-shadow(0 0 14px rgba(255, 221, 85, 0.85));
+  }
+}
+
+.game-card[data-theme="horserace"] .game-card-name {
+  font-family: 'Cinzel', 'Playfair Display', serif;
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: #8a6a2c;
+  text-shadow:
+    0 1px 0 #fff8d4,
+    0 2px 0 #c9a14a,
+    0 0 12px rgba(232, 200, 112, 0.45);
+  position: relative;
+  display: inline-block;
+  padding: 0 22px;
+}
+.game-card[data-theme="horserace"] .game-card-name::before,
+.game-card[data-theme="horserace"] .game-card-name::after {
+  font-family: serif;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  color: #c9a14a;
+  text-shadow:
+    0 1px 0 #8a6a2c,
+    0 0 6px rgba(232, 200, 112, 0.7);
+}
+.game-card[data-theme="horserace"] .game-card-name::before { content: '✟'; left: 0; }
+.game-card[data-theme="horserace"] .game-card-name::after  { content: '✟'; right: 0; }
+
+.game-card[data-theme="photobooth"] .game-card-name {
+  font-family: 'Pirata One', 'Times New Roman', serif;
+  font-weight: normal;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: #d4af37;
+  text-shadow:
+    0 0 6px rgba(212, 175, 55, 0.6),
+    0 0 14px rgba(212, 175, 55, 0.3);
+}
+
+.game-card[data-theme="craps"] .game-card-name {
+  font-family: 'Special Elite', 'Courier Prime', 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #d4536d;
+  text-shadow:
+    0 0 6px rgba(212, 83, 109, 0.55),
+    0 0 14px rgba(184, 0, 31, 0.3),
+    0 2px 0 rgba(0, 0, 0, 0.6);
+  animation: cp-card-flicker 4.6s steps(2, end) infinite;
+}
+.game-card[data-theme="craps"] .game-card-name::before,
+.game-card[data-theme="craps"] .game-card-name::after {
+  content: "✚";
+  color: #b8001f;
+  font-size: 0.6em;
+  vertical-align: 0.3em;
+  margin: 0 8px;
+  text-shadow: 0 0 6px rgba(184, 0, 31, 0.6);
+}
+@keyframes cp-card-flicker {
+  0%, 7%, 9%, 100%   { opacity: 1; }
+  8%                 { opacity: 0.55; }
+  44%, 46%           { opacity: 1; }
+  45%                { opacity: 0.7; }
+}
+
+.game-card[data-theme="opossumer"] .game-card-name {
+  font-family: 'Bungee', 'Limelight', 'Special Elite', serif;
+  font-weight: 400;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f0d480;
+  text-shadow:
+    0 0 4px rgba(240, 212, 128, 0.85),
+    0 0 10px rgba(255, 160, 60, 0.55),
+    0 0 22px rgba(255, 100, 30, 0.35),
+    0 2px 0 rgba(0, 0, 0, 0.75);
+}
+
+.game-card[data-theme="bearbaiting"] .game-card-name {
+  font-family: 'Pirata One', 'Limelight', serif;
+  font-weight: normal;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: #d8c088;
+  text-shadow:
+    0 0 6px rgba(255, 180, 80, 0.4),
+    0 2px 0 rgba(0, 0, 0, 0.7);
+}
+
+.game-card[data-theme="isitraining"] .game-card-name {
+  font-family: 'Limelight', 'Pirata One', serif;
+  font-weight: normal;
+  font-size: 22px;
+  line-height: 0.95;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffd070;
+  text-shadow:
+    1px 1px 0 #c89858,
+    2px 2px 0 #966c30,
+    3px 3px 0 #5c401a,
+    4px 4px 0 #2a1c0a,
+    0 0 16px rgba(255, 160, 60, 0.3);
+  position: relative;
+  display: inline-block;
+}
+.game-card[data-theme="isitraining"] .game-card-name::before,
+.game-card[data-theme="isitraining"] .game-card-name::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  mix-blend-mode: screen;
+  text-shadow: none;
+}
+.game-card[data-theme="isitraining"] .game-card-name::before {
+  color: #ff3050;
+  transform: translate(-1.5px, 0);
+}
+.game-card[data-theme="isitraining"] .game-card-name::after {
+  color: #20a0ff;
+  transform: translate(1.5px, 0);
+}
+
+.game-card[data-theme="doublehappiness"] .game-card-name {
+  font-family: 'Playfair Display', 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #e8c870;
+  text-shadow:
+    0 0 8px rgba(232, 200, 112, 0.6),
+    0 1px 0 rgba(0, 0, 0, 0.65),
+    0 2px 4px rgba(0, 0, 0, 0.55);
+}
+
+.game-card[data-theme="giftshop"] .game-card-name {
+  font-family: 'Limelight', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: #c8a060;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.4),
+    0 0 12px rgba(200, 161, 74, 0.4);
+}
+
+.game-card[data-theme="gladiatrix"] .game-card-name {
+  font-family: var(--font-title);
+  font-weight: normal;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: var(--bone);
+  text-shadow:
+    0 0 6px rgba(184, 0, 31, 0.7),
+    0 0 14px rgba(184, 0, 31, 0.4);
+}
+.game-card[data-theme="gladiatrix"] .game-card-name .sb-card-exe {
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 0.65em;
+  vertical-align: 0.15em;
+  color: #1aff7f;
+  text-shadow: 0 0 6px rgba(26, 255, 127, 0.5);
+  letter-spacing: 0.18em;
+}
+
+.game-card[data-theme="tarot"] .game-card-name {
+  font-family: 'Monoton', 'Creepster', 'Cinzel', Georgia, serif;
+  font-weight: normal;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  background: linear-gradient(110deg,
+    #ff66cc   0%,
+    #ff99dd  22%,
+    #f1c869  48%,
+    #ffd57a  56%,
+    #ff99dd  78%,
+    #ff66cc 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 102, 204, 0.85))
+    drop-shadow(0 0 10px rgba(255, 153, 221, 0.6))
+    drop-shadow(0 0 22px rgba(255, 102, 204, 0.3));
+}

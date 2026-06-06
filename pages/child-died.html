@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  CHILD-DIED — terminal end-page; pick a method of suicide, then death    │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Reached when route-guards on other pages detect any child stat ≤ 0    │
+  │    (hunger/wellness/closeness). A short prose card explains              │
+  │    Your Child is dead and the player has been driven to suicide; three   │
+  │    method buttons (Jump / Pills / Gun) commit the player's death and    │
+  │    redirect to death.html. js/child-died.js performs the storage write   │
+  │    and navigation — see its top-of-file diagram for the precise shape.   │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: child-died.js                                                  │
+  │    DOM ids/classes: .container, .actions button[data-method]             │
+  │      (data-method ∈ {jump, pills, gun})                                  │
+  │    flow: child-died.js IIFE → bind .actions button click → commit(method)│
+  │      → read wendys_palace_death JSON; d.dead=T; d.method=method;         │
+  │      d.choice=null; write; location.replace('death.html')                │
+  │    storage R/W: wendys_palace_death (R/W)                                │
+  │    routes out: death.html (always, on any button click)                  │
+  │    no inline route-guards — this page IS the guarded destination         │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Your Child Has Died</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/child-died/child-died.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Your child has died due to neglect.</h1>
+    <p class="madness">Driven mad by this, you have chosen to commit suicide.</p>
+    <p class="prompt">Choose your method:</p>
+    <div class="actions">
+      <button data-method="jump">Jump</button>
+      <button data-method="pills">Pills</button>
+      <button data-method="gun">Gun</button>
+    </div>
+  </div>
+  <script src="../js/child-died.js"></script>
+</body>
+</html>

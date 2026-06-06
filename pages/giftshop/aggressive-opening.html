@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — AGGRESSIVE OPENING ("How to Play Chess", 26,000 coins)     │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item page disguised as Chapter 7 of a chess primer. A standard 8×8   │
+  │    board with full starting pieces. The player plays white and must     │
+  │    execute the Fried Liver Attack (1.e4 2.Nf3 3.Bc4 4.Ng5 5.exd5         │
+  │    6.Nxf7). Two hint glows show the next move (from-square + to-square).│
+  │    Pieces can be dragged with the mouse/finger OR moved via tap-tap.    │
+    All six correct moves print a line; mom's voice lines are quoted (large │
+  │    " mark) and the player's asides drop in lower-contrast with an em-  │
+  │    dash lead-in:                                                       │
+  │      1.e4   : "Mom taught you this."                                    │
+  │      2.Nf3  : — This was when she could still pass as normal…          │
+  │      3.Bc4  : "The Italian Game."                                       │
+  │      4.Ng5  : "It's aggressive, she said."                              │
+  │      5.exd5 : — Into the Fried Liver.                                  │
+  │      6.Nxf7 : "It will scare the boys…"                                 │
+  │    Black plays scripted replies automatically. Wrong moves snap back   │
+  │    with a shake. Hint squares glow brightly (animated box-shadow +     │
+  │    outer halo). On Nxf7 the f7 square pulses red, the board freezes,  │
+  │    and a RESTART button replays.                                       │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/child.js (for the kaomoji cosmetic toggle)          │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death │
+  │    DOM: .ao-room > .ao-page (.ao-chapter header) > .ao-spread          │
+  │      (.ao-board#ao-board, .ao-side w/ .ao-pop list, .ao-foot           │
+  │      restart). pieces are abs-positioned .piece elements inside        │
+  │      #ao-board, indexed by file/rank.                                  │
+  │    flow: build 8×8 grid + 32 starting pieces; SEQ=[4 steps]; updateHints│
+  │      glows step.white from/to; click→onSquareClick(sq):                │
+  │        if selected→attemptMove(selected, sq) else if white piece→select│
+  │      attemptMove(from,to): match step.white→movePiece+popLine+          │
+  │        setTimeout(black auto-move)→step++→updateHints; else shake      │
+  │      step>=4 → onMate (pulse black king, lock board, show RESTART)     │
+  │    storage R/W: writes wendys_palace_child.cosmetics.aggressive-       │
+  │      opening via Child.setCosmetic; ownership tracked in               │
+  │      wendys_palace_giftshop, key='chessbook', by giftshopindex.html    │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)            │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>How to Play Chess — Chapter 7</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Special+Elite&family=Limelight&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 50% 30%, #1f160e 0%, #0e0905 70%, #050302 100%);
+      color: #d8c8a4;
+      font-family: 'EB Garamond', serif;
+      overflow-x: hidden;
+    }
+    .ao-room {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 50px 18px 60px;
+      gap: 26px;
+    }
+
+    /* ────────── primer page ────────── */
+    .ao-page {
+      width: min(880px, 96vw);
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.025) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, #f4eada 0%, #e8d8b0 100%);
+      color: #2a1808;
+      padding: 36px 38px 32px;
+      box-shadow:
+        0 30px 60px rgba(0,0,0,0.55),
+        0 6px 0 #c4ac80,
+        0 12px 0 #8a7048,
+        0 18px 30px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    .ao-page::before {
+      content: '';
+      position: absolute;
+      top: 14px; bottom: 14px;
+      left: 50%;
+      width: 1px;
+      background:
+        linear-gradient(180deg, transparent 0%, rgba(80, 40, 8, 0.22) 50%, transparent 100%);
+    }
+
+    .ao-chapter {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .ao-chapter .num {
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      letter-spacing: 0.34em;
+      color: #6a3a18;
+    }
+    .ao-chapter .ti {
+      font-family: 'Limelight', serif;
+      font-size: 22px;
+      letter-spacing: 0.20em;
+      color: #2a1808;
+      margin: 4px 0;
+    }
+    .ao-chapter .sub {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: #5a3210;
+    }
+    .ao-rule {
+      width: 30%;
+      margin: 12px auto 22px;
+      height: 1px;
+      background: rgba(80, 40, 8, 0.45);
+    }
+
+    /* ────────── spread (board + side panel) ────────── */
+    .ao-spread {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) 1fr;
+      gap: 26px;
+      align-items: start;
+    }
+    @media (max-width: 720px) {
+      .ao-spread { grid-template-columns: 1fr; }
+      .ao-page::before { display: none; }
+    }
+
+    /* ─── board ─── */
+    .ao-board {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      box-shadow:
+        0 12px 22px rgba(0,0,0,0.5),
+        0 0 0 8px #5a3818,
+        0 0 0 10px #2a1808;
+      border-radius: 1px;
+      touch-action: none;
+    }
+    .sq {
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+    }
+    .sq.light { background: #ead7b3; }
+    .sq.dark  { background: #a07848; }
+    .sq.hint-from {
+      z-index: 1;
+      animation: ao-pulse-from 1.3s ease-in-out infinite;
+    }
+    .sq.hint-to {
+      z-index: 1;
+      animation: ao-pulse-to 1.6s ease-in-out infinite;
+    }
+    .sq.selected {
+      z-index: 2;
+      box-shadow:
+        inset 0 0 0 5px rgba(255, 240, 120, 1),
+        inset 0 0 30px rgba(255, 220, 80, 0.7),
+        0 0 28px 6px rgba(255, 220, 80, 0.85);
+    }
+    .sq.bad {
+      animation: ao-shake 0.32s ease;
+    }
+    .sq.mated {
+      z-index: 2;
+      animation: ao-mated 1.0s ease-in-out infinite;
+    }
+    @keyframes ao-pulse-from {
+      0%, 100% {
+        box-shadow:
+          inset 0 0 0 4px rgba(255, 200, 60, 0.85),
+          inset 0 0 22px rgba(255, 170, 30, 0.50),
+          0 0 18px 2px rgba(255, 180, 30, 0.55);
+        filter: brightness(1.0);
+      }
+      50% {
+        box-shadow:
+          inset 0 0 0 5px rgba(255, 230, 140, 1),
+          inset 0 0 38px rgba(255, 200, 60, 0.90),
+          0 0 36px 8px rgba(255, 200, 50, 0.95);
+        filter: brightness(1.18);
+      }
+    }
+    @keyframes ao-pulse-to {
+      0%, 100% {
+        box-shadow:
+          inset 0 0 0 4px rgba(140, 220, 90, 0.85),
+          inset 0 0 22px rgba(110, 200, 60, 0.50),
+          0 0 16px 2px rgba(120, 200, 60, 0.55);
+        filter: brightness(1.0);
+      }
+      50% {
+        box-shadow:
+          inset 0 0 0 5px rgba(180, 240, 130, 1),
+          inset 0 0 34px rgba(130, 220, 80, 0.90),
+          0 0 30px 6px rgba(140, 220, 70, 0.90);
+        filter: brightness(1.12);
+      }
+    }
+    @keyframes ao-mated {
+      0%, 100% {
+        box-shadow:
+          inset 0 0 0 4px rgba(220, 50, 50, 0.7),
+          inset 0 0 24px rgba(220, 30, 30, 0.45),
+          0 0 18px 2px rgba(220, 40, 40, 0.6);
+        background: rgba(220, 40, 40, 0.1);
+      }
+      50% {
+        box-shadow:
+          inset 0 0 0 5px rgba(255, 70, 70, 1),
+          inset 0 0 40px rgba(255, 30, 30, 0.85),
+          0 0 36px 8px rgba(255, 30, 30, 0.9);
+        background: rgba(255, 40, 40, 0.45);
+      }
+    }
+    @keyframes ao-shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      50% { transform: translateX(4px); }
+      75% { transform: translateX(-3px); }
+    }
+    /* file/rank labels (subtle) */
+    .sq .lbl-file, .sq .lbl-rank {
+      position: absolute;
+      font-family: 'Special Elite', monospace;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      color: rgba(40, 20, 8, 0.55);
+      pointer-events: none;
+    }
+    .sq.light .lbl-file, .sq.light .lbl-rank { color: rgba(120, 80, 30, 0.6); }
+    .sq.dark  .lbl-file, .sq.dark  .lbl-rank { color: rgba(240, 220, 180, 0.55); }
+    .sq .lbl-file { bottom: 2px; right: 3px; }
+    .sq .lbl-rank { top: 2px; left: 3px; }
+
+    /* ─── pieces ─── */
+    .piece {
+      position: absolute;
+      width: 12.5%;
+      height: 12.5%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI Symbol', 'DejaVu Sans', 'Apple Symbols', 'Arial Unicode MS', sans-serif;
+      font-variant-emoji: text;
+      font-size: clamp(20px, 5.4vw, 38px);
+      line-height: 1;
+      pointer-events: none;
+      transition: left 0.42s cubic-bezier(.4,.0,.2,1), top 0.42s cubic-bezier(.4,.0,.2,1), opacity 0.35s ease, transform 0.35s ease;
+      z-index: 2;
+    }
+    .piece.white {
+      color: #fff8e6;
+      text-shadow:
+        -1px -1px 0 #1a0a02,
+         1px -1px 0 #1a0a02,
+        -1px  1px 0 #1a0a02,
+         1px  1px 0 #1a0a02,
+         0    2px 3px rgba(0,0,0,0.5);
+    }
+    .piece.black {
+      color: #18100a;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+    }
+    .piece.captured {
+      opacity: 0;
+      transform: scale(0.4) rotate(-30deg);
+    }
+
+    /* ─── side panel: Mom's voice ─── */
+    .ao-side {
+      padding: 6px 4px 4px;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .ao-side .lede {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 14px;
+      color: #5a3210;
+      line-height: 1.55;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed rgba(80, 40, 8, 0.35);
+    }
+    .ao-side .lede em { font-style: normal; color: #2a1808; }
+    .ao-pop {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 6px 0;
+    }
+    .ao-pop .line {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 19px;
+      line-height: 1.4;
+      color: #1a0e08;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      padding-left: 22px;
+      position: relative;
+    }
+    .ao-pop .line.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .ao-pop .line::before {
+      content: '"';
+      position: absolute;
+      left: 0; top: -8px;
+      font-family: 'Limelight', serif;
+      font-size: 30px;
+      color: #6a2818;
+      line-height: 1;
+    }
+    .ao-pop .line.final {
+      color: #6a1818;
+    }
+    .ao-pop .line.final::before { color: #8a1010; }
+    /* player-thought asides — no quote mark, faded, em-dash lead-in */
+    .ao-pop .line.aside {
+      font-size: 16px;
+      color: rgba(50, 28, 14, 0.62);
+    }
+    .ao-pop .line.aside::before {
+      content: '—';
+      font-family: 'EB Garamond', serif;
+      font-style: normal;
+      font-size: 18px;
+      color: rgba(120, 70, 30, 0.55);
+      top: 0;
+      left: 0;
+    }
+
+    /* ─── status / hint line ─── */
+    .ao-hint {
+      margin-top: 18px;
+      text-align: center;
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      color: rgba(80, 50, 20, 0.7);
+    }
+    .ao-hint.mated {
+      color: #6a1010;
+      letter-spacing: 0.32em;
+    }
+    .ao-restart {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 6px 14px;
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      color: #2a1808;
+      background: rgba(255, 240, 200, 0.55);
+      border: 1px solid rgba(80, 50, 20, 0.5);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+    .ao-restart:hover { background: rgba(255, 220, 160, 0.85); }
+
+    .kc-bay {
+      display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px;
+    }
+    .kc-preview {
+      font-family: 'Special Elite', monospace; font-size: 22px; letter-spacing: 0.04em;
+      color: #d8c8a4; background: rgba(20,14,10,0.6);
+      border: 1px solid rgba(201,161,74,0.35); border-radius: 4px;
+      padding: 10px 18px; min-width: 160px; text-align: center;
+      white-space: pre; line-height: 1.1;
+    }
+    .kc-toggle {
+      font-family: 'Special Elite', monospace; font-size: 14px;
+      letter-spacing: 0.26em; text-transform: uppercase; color: #d8c8a4;
+      padding: 12px 26px; background: rgba(20,14,10,0.6);
+      border: 1px solid rgba(201,161,74,0.5); border-radius: 4px;
+      cursor: pointer; min-width: 260px;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .kc-toggle:hover { background: rgba(201,161,74,0.18); border-color: #c9a14a; }
+    .kc-toggle.on { background: rgba(201,161,74,0.22); border-color: #d4b46a; color: #f0d890; }
+
+    .ao-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8a4;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+    }
+    .ao-back:hover {
+      background: rgba(201, 161, 74, 0.18);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="ao-room">
+    <div class="ao-page">
+      <div class="ao-chapter">
+        <div class="num">— CHAPTER 7 —</div>
+        <div class="ti">THE FRIED LIVER</div>
+        <div class="sub">An aggressive attack from the Italian Game.</div>
+      </div>
+      <div class="ao-rule"></div>
+
+      <div class="ao-spread">
+        <div class="ao-board" id="ao-board"></div>
+
+        <div class="ao-side">
+          <div class="lede">
+            You are <em>white</em>. Follow the glow — orange is the piece to move, green is where it goes. <em>Drag</em> the piece, or tap from-square then to-square. Six moves.
+          </div>
+          <div class="ao-pop" id="ao-pop">
+            <!-- Mom's lines append here as the player executes each correct move -->
+          </div>
+          <div class="ao-hint" id="ao-hint">Move 1 of 4</div>
+          <button class="ao-restart" id="ao-restart" type="button" style="display:none;">PLAY AGAIN</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="kc-bay">
+      <div class="kc-preview" id="kc-preview" aria-hidden="true">(o_o)</div>
+      <button class="kc-toggle" type="button" aria-pressed="false">Set the pawn beside them</button>
+    </div>
+
+    <a class="ao-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/child.js"></script>
+  <script>
+    (function () {
+      const ID = 'aggressive-opening';
+      const OFF = 'Set the pawn beside them';
+      const ON  = 'Sweep the pawn off';
+      const btn  = document.querySelector('.kc-toggle');
+      const prev = document.getElementById('kc-preview');
+      if (!btn || !window.Child) return;
+      function refresh() {
+        const on = Child.getCosmetic(ID);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.textContent = on ? ON : OFF;
+      }
+      let pi = 0;
+      function tick() {
+        if (!prev) return;
+        const d = Child.describeFace();
+        prev.textContent = d.frames[pi % d.frames.length];
+        pi++;
+      }
+      btn.addEventListener('click', () => Child.setCosmetic(ID, !Child.getCosmetic(ID)));
+      Child.onChange(refresh);
+      refresh();
+      tick();
+      setInterval(tick, 420);
+    })();
+  </script>
+
+  <script>
+  /*
+    CODE (terse, AI-readable):
+    FILES='abcdefgh'; pieces map sq→letter (U=W, l=B); GLYPHS letter→♔..♟
+    SEQ (Fried Liver, 6 moves):
+      1{w:e2-e4,  b:e7-e5,  say:"Mom taught you this."}
+      2{w:g1-f3,  b:b8-c6,  say:null}
+      3{w:f1-c4,  b:g8-f6,  say:"The Italian Game."}
+      4{w:f3-g5,  b:d7-d5,  say:"Into the Fried Liver."}
+      5{w:e4-d5,  b:f6-d5,  say:null}                    -- pawn cap, knight retake
+      6{w:g5-f7,  b:null,   say:"It will scare the boys, she said.", final:T}
+    init(): buildBoard→64 .sq ; placeStart→32 .piece abs-positioned ;
+      pointer handlers on board ; updateHints()
+    pointerdown(sq): if W piece→pickup (transition:none, z:10, scale 1.1,
+      pointer capture); record startSq/x/y
+    pointermove: if moved>4px, follow cursor; mark .moved
+    pointerup(endSq): if !moved→onTap(startSq) else snap piece back, attempt
+      Move(start, end)
+    onTap(sq): selected→ attemptMove(selected,sq) else W-piece→select(sq)
+    attemptMove(f,t): (f,t)==SEQ[i].w → movePiece(f,t); popLine(say) if say;
+      setTimeout 900: if final→onFinal else step.b? movePiece; i++; updateHints
+      mismatch → shake(f), clearSelection
+    movePiece(f,t): capture if pieces[t]; reposition piece el to t
+    onFinal(): #sq-f7 .mated ; hint='— the fried liver —' ; show RESTART
+  */
+  (function(){
+    var FILES = 'abcdefgh';
+    // Variation Selector-15 (U+FE0E) forces text-style rendering so glyphs
+    // don't switch into emoji presentation (which was causing uneven sizes).
+    var VS = '︎';
+    var GLYPHS = {
+      K:'♔'+VS, Q:'♕'+VS, R:'♖'+VS, B:'♗'+VS, N:'♘'+VS, P:'♙'+VS,
+      k:'♚'+VS, q:'♛'+VS, r:'♜'+VS, b:'♝'+VS, n:'♞'+VS, p:'♟'+VS
+    };
+    var START = {
+      a8:'r', b8:'n', c8:'b', d8:'q', e8:'k', f8:'b', g8:'n', h8:'r',
+      a7:'p', b7:'p', c7:'p', d7:'p', e7:'p', f7:'p', g7:'p', h7:'p',
+      a2:'P', b2:'P', c2:'P', d2:'P', e2:'P', f2:'P', g2:'P', h2:'P',
+      a1:'R', b1:'N', c1:'B', d1:'Q', e1:'K', f1:'B', g1:'N', h1:'R'
+    };
+    var SEQ = [
+      { w: ['e2','e4'], b: ['e7','e5'], say: "Mom taught you this." },
+      { w: ['g1','f3'], b: ['b8','c6'], say: "This was when she could still pass as normal…", aside: true },
+      { w: ['f1','c4'], b: ['g8','f6'], say: "The Italian Game." },
+      { w: ['f3','g5'], b: ['d7','d5'], say: "It's aggressive, she said.", aside: true },
+      { w: ['e4','d5'], b: ['f6','d5'], say: "Into the Fried Liver." },
+      { w: ['g5','f7'], b: null,         say: "It will scare the boys, she said.", aside: true, final: true }
+    ];
+
+    var board = document.getElementById('ao-board');
+    var popEl = document.getElementById('ao-pop');
+    var hintEl = document.getElementById('ao-hint');
+    var restartBtn = document.getElementById('ao-restart');
+
+    var state = null;
+
+    function fileIdx(sq) { return sq.charCodeAt(0) - 97; }
+    function rankIdx(sq) { return parseInt(sq[1], 10); }
+    function positionPiece(el, sq) {
+      el.style.left = (fileIdx(sq) * 12.5) + '%';
+      el.style.top  = ((8 - rankIdx(sq)) * 12.5) + '%';
+      el.dataset.at = sq;
+    }
+
+    function buildBoard() {
+      board.innerHTML = '';
+      for (var r = 8; r >= 1; r--) {
+        for (var f = 0; f < 8; f++) {
+          var s = FILES[f] + r;
+          var sq = document.createElement('div');
+          var dark = ((f + r) % 2 === 0);
+          sq.className = 'sq ' + (dark ? 'dark' : 'light');
+          sq.id = 'sq-' + s;
+          sq.dataset.sq = s;
+          // labels on edges only
+          if (r === 1) {
+            var lf = document.createElement('span');
+            lf.className = 'lbl-file';
+            lf.textContent = FILES[f];
+            sq.appendChild(lf);
+          }
+          if (f === 0) {
+            var lr = document.createElement('span');
+            lr.className = 'lbl-rank';
+            lr.textContent = r;
+            sq.appendChild(lr);
+          }
+          board.appendChild(sq);
+        }
+      }
+    }
+
+    function squareFromPoint(clientX, clientY) {
+      var rect = board.getBoundingClientRect();
+      var x = clientX - rect.left, y = clientY - rect.top;
+      if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return null;
+      var f = Math.floor(x / (rect.width  / 8));
+      var r = 8 - Math.floor(y / (rect.height / 8));
+      if (f < 0 || f > 7 || r < 1 || r > 8) return null;
+      return FILES[f] + r;
+    }
+
+    var ptr = null; // {startSq, x, y, moved, el, pointerId}
+    function bindPointer() {
+      board.addEventListener('pointerdown', function(e){
+        if (!state || state.busy || state.done) return;
+        if (e.button !== undefined && e.button !== 0) return;
+        var sq = squareFromPoint(e.clientX, e.clientY);
+        if (!sq) return;
+        e.preventDefault();
+        ptr = { startSq: sq, x: e.clientX, y: e.clientY, moved: false, el: null, pointerId: e.pointerId };
+        var piece = state.pieces[sq];
+        if (isWhite(piece)) {
+          ptr.el = state.els[sq];
+          ptr.el.style.transition = 'none';
+          ptr.el.style.zIndex = '10';
+          ptr.el.style.transform = 'scale(1.12)';
+          try { board.setPointerCapture(e.pointerId); } catch (err) {}
+        }
+      });
+      board.addEventListener('pointermove', function(e){
+        if (!ptr || !ptr.el) return;
+        var dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
+        if (!ptr.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) ptr.moved = true;
+        if (!ptr.moved) return;
+        var rect = board.getBoundingClientRect();
+        ptr.el.style.left = (((e.clientX - rect.left) / rect.width)  * 100 - 6.25) + '%';
+        ptr.el.style.top  = (((e.clientY - rect.top ) / rect.height) * 100 - 6.25) + '%';
+      });
+      function endPtr(e){
+        if (!ptr) return;
+        var info = ptr; ptr = null;
+        if (info.el) {
+          info.el.style.transition = '';
+          info.el.style.zIndex = '';
+          info.el.style.transform = '';
+          try { board.releasePointerCapture(info.pointerId); } catch (err) {}
+        }
+        if (info.moved) {
+          var endSq = squareFromPoint(e.clientX, e.clientY);
+          if (info.el) positionPiece(info.el, info.startSq);
+          if (endSq && endSq !== info.startSq) attemptMove(info.startSq, endSq);
+          else clearSelection();
+        } else {
+          onSquareClick(info.startSq);
+        }
+      }
+      board.addEventListener('pointerup', endPtr);
+      board.addEventListener('pointercancel', endPtr);
+    }
+
+    function placeStart() {
+      state = { pieces: {}, els: {}, step: 0, selected: null, done: false, busy: false };
+      for (var sq in START) {
+        var letter = START[sq];
+        state.pieces[sq] = letter;
+        var el = document.createElement('div');
+        el.className = 'piece ' + (letter === letter.toUpperCase() ? 'white' : 'black');
+        el.textContent = GLYPHS[letter];
+        positionPiece(el, sq);
+        board.appendChild(el);
+        state.els[sq] = el;
+      }
+    }
+
+    function clearHints() {
+      var hs = board.querySelectorAll('.hint-from, .hint-to');
+      for (var i = 0; i < hs.length; i++) hs[i].classList.remove('hint-from', 'hint-to');
+    }
+    function updateHints() {
+      clearHints();
+      if (state.done) return;
+      var step = SEQ[state.step];
+      var from = document.getElementById('sq-' + step.w[0]);
+      var to   = document.getElementById('sq-' + step.w[1]);
+      if (from) from.classList.add('hint-from');
+      if (to)   to.classList.add('hint-to');
+      hintEl.textContent = 'Move ' + (state.step + 1) + ' of ' + SEQ.length;
+    }
+
+    function select(sq) {
+      clearSelection();
+      state.selected = sq;
+      var el = document.getElementById('sq-' + sq);
+      if (el) el.classList.add('selected');
+    }
+    function clearSelection() {
+      if (state.selected) {
+        var el = document.getElementById('sq-' + state.selected);
+        if (el) el.classList.remove('selected');
+      }
+      state.selected = null;
+    }
+
+    function isWhite(letter) { return letter && letter === letter.toUpperCase(); }
+
+    function movePiece(from, to) {
+      var letter = state.pieces[from];
+      if (!letter) return;
+      // capture
+      if (state.pieces[to]) {
+        var cap = state.els[to];
+        cap.classList.add('captured');
+        setTimeout((function(node){ return function(){ if (node && node.parentNode) node.parentNode.removeChild(node); }; })(cap), 380);
+        delete state.els[to];
+        delete state.pieces[to];
+      }
+      var el = state.els[from];
+      delete state.els[from];
+      delete state.pieces[from];
+      state.pieces[to] = letter;
+      state.els[to] = el;
+      positionPiece(el, to);
+    }
+
+    function popLine(text, opts) {
+      opts = opts || {};
+      var div = document.createElement('div');
+      var cls = 'line';
+      if (opts.final) cls += ' final';
+      if (opts.aside) cls += ' aside';
+      div.className = cls;
+      div.textContent = text;
+      popEl.appendChild(div);
+      requestAnimationFrame(function(){ div.classList.add('show'); });
+    }
+
+    function shake(sq) {
+      var el = document.getElementById('sq-' + sq);
+      if (!el) return;
+      el.classList.add('bad');
+      setTimeout(function(){ el.classList.remove('bad'); }, 320);
+    }
+
+    function attemptMove(from, to) {
+      if (state.busy || state.done) return;
+      var step = SEQ[state.step];
+      if (from === step.w[0] && to === step.w[1]) {
+        clearSelection();
+        clearHints();
+        movePiece(from, to);
+        if (step.say) popLine(step.say, { final: !!step.final, aside: !!step.aside });
+        state.busy = true;
+        setTimeout(function(){
+          if (step.final) { onFinal(); return; }
+          if (step.b) movePiece(step.b[0], step.b[1]);
+          state.step++;
+          state.busy = false;
+          updateHints();
+        }, 900);
+      } else {
+        shake(from);
+        clearSelection();
+      }
+    }
+
+    function onSquareClick(sq) {
+      if (state.busy || state.done) return;
+      if (state.selected) {
+        if (sq === state.selected) { clearSelection(); return; }
+        attemptMove(state.selected, sq);
+      } else {
+        var p = state.pieces[sq];
+        if (isWhite(p)) select(sq);
+      }
+    }
+
+    function onFinal() {
+      state.done = true;
+      var sq = document.getElementById('sq-f7');
+      if (sq) sq.classList.add('mated');
+      hintEl.textContent = '— the fried liver —';
+      hintEl.classList.add('mated');
+      restartBtn.style.display = 'inline-block';
+    }
+
+    function reset() {
+      // clear pieces + classes
+      var pieces = board.querySelectorAll('.piece');
+      for (var i = 0; i < pieces.length; i++) pieces[i].parentNode.removeChild(pieces[i]);
+      var mated = board.querySelectorAll('.mated, .selected, .hint-from, .hint-to, .bad');
+      for (var j = 0; j < mated.length; j++) mated[j].classList.remove('mated','selected','hint-from','hint-to','bad');
+      popEl.innerHTML = '';
+      hintEl.classList.remove('mated');
+      restartBtn.style.display = 'none';
+      placeStart();
+      updateHints();
+    }
+    restartBtn.addEventListener('click', reset);
+
+    buildBoard();
+    placeStart();
+    bindPointer();
+    updateHints();
+  })();
+  </script>
+</body>
+</html>

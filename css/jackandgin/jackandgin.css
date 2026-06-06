@@ -1,0 +1,1473 @@
+/*
+  JACK AND GIN — Moloch's Patriot Poker reskin (gold + marble + decals)
+  ─────────────────────────────────────────────────────────────────────────
+  Sections:
+    1. Font import + palette tokens (--jg-* on body)
+    2. Body marble background + posterized photo decals
+    3. Header (title chrome, subtitle, flourish, coins bar, debug-reset)
+    4. Action bar (fixed bottom, plastic-gold buttons, hit = cherry)
+    5. Scoreboard (gloss-black panel with gilded inlay + moloch2 watermark)
+    6. Table (black-marble slab with gilded molding + murders watermark)
+    7. Sections (dealer/player banners, hand/meld groups, deadwood)
+    8. Cards (ivory plastic with gold rim)
+    9. Bust meter / eval text / banner / divider
+   10. Responsive (max-width: 600px)
+  Owns selectors: body, header, h1, main, .coins-bar, #balance, #debug-reset,
+    #jg-actions, .jg-wager-group, #jg-bet-amount, #jg-bet-max, #jg-hit,
+    .jg-scoreboard*, .jg-table, #jg-dealer, #jg-player, .jg-hand,
+    .jg-meld-*, .jg-card*, .jg-bust-*, .jg-eval*, .jg-divider, .jg-flourish,
+    .jg-subtitle
+  CSS vars: --jg-gold, --jg-gold-bright, --jg-gold-deep, --jg-marble,
+    --jg-marble-warm, --jg-marble-vein, --jg-maraschino, --jg-cherry,
+    --jg-cherry-light, --jg-gloss-black, --jg-ink, --jg-cream
+    --jg-decal-{murders,moloch1,moloch2}  (set by glitch-textures.js)
+  Consumed by: pages/jackandgin.html
+  External deps: base.css; js/jackandgin/glitch-textures.js (decals)
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Playfair+Display:wght@700;900&display=swap');
+
+/* ───── 1. Palette tokens ───── */
+
+body {
+  --jg-gold:        #e3b821;
+  --jg-gold-bright: #ffdd55;
+  --jg-gold-pale:   #fff5b8;
+  --jg-gold-deep:   #8b6f1c;
+  --jg-gold-burnish:#a8842a;
+  --jg-marble:      #fbf6e4;
+  --jg-marble-warm: #f1e2b8;
+  --jg-marble-vein: #c8b88a;
+  --jg-maraschino:  #6b0f1a;
+  --jg-cherry:      #a31c2b;
+  --jg-cherry-light:#d83a4a;
+  --jg-flag-red:    #bf0a30;
+  --jg-flag-white:  #fefefe;
+  --jg-navy:        #002868;
+  --jg-navy-bright: #1f4791;
+  --jg-gloss-black: #1a1410;
+  --jg-ink:         #2a1810;
+  --jg-cream:       #faf6e8;
+
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><g><circle cx='12' cy='18' r='1.1' fill='%23e3b821' opacity='0.55'/><circle cx='62' cy='28' r='0.9' fill='%23ffdd55' opacity='0.6'/><circle cx='30' cy='58' r='1.3' fill='%238b6f1c' opacity='0.5'/><circle cx='75' cy='72' r='1' fill='%23e3b821' opacity='0.55'/><circle cx='50' cy='10' r='0.7' fill='%23fff5b8' opacity='0.7'/><circle cx='8' cy='80' r='0.8' fill='%23ffdd55' opacity='0.55'/></g></svg>"),
+    radial-gradient(ellipse at 30% 18%, rgba(255, 245, 184, 0.7) 0%, transparent 45%),
+    radial-gradient(ellipse at 72% 82%, rgba(227, 184, 33, 0.32) 0%, transparent 55%),
+    linear-gradient(135deg, #fbf6e4 0%, #f1e2b8 50%, #fbf6e4 100%);
+  background-attachment: fixed;
+  color: var(--jg-ink);
+  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  padding: 4px 16px calc(140px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ───── 2. Marble veining + posterized decals ───── */
+
+/* Marble vein turbulence (replaces parchment grain). */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+  opacity: 0.32;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><filter id='m'><feTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='3' seed='7'/><feColorMatrix values='0 0 0 0 0.78  0 0 0 0 0.75  0 0 0 0 0.70  0 0 0 1.4 -0.6'/></filter><rect width='600' height='600' filter='url(%23m)'/></svg>");
+  background-size: 600px 600px;
+}
+
+/* Top-right moloch1 decal — stamped onto the marble like a wax seal. */
+body::after {
+  content: '';
+  position: fixed;
+  top: -40px;
+  right: -40px;
+  width: min(38vw, 360px);
+  height: min(38vw, 360px);
+  pointer-events: none;
+  z-index: -1;
+  background: var(--jg-decal-moloch1, none) center / contain no-repeat;
+  opacity: 0;
+  transform: rotate(-4deg);
+  filter: contrast(1.15) saturate(1.05)
+    drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+  mix-blend-mode: multiply;
+  transition: opacity 0.7s ease;
+}
+body.jg-decals-ready::after { opacity: 0.22; }
+
+/* ───── 3. Header ───── */
+
+header {
+  text-align: center;
+  margin-bottom: 6px;
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+}
+
+.header-nav {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  font-size: 14px;
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+.header-nav a {
+  color: var(--jg-ink);
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+.header-nav a:hover {
+  color: var(--jg-cherry);
+  opacity: 1;
+}
+
+.jg-title-marque {
+  font-family: 'Cinzel', 'Trajan Pro', serif;
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  margin: 0 0 -2px;
+  padding-left: 0.42em;  /* counter the trailing letter-spacing for visual center */
+  background:
+    linear-gradient(180deg,
+      var(--jg-gold-pale)   0%,
+      var(--jg-gold-bright) 30%,
+      var(--jg-gold)        55%,
+      var(--jg-gold-deep)   100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter:
+    drop-shadow(0 1px 0 var(--jg-gold-deep))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+.jg-title-marque::before,
+.jg-title-marque::after {
+  content: '★';
+  -webkit-text-fill-color: var(--jg-gold-bright);
+  color: var(--jg-gold-bright);
+  font-size: 10px;
+  margin: 0 8px;
+  vertical-align: middle;
+  text-shadow: 0 0 6px rgba(255, 221, 85, 0.7);
+}
+
+h1 {
+  font-family: 'Cinzel', 'Trajan Pro', serif;
+  font-weight: 900;
+  font-size: 36px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 2px;
+  background:
+    linear-gradient(180deg,
+      var(--jg-gold-pale)   0%,
+      var(--jg-gold-bright) 20%,
+      var(--jg-gold)        42%,
+      var(--jg-gold-deep)   52%,
+      var(--jg-gold)        62%,
+      var(--jg-gold-bright) 82%,
+      var(--jg-gold-pale)   100%);
+  background-size: 100% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter:
+    drop-shadow(0 1px 0 var(--jg-gold-deep))
+    drop-shadow(0 2px 0 rgba(0, 0, 0, 0.55))
+    drop-shadow(0 4px 8px rgba(245, 215, 110, 0.45))
+    drop-shadow(0 5px 8px rgba(0, 0, 0, 0.4));
+  animation: jg-h1-shine 5.5s ease-in-out infinite;
+}
+
+@keyframes jg-h1-shine {
+  0%, 100% { filter:
+      drop-shadow(0 1px 0 var(--jg-gold-deep))
+      drop-shadow(0 2px 0 rgba(0, 0, 0, 0.55))
+      drop-shadow(0 4px 6px rgba(245, 215, 110, 0.35))
+      drop-shadow(0 5px 8px rgba(0, 0, 0, 0.4)); }
+  50%      { filter:
+      drop-shadow(0 1px 0 var(--jg-gold-deep))
+      drop-shadow(0 2px 0 rgba(0, 0, 0, 0.55))
+      drop-shadow(0 0 22px rgba(255, 221, 85, 0.75))
+      drop-shadow(0 5px 8px rgba(0, 0, 0, 0.4)); }
+}
+
+.jg-subtitle::before,
+.jg-subtitle::after {
+  content: '✦';
+  color: var(--jg-gold);
+  font-size: 10px;
+  margin: 0 6px;
+  vertical-align: middle;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+.jg-subtitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  color: var(--jg-ink);
+  font-size: 13px;
+  margin: 0 0 3px;
+  letter-spacing: 0.04em;
+  opacity: 0.78;
+}
+
+.jg-flourish {
+  color: var(--jg-gold);
+  letter-spacing: 0.5em;
+  margin-bottom: 5px;
+  font-size: 13px;
+  opacity: 1;
+  text-shadow:
+    0 0 12px rgba(255, 221, 85, 0.7),
+    0 1px 0 var(--jg-gold-pale),
+    0 2px 3px rgba(0, 0, 0, 0.45);
+}
+
+/* Coins bar — gold-clad strip on the marble. */
+.coins-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-family: 'Cormorant Garamond', serif;
+  color: var(--jg-ink);
+  background:
+    linear-gradient(180deg, var(--jg-gold-pale) 0%, var(--jg-marble-warm) 60%, var(--jg-gold-pale) 100%);
+  border: 2px solid var(--jg-gold);
+  padding: 2px 12px;
+  border-radius: 2px;
+  position: relative;
+  box-shadow:
+    inset 0 0 0 1px var(--jg-gold-bright),
+    inset 0 0 0 3px var(--jg-marble-warm),
+    inset 0 0 0 4px var(--jg-gold-deep),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 0 12px rgba(255, 221, 85, 0.45),
+    0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.coins-bar::before,
+.coins-bar::after {
+  content: '◆';
+  color: var(--jg-gold);
+  font-size: 11px;
+  text-shadow:
+    0 1px 0 var(--jg-gold-pale),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.coins-bar .coins-label {
+  color: var(--jg-gold-deep);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 10px;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+}
+
+#balance {
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--jg-cherry);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+#debug-reset {
+  background: var(--jg-marble);
+  border: 1px solid var(--jg-gold-deep);
+  color: var(--jg-ink);
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  padding: 2px 8px;
+  cursor: pointer;
+  border-radius: 1px;
+}
+
+#debug-reset:hover {
+  background: var(--jg-cream);
+  color: var(--jg-cherry);
+}
+
+/* ───── 4. Main / action bar ───── */
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 720px;
+  /* Reserve room for the fixed #jg-actions bar so the table never slides
+     under it on short viewports. The bar is ~84-100px tall depending on
+     wrap state + safe-area inset. */
+  padding-bottom: 120px;
+}
+
+/* Fixed at the bottom of the viewport — gloss-black bar with gold trim
+   and a red/white/blue ribbon stripe (Patriot Poker). */
+#jg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 22px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background:
+    linear-gradient(180deg,
+      var(--jg-gold-bright) 0%,
+      var(--jg-gold-bright) 3px,
+      var(--jg-gold-deep)   3px,
+      var(--jg-gold-deep)   5px,
+      var(--jg-flag-red)    5px,
+      var(--jg-flag-red)    9px,
+      var(--jg-flag-white)  9px,
+      var(--jg-flag-white)  12px,
+      var(--jg-navy)        12px,
+      var(--jg-navy)        16px,
+      #2a2018               16px,
+      #15100c               100%);
+  border-top: 3px solid var(--jg-gold);
+  box-shadow:
+    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px var(--jg-gold-burnish),
+    0 -4px 18px rgba(0, 0, 0, 0.55),
+    0 -1px 22px rgba(255, 221, 85, 0.32);
+}
+
+#jg-actions::before,
+#jg-actions::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background:
+    linear-gradient(180deg, var(--jg-gold-bright) 0%, var(--jg-gold) 50%, var(--jg-gold-deep) 100%);
+  box-shadow:
+    inset 0 0 0 1px var(--jg-gold-bright),
+    0 0 8px rgba(255, 221, 85, 0.5);
+  z-index: 1;
+}
+
+#jg-actions::before { left: 0; }
+#jg-actions::after  { right: 0; }
+
+/* Wager group — gilded plaque. */
+.jg-wager-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, var(--jg-marble-warm) 100%);
+  border: 2px solid var(--jg-gold);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px var(--jg-gold-bright),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.jg-wager-group .jg-bet-label {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--jg-gold-deep);
+}
+
+#jg-bet-amount {
+  font-family: 'Cinzel', serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--jg-ink);
+  background: var(--jg-marble);
+  border: 1px solid var(--jg-gold-deep);
+  border-radius: 1px;
+  padding: 4px 8px;
+  width: 78px;
+  text-align: right;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+#jg-bet-amount::-webkit-outer-spin-button,
+#jg-bet-amount::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#jg-bet-amount:focus {
+  border-color: var(--jg-gold);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.28),
+    0 0 0 2px rgba(245, 215, 110, 0.55);
+}
+
+#jg-bet-amount:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+#jg-bet-max {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background:
+    linear-gradient(180deg, var(--jg-gold-bright) 0%, var(--jg-gold) 50%, var(--jg-gold-deep) 100%);
+  color: var(--jg-gloss-black);
+  border: 1px solid var(--jg-gold-deep);
+  border-radius: 1px;
+  padding: 4px 10px;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+#jg-bet-max:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+#jg-bet-max:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Action buttons — mirror-finish injection-molded gold. */
+#jg-actions > button {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background:
+    linear-gradient(180deg,
+      #f5d76e 0%,
+      #d4af37 35%,
+      #8b6f1c 55%,
+      #d4af37 75%,
+      #f5d76e 100%);
+  color: var(--jg-gloss-black);
+  border: 1px solid var(--jg-gold-deep);
+  padding: 7px 18px;
+  cursor: pointer;
+  border-radius: 1px;
+  min-width: 96px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.45),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: filter 0.1s, transform 0.1s, box-shadow 0.1s;
+}
+
+#jg-actions > button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.45),
+    0 4px 6px rgba(0, 0, 0, 0.55);
+}
+
+#jg-actions > button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+/* Deal + Hit = the cherry-lacquer call-to-action (only one is enabled at
+   a time — Deal during idle, Hit during playing — so the disabled twin
+   sits greyed-out where the user's mouse just was). */
+#jg-deal:not(:disabled),
+#jg-hit:not(:disabled) {
+  background:
+    linear-gradient(180deg,
+      #d83a4a 0%,
+      #a31c2b 38%,
+      #6b0f1a 55%,
+      #a31c2b 72%,
+      #d83a4a 100%);
+  color: var(--jg-marble);
+  border-color: #4a0a12;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 200, 200, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(245, 215, 110, 0.35);
+}
+
+#jg-deal:not(:disabled):hover,
+#jg-hit:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+/* ───── 5. Scoreboard ───── */
+
+.jg-scoreboard {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 4px 18px;
+  padding: 16px 22px 14px;
+  margin-bottom: 4px;
+  background:
+    linear-gradient(180deg, #2a1f1a 0%, #0f0a08 100%);
+  border: 2px solid var(--jg-gold);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px var(--jg-gold-bright),
+    inset 0 0 0 4px var(--jg-gold-deep),
+    inset 0 0 0 5px var(--jg-gold-bright),
+    inset 0 -2px 8px rgba(0, 0, 0, 0.7),
+    0 0 0 1px var(--jg-gold-deep),
+    0 0 0 3px var(--jg-gold-bright),
+    0 0 0 4px var(--jg-gold-burnish),
+    0 0 24px rgba(255, 221, 85, 0.4),
+    0 4px 14px rgba(0, 0, 0, 0.6);
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* Moloch2 watermark stamped behind the score numbers. */
+.jg-scoreboard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    var(--jg-decal-moloch2, none) center / cover no-repeat;
+  opacity: 0;
+  mix-blend-mode: screen;
+  filter: contrast(1.2) brightness(0.9);
+  transition: opacity 0.7s ease;
+  z-index: 0;
+}
+
+body.jg-decals-ready .jg-scoreboard::after { opacity: 0.14; }
+
+.jg-scoreboard-side,
+.jg-scoreboard-vs,
+.jg-scoreboard-status,
+.jg-scoreboard-payout {
+  position: relative;
+  z-index: 1;
+}
+
+.jg-scoreboard-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: opacity 0.4s ease;
+}
+
+.jg-scoreboard-label {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--jg-gold-bright);
+  transition: color 0.4s ease;
+  text-shadow:
+    0 0 6px rgba(255, 221, 85, 0.55),
+    0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+.jg-scoreboard-label::before,
+.jg-scoreboard-label::after {
+  content: '◆';
+  color: var(--jg-gold);
+  font-size: 9px;
+  margin: 0 6px;
+  vertical-align: middle;
+  text-shadow: 0 0 4px rgba(255, 221, 85, 0.6);
+}
+
+.jg-scoreboard-score {
+  font-family: 'Playfair Display', 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 72px;
+  line-height: 1;
+  background:
+    linear-gradient(180deg, #f5d76e 0%, #d4af37 50%, #8b6f1c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter:
+    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.85))
+    drop-shadow(0 3px 5px rgba(0, 0, 0, 0.7));
+  transition: filter 0.4s ease;
+}
+
+.jg-scoreboard-vs {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 22px;
+  color: var(--jg-gold);
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  align-self: center;
+}
+
+.jg-scoreboard-status {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(250, 246, 232, 0.78);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  margin-top: 6px;
+  min-height: 1.3em;
+}
+
+.jg-scoreboard-payout {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-family: 'Playfair Display', serif;
+  font-weight: 900;
+  font-size: 24px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 4px;
+  display: none;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+}
+
+.jg-scoreboard.is-resolved .jg-scoreboard-status { display: none; }
+.jg-scoreboard.is-resolved .jg-scoreboard-payout { display: block; }
+
+.jg-scoreboard-side.is-winner .jg-scoreboard-score {
+  filter:
+    drop-shadow(0 0 14px rgba(245, 215, 110, 0.9))
+    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.85))
+    drop-shadow(0 3px 5px rgba(0, 0, 0, 0.7));
+}
+
+.jg-scoreboard-side.is-winner .jg-scoreboard-label {
+  color: var(--jg-gold-bright);
+}
+
+.jg-scoreboard-side.is-loser {
+  opacity: 0.42;
+  filter: grayscale(0.5);
+}
+
+.jg-scoreboard.is-win {
+  background:
+    linear-gradient(180deg, rgba(212, 175, 55, 0.5) 0%, rgba(107, 79, 24, 0.4) 100%),
+    linear-gradient(180deg, #2a1f1a 0%, #0f0a08 100%);
+  border-color: var(--jg-gold-bright);
+  animation: jg-scoreboard-pulse 2.4s ease-in-out infinite;
+}
+
+.jg-scoreboard.is-win .jg-scoreboard-payout {
+  color: var(--jg-gold-bright);
+}
+
+.jg-scoreboard.is-loss {
+  background:
+    linear-gradient(180deg, rgba(107, 15, 26, 0.6) 0%, rgba(40, 6, 10, 0.5) 100%);
+  border-color: var(--jg-cherry-light);
+}
+
+.jg-scoreboard.is-loss .jg-scoreboard-payout {
+  color: var(--jg-cherry-light);
+}
+
+.jg-scoreboard.is-push {
+  background:
+    linear-gradient(180deg, rgba(70, 60, 50, 0.5) 0%, rgba(30, 24, 20, 0.4) 100%);
+  border-color: rgba(245, 215, 110, 0.55);
+}
+
+.jg-scoreboard.is-push .jg-scoreboard-payout {
+  color: rgba(250, 246, 232, 0.9);
+}
+
+@keyframes jg-scoreboard-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 22px rgba(245, 215, 110, 0.55),
+      inset 0 0 0 1px rgba(245, 215, 110, 0.5),
+      inset 0 -2px 8px rgba(0, 0, 0, 0.65);
+  }
+  50% {
+    box-shadow:
+      0 0 40px rgba(245, 215, 110, 0.9),
+      inset 0 0 0 1px rgba(245, 215, 110, 0.75),
+      inset 0 -2px 8px rgba(0, 0, 0, 0.65);
+  }
+}
+
+/* ───── 6. Table — black-marble slab with gilded molding ───── */
+
+.jg-table {
+  background:
+    /* Filigree scrollwork stamped over the felt. */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><g fill='none' stroke='%23e3b821' stroke-width='1.1' opacity='0.18'><path d='M0,30 Q15,8 30,30 T60,30'/><path d='M30,0 Q52,15 30,30 T30,60'/><circle cx='30' cy='30' r='2.4' fill='%23ffdd55' opacity='0.32'/></g></svg>"),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at center, #2a2420 0%, #1a1410 70%, #0a0808 100%);
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-size: 60px 60px, auto, auto;
+  border: 4px solid var(--jg-gold);
+  border-radius: 4px;
+  padding: 32px 26px;
+  width: 100%;
+  box-shadow:
+    inset 0 0 0 1px var(--jg-gold-bright),
+    inset 0 0 0 6px var(--jg-gold-deep),
+    inset 0 0 0 7px var(--jg-gold-bright),
+    inset 0 2px 32px rgba(0, 0, 0, 0.7),
+    0 0 0 2px var(--jg-gold-deep),
+    0 0 0 4px var(--jg-gold-bright),
+    0 0 0 5px var(--jg-gold-burnish),
+    0 0 32px rgba(227, 184, 33, 0.35),
+    0 10px 28px rgba(0, 0, 0, 0.6);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* Inner gold frame (third visible ring inside the felt). */
+.jg-table::before {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border: 1px solid var(--jg-gold-bright);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 2px rgba(139, 111, 28, 0.55),
+    inset 0 0 0 3px var(--jg-gold-bright),
+    inset 0 0 20px rgba(255, 221, 85, 0.22);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* "80s murders" decal — pressed into the felt like a coaster ring. */
+.jg-table::after {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  left: -20px;
+  width: 45%;
+  max-width: 320px;
+  aspect-ratio: 1 / 1;
+  pointer-events: none;
+  background: var(--jg-decal-murders, none) center / contain no-repeat;
+  opacity: 0;
+  transform: rotate(6deg);
+  filter: contrast(1.2) saturate(1.1);
+  mix-blend-mode: screen;
+  transition: opacity 0.7s ease;
+  z-index: 0;
+}
+
+body.jg-decals-ready .jg-table::after { opacity: 0.16; }
+
+#jg-dealer, #jg-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+#jg-dealer h3, #jg-player h3 {
+  font-family: 'Playfair Display', 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 28px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 0;
+  background:
+    linear-gradient(180deg,
+      var(--jg-gold-pale) 0%,
+      var(--jg-gold-bright) 35%,
+      var(--jg-gold) 55%,
+      var(--jg-gold-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter:
+    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.65))
+    drop-shadow(0 2px 4px rgba(255, 221, 85, 0.4))
+    drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
+}
+
+#jg-dealer h3::before, #jg-player h3::before,
+#jg-dealer h3::after,  #jg-player h3::after {
+  content: '✦';
+  color: var(--jg-gold-bright);
+  -webkit-text-fill-color: var(--jg-gold-bright);
+  font-size: 16px;
+  margin: 0 12px;
+  vertical-align: middle;
+  text-shadow: 0 0 6px rgba(255, 221, 85, 0.7);
+}
+
+#jg-dealer.is-winner h3,
+#jg-player.is-winner h3 {
+  color: var(--jg-gold-bright);
+  text-shadow:
+    0 0 12px rgba(245, 215, 110, 0.9),
+    0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+#jg-dealer.is-winner h3::after,
+#jg-player.is-winner h3::after {
+  content: ' ★';
+  color: var(--jg-gold-bright);
+}
+
+#jg-dealer.is-loser,
+#jg-player.is-loser {
+  opacity: 0.5;
+  filter: grayscale(0.4);
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+
+.jg-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  min-height: 80px;
+  align-items: flex-start;
+}
+
+.jg-meld-group {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 8px;
+  background: rgba(245, 215, 110, 0.08);
+  border: 1px solid rgba(245, 215, 110, 0.5);
+  border-radius: 2px;
+}
+
+.jg-meld-label {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--jg-cream);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
+}
+
+.jg-meld-cards {
+  display: flex;
+  gap: 4px;
+}
+
+.jg-meld-group:not(.jg-meld-unused) .jg-card {
+  box-shadow:
+    0 0 0 2px var(--jg-gold-bright),
+    0 0 14px rgba(245, 215, 110, 0.65),
+    0 2px 6px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.jg-meld-unused {
+  background: rgba(0, 0, 0, 0.18);
+  border-style: dashed;
+  border-color: rgba(245, 215, 110, 0.28);
+  opacity: 0.78;
+}
+
+.jg-meld-unused .jg-meld-label {
+  color: rgba(245, 232, 200, 0.7);
+}
+
+.jg-meld-unused .jg-card {
+  opacity: 0.78;
+}
+
+.jg-meld-set {
+  background: rgba(163, 28, 43, 0.22);
+  border-color: rgba(216, 58, 74, 0.7);
+}
+.jg-meld-set .jg-meld-label { color: #f5b8c0; }
+
+.jg-meld-run {
+  background: rgba(212, 175, 55, 0.16);
+  border-color: rgba(212, 175, 55, 0.65);
+}
+.jg-meld-run .jg-meld-label { color: var(--jg-gold-bright); }
+
+.jg-meld-flush-run {
+  background: rgba(245, 215, 110, 0.3);
+  border-color: var(--jg-gold-bright);
+  box-shadow: inset 0 0 12px rgba(245, 215, 110, 0.35);
+}
+.jg-meld-flush-run .jg-meld-label { color: #fff3c0; }
+
+.jg-meld-flush {
+  background: rgba(139, 111, 28, 0.32);
+  border-color: rgba(212, 175, 55, 0.6);
+}
+.jg-meld-flush .jg-meld-label { color: var(--jg-gold-bright); }
+
+/* ───── 8. Cards — ivory plastic with gilded rim ───── */
+
+.jg-card {
+  display: inline-block;
+  width: clamp(40px, 6vw, 56px);
+  height: clamp(57px, 8.6vw, 80px);
+  background:
+    linear-gradient(180deg, #ffffff 0%, var(--jg-cream) 60%, var(--jg-marble-warm) 100%);
+  border: 1px solid var(--jg-gold-deep);
+  border-radius: 3px;
+  position: relative;
+  vertical-align: top;
+  box-shadow:
+    inset 0 0 0 1px var(--jg-gold-pale),
+    inset 0 0 0 2px var(--jg-gold-bright),
+    inset 0 0 0 3px var(--jg-gold-deep),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 0 8px rgba(255, 221, 85, 0.55),
+    0 3px 6px rgba(0, 0, 0, 0.55);
+  font-family: 'Cinzel', 'Cormorant Garamond', serif;
+  font-weight: 700;
+}
+
+.jg-card[data-color="red"]   { color: var(--jg-flag-red); }
+.jg-card[data-color="black"] { color: var(--jg-navy); }
+
+/* Faint gold star watermark behind every suit pip — patriot polish. */
+.jg-card::before {
+  content: '★';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 48px;
+  color: var(--jg-gold-bright);
+  opacity: 0.22;
+  pointer-events: none;
+  z-index: 0;
+  text-shadow: 0 0 8px rgba(255, 221, 85, 0.55);
+}
+
+.jg-card-corner,
+.jg-card-pip { z-index: 1; }
+
+.jg-card-corner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.jg-card-corner-tl { top: 4px; left: 5px; }
+.jg-card-corner-br {
+  bottom: 4px;
+  right: 5px;
+  transform: rotate(180deg);
+}
+
+.jg-card-rank       { font-size: 14px; }
+.jg-card-suit-small { font-size: 11px; margin-top: 1px; }
+
+.jg-card-pip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 26px;
+}
+
+/* ───── 9. Bust meter / eval text / banner / divider ───── */
+
+.jg-eval {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 1.5em;
+  max-width: 600px;
+}
+
+.jg-eval-line {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  color: var(--jg-cream);
+  font-size: 15px;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  line-height: 1.4;
+}
+
+.jg-bust-meter {
+  position: relative;
+  width: 160px;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--jg-gold);
+  border-radius: 1px;
+  overflow: hidden;
+  opacity: 0.85;
+  box-shadow:
+    inset 0 0 0 1px rgba(245, 215, 110, 0.3),
+    inset 0 1px 2px rgba(0, 0, 0, 0.65),
+    0 1px 1px rgba(0, 0, 0, 0.4);
+}
+
+.jg-bust-meter.jg-bust-caution { opacity: 0.95; }
+.jg-bust-meter.jg-bust-danger  { opacity: 1; border-color: var(--jg-cherry-light); }
+
+.jg-bust-meter-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background:
+    linear-gradient(90deg, var(--jg-gold) 0%, var(--jg-gold-bright) 100%);
+  transition: width 0.35s ease, background 0.35s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.jg-bust-caution .jg-bust-meter-fill {
+  background:
+    linear-gradient(90deg, var(--jg-gold-bright) 0%, var(--jg-cherry-light) 100%);
+}
+
+.jg-bust-danger .jg-bust-meter-fill {
+  background:
+    linear-gradient(90deg, var(--jg-cherry-light) 0%, var(--jg-maraschino) 100%);
+}
+
+.jg-bust-meter-label {
+  position: relative;
+  text-align: center;
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--jg-cream);
+  line-height: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  z-index: 1;
+}
+
+.jg-bust-hint {
+  font-family: 'Cinzel', serif;
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--jg-cherry-light);
+  opacity: 0.95;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+
+.jg-bust-banner {
+  font-family: 'Playfair Display', serif;
+  font-weight: 900;
+  font-size: 26px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--jg-cream);
+  background:
+    linear-gradient(180deg, var(--jg-cherry-light) 0%, var(--jg-maraschino) 100%);
+  padding: 4px 18px;
+  border: 2px solid var(--jg-gold);
+  border-radius: 2px;
+  display: inline-block;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 200, 200, 0.4),
+    0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.jg-divider {
+  text-align: center;
+  font-size: 28px;
+  color: var(--jg-gold-bright);
+  letter-spacing: 0.5em;
+  opacity: 1;
+  text-shadow:
+    0 0 14px rgba(255, 221, 85, 0.75),
+    0 1px 0 var(--jg-gold-pale),
+    0 2px 3px rgba(0, 0, 0, 0.55);
+  position: relative;
+  z-index: 1;
+}
+
+/* ───── 9a. Jackpot banner (gloss-black plaque with gold inlay) ───── */
+
+.jg-jackpot-banner {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 18px;
+  padding: 12px 22px;
+  margin: 0 0 12px;
+  background:
+    linear-gradient(180deg, #2a1f1a 0%, #0f0a08 100%);
+  border: 2px solid var(--jg-gold);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px var(--jg-gold-bright),
+    inset 0 0 0 3px #15100c,
+    inset 0 0 0 4px var(--jg-gold-deep),
+    0 0 20px rgba(255, 221, 85, 0.42),
+    0 4px 10px rgba(0, 0, 0, 0.55);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.4s ease;
+}
+
+.jg-jackpot-label {
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--jg-gold-bright);
+  text-shadow:
+    0 0 8px rgba(255, 221, 85, 0.7),
+    0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+.jg-jackpot-amount {
+  font-family: 'Playfair Display', 'Cinzel', serif;
+  font-weight: 900;
+  font-size: 38px;
+  line-height: 1;
+  background:
+    linear-gradient(180deg,
+      var(--jg-gold-pale)   0%,
+      var(--jg-gold-bright) 30%,
+      var(--jg-gold)        58%,
+      var(--jg-gold-deep)   100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter:
+    drop-shadow(0 1px 0 rgba(0, 0, 0, 0.85))
+    drop-shadow(0 2px 5px rgba(255, 221, 85, 0.55));
+}
+
+.jg-jackpot-suffix {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--jg-gold);
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.jg-jackpot-banner.is-won {
+  animation: jg-jackpot-burst 1.6s ease-out;
+}
+
+@keyframes jg-jackpot-burst {
+  0% {
+    transform: scale(1);
+    box-shadow:
+      inset 0 0 0 1px var(--jg-gold-bright),
+      inset 0 0 0 3px #15100c,
+      inset 0 0 0 4px var(--jg-gold-deep),
+      0 0 20px rgba(255, 221, 85, 0.42),
+      0 4px 10px rgba(0, 0, 0, 0.55);
+  }
+  18% {
+    transform: scale(1.05);
+    box-shadow:
+      inset 0 0 0 1px var(--jg-gold-bright),
+      inset 0 0 0 3px #15100c,
+      inset 0 0 0 4px var(--jg-gold-pale),
+      0 0 60px rgba(255, 221, 85, 1),
+      0 0 90px rgba(255, 221, 85, 0.55),
+      0 4px 14px rgba(0, 0, 0, 0.6);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ───── 9b. Rules drawer (collapsible "How to Play") ───── */
+
+.jg-rules {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 0 14px;
+  background:
+    linear-gradient(180deg, var(--jg-marble) 0%, var(--jg-marble-warm) 100%);
+  border: 2px solid var(--jg-gold);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px var(--jg-gold-bright),
+    inset 0 0 0 3px var(--jg-marble),
+    inset 0 0 0 4px var(--jg-gold-deep),
+    0 0 16px rgba(255, 221, 85, 0.32),
+    0 3px 6px rgba(0, 0, 0, 0.35);
+  color: var(--jg-ink);
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.jg-rules summary {
+  padding: 10px 18px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--jg-gold-deep);
+  user-select: none;
+  list-style: none;
+}
+
+.jg-rules summary::-webkit-details-marker { display: none; }
+
+.jg-rules summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 10px;
+  font-size: 11px;
+  color: var(--jg-gold);
+  transition: transform 0.18s ease;
+}
+
+.jg-rules[open] summary::before { transform: rotate(90deg); }
+
+.jg-rules summary:hover { color: var(--jg-cherry); }
+
+.jg-rules-body {
+  padding: 4px 22px 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--jg-ink);
+  border-top: 1px dashed var(--jg-gold-deep);
+}
+
+.jg-rules-body h4 {
+  margin: 12px 0 4px;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--jg-cherry);
+}
+
+.jg-rules-body p { margin: 0 0 6px; }
+
+.jg-rules-list {
+  margin: 0 0 6px;
+  padding-left: 24px;
+  list-style: none;
+}
+
+.jg-rules-list li {
+  position: relative;
+  margin: 0 0 2px;
+}
+
+.jg-rules-list li::before {
+  content: '★';
+  position: absolute;
+  left: -18px;
+  color: var(--jg-gold);
+  text-shadow: 0 0 4px rgba(255, 221, 85, 0.55);
+}
+
+.jg-rules-body strong { color: var(--jg-gloss-black); font-weight: 700; }
+.jg-rules-body em     { font-style: italic; color: var(--jg-cherry); }
+
+/* ───── 10. Moloch jeer popup (bound by js/jackandgin/moloch-jeer.js) ───── */
+
+#jg-moloch-jeer {
+  position: fixed;
+  bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+  right: 20px;
+  z-index: 60;
+  max-width: 340px;
+  padding: 12px 18px 14px;
+  background:
+    linear-gradient(180deg, var(--jg-marble) 0%, var(--jg-marble-warm) 100%);
+  border: 3px solid var(--jg-gold);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px var(--jg-gold-bright),
+    inset 0 0 0 3px var(--jg-marble),
+    inset 0 0 0 4px var(--jg-gold-deep),
+    0 0 22px rgba(255, 221, 85, 0.6),
+    0 8px 22px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: translate(40px, 16px) rotate(2deg) scale(0.92);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+#jg-moloch-jeer.shown {
+  opacity: 1;
+  transform: translate(0, 0) rotate(-1.5deg) scale(1);
+}
+
+#jg-moloch-jeer::before {
+  /* Speech-bubble tail pointing back toward the table. */
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 56%;
+  width: 0;
+  height: 0;
+  border: 9px solid transparent;
+  border-right-color: var(--jg-gold);
+  filter: drop-shadow(-1px 0 0 var(--jg-gold-deep));
+}
+
+#jg-moloch-jeer::after {
+  /* Gold corner sparkle so it reads as a campaign-button accent. */
+  content: '✦';
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  font-size: 22px;
+  color: var(--jg-gold-bright);
+  text-shadow:
+    0 0 10px rgba(255, 221, 85, 0.85),
+    0 1px 0 var(--jg-gold-deep),
+    0 2px 3px rgba(0, 0, 0, 0.45);
+}
+
+#jg-moloch-jeer { text-align: center; }
+
+.jg-moloch-art-wrap {
+  position: relative;
+  display: inline-block;
+  margin: 0 0 10px;
+  line-height: 0;
+}
+
+.jg-moloch-art {
+  font-family: 'Consolas', 'Cascadia Mono', 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 0.95;
+  margin: 0;
+  text-align: center;
+  white-space: pre;
+  letter-spacing: 0;
+}
+
+.jg-moloch-art-base {
+  position: relative;
+  color: var(--jg-gold-deep);
+  text-shadow:
+    0 1px 0 var(--jg-gold-pale),
+    0 0 6px rgba(255, 221, 85, 0.45);
+}
+
+.jg-moloch-art-red {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  color: var(--jg-cherry-light);
+  text-shadow:
+    0 0 4px rgba(216, 58, 74, 0.85),
+    0 0 10px rgba(216, 58, 74, 0.55),
+    0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.jg-moloch-quote {
+  font-family: 'Playfair Display', 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--jg-maraschino);
+  text-align: center;
+  line-height: 1.25;
+  text-shadow: 0 1px 0 var(--jg-gold-pale);
+}
+
+/* ───── 11. Responsive ───── */
+
+@media (max-width: 600px) {
+  h1 { font-size: 44px; }
+  .jg-card { width: 48px; height: 68px; }
+  .jg-card-pip { font-size: 22px; }
+  .jg-card-rank { font-size: 12px; }
+  .jg-card-suit-small { font-size: 10px; }
+  #jg-dealer h3, #jg-player h3 { font-size: 22px; }
+  .jg-eval { font-size: 14px; }
+  .jg-table { padding: 20px 14px; }
+  .jg-scoreboard-score { font-size: 56px; }
+  body::after { width: min(50vw, 280px); height: min(50vw, 280px); }
+  #jg-moloch-jeer {
+    max-width: 260px;
+    right: 10px;
+    bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 14px 12px;
+  }
+  .jg-moloch-art { font-size: 9px; line-height: 0.92; }
+  .jg-moloch-quote { font-size: 12px; }
+}
+
+/* Short-viewport (laptop ≤720px tall): pull in the table's vertical
+   padding so the whole game fits without page-scroll. */
+@media (max-height: 720px) {
+  .jg-table { padding: 16px 22px; }
+  main { gap: 4px; padding-bottom: 110px; }
+}

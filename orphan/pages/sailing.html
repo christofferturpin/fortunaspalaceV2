@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  SAILING — visual battle viewer (canvas)                                 │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Top-down sea battlefield. Two sides spawn (default: 2 Cutters vs 1    │
+  │    Man-o-war), AI sails them under realistic point-of-sail wind. Live    │
+  │    canvas renders ships as oriented hulls with wakes, cannon smoke,      │
+  │    splashes, and crew dots. Right panel shows ship status + event feed.  │
+  │    Controls along top: play/pause, reset (re-randomized), seed input,    │
+  │    wind direction & strength, lineup JSON.                               │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/sailing/{world,ship,sail,physics,mapgen,combat,          │
+  │           pathfind,controller,ai,sim,render}.js                          │
+  │    DOM ids: #canvas, #seed, #wind-from, #wind-strength, #lineups,        │
+  │             #btn-play, #btn-reset, #status, #log                         │
+  │    flow: reset → Sim.buildBattle → loop(rAF):                            │
+  │           accumulate dt → while(>1/60): Sim.step(world,1/60,rng)         │
+  │           Render.updateWakes/updateParticles/syncEvents → Render.render  │
+  │           render side panel snapshot                                     │
+  │    storage R/W: none                                                     │
+  │    routes out: none (terminal page)                                      │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sailing — Battle</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%; overflow: hidden;
+      background: #0a0b0d; color: #d8d2c4;
+      font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    }
+    #app {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      grid-template-columns: 1fr 300px;
+      height: 100vh;
+    }
+    header {
+      grid-column: 1 / span 2;
+      background: #14161a;
+      border-bottom: 1px solid #2a2c30;
+      padding: 8px 14px;
+      display: flex; align-items: center; gap: 14px;
+      flex-wrap: wrap;
+      font-size: 12px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 13px;
+      color: #c9b48a;
+      letter-spacing: 1px;
+    }
+    header label { color: #8c8478; }
+    header input, header textarea {
+      background: #1c1f24; color: #d8d2c4;
+      border: 1px solid #3a3d44; padding: 3px 6px;
+      font-family: inherit; font-size: 12px;
+    }
+    header textarea { width: 320px; height: 38px; vertical-align: middle; }
+    header button {
+      background: #2a3142; color: #d8d2c4;
+      border: 1px solid #44516a; padding: 5px 14px;
+      cursor: pointer; font-family: inherit; font-size: 12px;
+      letter-spacing: 0.5px;
+    }
+    header button:hover { background: #3a4254; }
+    header button.primary { background: #4a3a24; border-color: #6a5230; color: #f0d8a4; }
+    header button.primary:hover { background: #5c4830; }
+    #canvas-wrap {
+      position: relative;
+      background: #060708;
+      overflow: hidden;
+    }
+    #canvas {
+      display: block;
+      width: 100%; height: 100%;
+    }
+    #status-overlay {
+      position: absolute; bottom: 10px; left: 10px;
+      background: rgba(10,10,12,0.7);
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #c9b48a;
+      border: 1px solid #2a2c30;
+    }
+    #side {
+      background: #11141a;
+      border-left: 1px solid #2a2c30;
+      display: flex; flex-direction: column;
+      min-height: 0;
+    }
+    #status {
+      padding: 10px 12px;
+      border-bottom: 1px solid #2a2c30;
+      font-size: 11px;
+    }
+    #status h2 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      color: #c9b48a;
+      letter-spacing: 1px;
+    }
+    .ship-row {
+      display: grid;
+      grid-template-columns: 12px 1fr auto;
+      gap: 8px; align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid #1a1c20;
+    }
+    .ship-row:last-child { border-bottom: 0; }
+    .ship-row .swatch { width: 10px; height: 10px; border-radius: 2px; }
+    .ship-row .name { color: #d8d2c4; }
+    .ship-row .name .intent { color: #6a665b; margin-left: 4px; }
+    .ship-row .hp { font-variant-numeric: tabular-nums; color: #8ab48a; }
+    .ship-row .hp.low { color: #c9a050; }
+    .ship-row .hp.crit { color: #c95050; }
+    .ship-row.dead { opacity: 0.4; }
+    .ship-row.dead .name { text-decoration: line-through; }
+    #log {
+      flex: 1;
+      padding: 8px 12px;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    #log h2 {
+      margin: 0 0 6px;
+      font-size: 11px;
+      color: #c9b48a;
+      letter-spacing: 1px;
+      position: sticky; top: 0;
+      background: #11141a;
+      padding: 2px 0;
+    }
+    .ev { color: #8c8478; }
+    .ev.volley { color: #b8b08c; }
+    .ev.sunk { color: #c95050; font-weight: bold; }
+    .ev.ground { color: #c9a050; }
+    .ev .t { color: #5a564a; margin-right: 6px; font-variant-numeric: tabular-nums; }
+    #winner {
+      padding: 8px 12px;
+      background: #1a1c20;
+      border-top: 1px solid #2a2c30;
+      font-size: 12px;
+      color: #c9b48a;
+      letter-spacing: 1px;
+      min-height: 32px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>SAILING · BATTLE</h1>
+      <button id="btn-play" class="primary">PAUSE</button>
+      <button id="btn-new">NEW BATTLE</button>
+      <button id="btn-reset">REPLAY</button>
+      <label>seed <input id="seed" type="number" value="3" style="width:70px"></label>
+      <label>wind° <input id="wind-from" type="number" value="0" min="0" max="359" style="width:50px"></label>
+      <label>m/s <input id="wind-strength" type="number" value="8" min="1" max="20" step="0.5" style="width:50px"></label>
+      <label>speed <input id="speed-mult" type="number" value="8" min="0.25" max="30" step="0.5" style="width:50px"></label>
+      <label>pts/side <input id="budget" type="number" value="9" min="1" max="30" style="width:50px"></label>
+      <label>lineups <textarea id="lineups">[{"side":"A","types":["Cutter","Cutter","Cutter"]},{"side":"B","types":["ManOWar"]}]</textarea></label>
+    </header>
+    <div id="canvas-wrap">
+      <canvas id="canvas"></canvas>
+      <div id="status-overlay"></div>
+    </div>
+    <div id="side">
+      <div id="status"><h2>SHIPS</h2><div id="ship-list">(loading…)</div></div>
+      <div id="log"><h2>EVENT FEED</h2><div id="log-rows"></div></div>
+      <div id="winner">(battle in progress)</div>
+    </div>
+  </div>
+
+  <script src="../js/sailing/world.js"></script>
+  <script src="../js/sailing/ship.js"></script>
+  <script src="../js/sailing/sail.js"></script>
+  <script src="../js/sailing/physics.js"></script>
+  <script src="../js/sailing/mapgen.js"></script>
+  <script src="../js/sailing/combat.js"></script>
+  <script src="../js/sailing/pathfind.js"></script>
+  <script src="../js/sailing/controller.js"></script>
+  <script src="../js/sailing/ai.js"></script>
+  <script src="../js/sailing/sim.js"></script>
+  <script src="../js/sailing/render.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      const $ = (id) => document.getElementById(id);
+      const Sailing = window.Sailing;
+
+      const canvas = $('canvas');
+      const ctx = canvas.getContext('2d');
+
+      let world, rng, vp;
+      let particles = [];
+      let lastEventIdx = 0;
+      let paused = false;
+      let acc = 0;
+      let lastNow = performance.now();
+      let lastSnapshotT = 0;
+      let renderedWinner = null;
+
+      function fitCanvas() {
+        const wrap = $('canvas-wrap');
+        canvas.width = wrap.clientWidth;
+        canvas.height = wrap.clientHeight;
+        if (world) vp = Sailing.Render.makeViewport(canvas, world);
+      }
+      window.addEventListener('resize', fitCanvas);
+
+      function reset() {
+        let lineups;
+        try {
+          lineups = JSON.parse($('lineups').value);
+        } catch (e) {
+          alert('Bad lineups JSON: ' + e.message);
+          return;
+        }
+        const opts = {
+          seed: parseInt($('seed').value, 10) || 1,
+          wind: {
+            from: parseFloat($('wind-from').value) || 0,
+            strength: parseFloat($('wind-strength').value) || 8,
+          },
+          lineups,
+        };
+        const built = Sailing.Sim.buildBattle(opts);
+        world = built.world;
+        rng = built.rng;
+        particles = [];
+        lastEventIdx = 0;
+        lastSnapshotT = 0;
+        renderedWinner = null;
+        $('winner').textContent = '(battle in progress)';
+        paused = false;
+        $('btn-play').textContent = 'PAUSE';
+        fitCanvas();
+      }
+
+      function step(dt) {
+        const mult = parseFloat($('speed-mult').value) || 1;
+        acc += dt * mult;
+        const fixed = world.t < 0.0001 ? 1 / 60 : Sailing.World.TUNE.DT;
+        let n = 0;
+        while (acc >= fixed && n < 120) {
+          Sailing.Sim.step(world, fixed, rng);
+          acc -= fixed;
+          n++;
+          if (world.t - lastSnapshotT >= 5) {
+            Sailing.Sim.snapshot(world);
+            lastSnapshotT = world.t;
+          }
+        }
+        if (n === 120) acc = 0;
+      }
+
+      function checkVictory() {
+        if (renderedWinner) return;
+        const sides = Sailing.World.sidesAlive(world);
+        if (sides.size <= 1) {
+          const winner = sides.size === 1 ? [...sides][0] : null;
+          renderedWinner = winner || 'draw';
+          $('winner').textContent =
+            winner ? ('VICTORY · Side ' + winner) : 'DRAW · all sunk';
+          paused = true;
+          $('btn-play').textContent = 'RESUME';
+        }
+      }
+
+      function updateSidebar() {
+        const rows = world.ships.map((s) => {
+          const stats = Sailing.Ship.TYPE_STATS[s.type];
+          const col = Sailing.Render.SIDE_COLORS[s.side] || Sailing.Render.SIDE_COLORS.A;
+          const hpPct = Math.max(0, s.hp) / stats.hp;
+          const cls = !s.alive || s.hp <= 0 ? 'dead' : '';
+          const hpcls = hpPct > 0.5 ? '' : hpPct > 0.25 ? 'low' : 'crit';
+          const intent = s.alive && s.hp > 0 ? '[' + (s.intent || '?') + ']' : '[sunk]';
+          return (
+            '<div class="ship-row ' + cls + '">' +
+              '<div class="swatch" style="background:' + col.hull + '"></div>' +
+              '<div class="name">' + s.side + '·' + s.type + '#' + s.id +
+                ' <span class="intent">' + intent + '</span></div>' +
+              '<div class="hp ' + hpcls + '">' + Math.max(0, s.hp) + '/' + stats.hp + '</div>' +
+            '</div>'
+          );
+        }).join('');
+        $('ship-list').innerHTML = rows;
+
+        const evs = world.events;
+        const tail = [];
+        for (let i = evs.length - 1; i >= 0 && tail.length < 40; i--) {
+          const e = evs[i];
+          if (e.type === 'snap') continue;
+          const t = e.t.toFixed(1) + 's';
+          let body = '';
+          if (e.type === 'volley') {
+            body = 'volley #' + e.shooter + ' → #' + e.target +
+                   ' ' + e.side + ' · ' + e.hits + '/' + e.guns +
+                   ' hits · ' + e.damage + ' dmg @ ' + e.dist + 'm';
+          } else if (e.type === 'sunk') {
+            body = 'SUNK #' + e.ship + (e.by ? ' by #' + e.by : '');
+          } else if (e.type === 'ground') {
+            body = 'aground #' + e.ship;
+          } else if (e.type === 'collide') {
+            body = 'collision #' + e.a + ' / #' + e.b;
+          } else {
+            body = e.type;
+          }
+          tail.push('<div class="ev ' + e.type + '"><span class="t">' + t + '</span>' + body + '</div>');
+        }
+        $('log-rows').innerHTML = tail.join('');
+      }
+
+      function updateOverlay() {
+        const t = world.t.toFixed(1);
+        const tick = world.tick;
+        $('status-overlay').textContent =
+          't=' + t + 's  tick=' + tick +
+          '  ships=' + Sailing.World.livingShips(world).length +
+          '  fx=' + particles.length;
+      }
+
+      let sidebarT = 0;
+      function frame(now) {
+        const dt = Math.min(0.25, (now - lastNow) / 1000);
+        lastNow = now;
+        if (!paused && world) step(dt);
+        if (world) {
+          Sailing.Render.updateWakes(world, dt);
+          particles = Sailing.Render.updateParticles(particles, dt);
+          lastEventIdx = Sailing.Render.syncEventsToParticles(world, particles, lastEventIdx);
+          Sailing.Render.render(world, ctx, vp, particles);
+          sidebarT += dt;
+          if (sidebarT >= 0.2) { updateSidebar(); sidebarT = 0; }
+          updateOverlay();
+          checkVictory();
+        }
+        requestAnimationFrame(frame);
+      }
+
+      function randomizeInputs() {
+        $('seed').value = String((Math.random() * 1e9) | 0);
+        $('wind-from').value = String((Math.random() * 360) | 0);
+      }
+
+      function rollLineups() {
+        const budget = parseInt($('budget').value, 10) || 9;
+        const lineups = window.Sailing.Sim.randomLineups(budget);
+        $('lineups').value = JSON.stringify(lineups);
+      }
+
+      $('btn-play').addEventListener('click', () => {
+        paused = !paused;
+        $('btn-play').textContent = paused ? 'RESUME' : 'PAUSE';
+      });
+      $('btn-reset').addEventListener('click', reset);
+      $('btn-new').addEventListener('click', () => {
+        randomizeInputs();
+        rollLineups();
+        reset();
+      });
+
+      randomizeInputs();
+      rollLineups();
+      reset();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>

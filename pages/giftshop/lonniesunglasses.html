@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — LONNIE'S SUNGLASSES (Gold Aviators, 4,000 coins)            │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item page for Lonnie's sunglasses — his old aviators, kept in the    │
+  │    truck glovebox for forty years. A large CSS-drawn pair sits on a     │
+  │    dark backdrop with a big "PUT ON" / "TAKE OFF" toggle below. When    │
+  │    on, the child's face becomes (⌐■_■) everywhere it renders (the       │
+  │    .tama-content on child.html and the floating widget from header.js). │
+  │    Italic prose tells a small story about Lonnie — Spring City,         │
+  │    Rockwood plant, what he didn't say about Lebanon. A duplicate of     │
+  │    this toggle lives in the child page header (only visible once this   │
+  │    item is owned).                                                      │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/wallet.js, ../../js/child.js, ../../js/header.js     │
+  │      (header.js brings the floating child-status widget so the player   │
+  │      sees the (⌐■_■) face update in real time when toggling)            │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .ls-scene > .ls-shades (l/r lens + bridge), .ls-prose,          │
+  │      button.ls-toggle, a.ls-back                                        │
+  │    flow: IIFE reads Child.getSunglasses() on load + on Child.onChange   │
+  │      → refresh() updates button label/class; click → Child.setSunglasses│
+  │      toggle, which writes wendys_palace_child.sunglasses and notifies   │
+  │      every listener (this page's widget + the floating widget)          │
+  │    storage R/W: wendys_palace_child.sunglasses (W via Child.setSung-    │
+  │      lasses); ownership tracked in wendys_palace_giftshop (key=         │
+  │      'lonniesunglasses', by giftshopindex.html)                         │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lonnie's Sunglasses</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at center, #1c120a 0%, #0a0604 70%, #020100 100%);
+      color: #d8c8b0;
+      font-family: 'Cormorant Garamond', serif;
+      overflow-x: hidden;
+    }
+    .ls-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 22px;
+      gap: 30px;
+    }
+
+    .ls-shades {
+      position: relative;
+      width: 260px;
+      height: 96px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      filter: drop-shadow(0 14px 22px rgba(0,0,0,0.75));
+    }
+    .ls-shades-lens {
+      width: 110px;
+      height: 92px;
+      background:
+        radial-gradient(ellipse at 28% 26%, rgba(200, 220, 255, 0.30) 0%, transparent 48%),
+        linear-gradient(180deg, #2a2620 0%, #0a0604 100%);
+      border: 3px solid #c9a14a;
+      border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
+      box-shadow:
+        inset 0 -8px 14px rgba(0, 0, 0, 0.7),
+        inset 0 2px 3px rgba(255, 240, 200, 0.12),
+        0 0 0 1px rgba(120, 90, 30, 0.4);
+    }
+    .ls-shades-lens-r {
+      border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
+    }
+    .ls-shades-bridge {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 44px;
+      height: 6px;
+      background: linear-gradient(180deg, #d4b46a 0%, #a88a3a 100%);
+      border-radius: 3px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    .ls-prose {
+      max-width: 580px;
+      text-align: center;
+      font-size: 19px;
+      line-height: 1.6;
+      color: rgba(216, 200, 176, 0.92);
+      font-style: italic;
+    }
+    .ls-prose p { margin: 0 0 14px; }
+    .ls-prose p:last-child { margin: 0; }
+
+    .ls-toggle {
+      font-family: 'Special Elite', monospace;
+      font-size: 15px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: #d8c8b0;
+      padding: 14px 32px;
+      background: rgba(20, 14, 10, 0.7);
+      border: 1px solid rgba(201, 161, 74, 0.55);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+      min-width: 220px;
+    }
+    .ls-toggle:hover {
+      background: rgba(201, 161, 74, 0.18);
+      border-color: #c9a14a;
+    }
+    .ls-toggle.on {
+      background: rgba(201, 161, 74, 0.22);
+      border-color: #d4b46a;
+      color: #f0d890;
+    }
+
+    .ls-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8b0;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+    }
+    .ls-back:hover {
+      background: rgba(201, 161, 74, 0.15);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="ls-scene">
+    <div class="ls-shades" aria-hidden="true">
+      <div class="ls-shades-lens ls-shades-lens-l"></div>
+      <div class="ls-shades-lens ls-shades-lens-r"></div>
+      <div class="ls-shades-bridge"></div>
+    </div>
+
+    <div class="ls-prose">
+      <p>Lonnie's aviators. Bought at a Sears in 1979 with his first paycheck from the plant in Rockwood.</p>
+      <p>Kept in the glovebox of the truck. Came out for football at the high school field, for fishing at Watts Bar, for the long afternoons on the porch in Spring City when Sammy was at church and his cookies were cooling.</p>
+      <p>He didn't talk about Lebanon. He taught you to drive in the church parking lot. The day you got your liscense he gave them to you.</p>
+    </div>
+
+    <button class="ls-toggle" type="button" aria-pressed="false">Put them on YOUR CHILD</button>
+
+    <a class="ls-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/wallet.js"></script>
+  <script src="../../js/child.js"></script>
+  <script src="../../js/header.js"></script>
+  <script>
+    (function () {
+      const btn = document.querySelector('.ls-toggle');
+      if (!btn || !window.Child) return;
+
+      function refresh() {
+        const on = Child.getSunglasses();
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.textContent = on ? 'Take them off' : 'Put them on';
+      }
+
+      btn.addEventListener('click', () => {
+        Child.setSunglasses(!Child.getSunglasses());
+      });
+      Child.onChange(refresh);
+      refresh();
+    })();
+  </script>
+</body>
+</html>

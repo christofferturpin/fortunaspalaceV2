@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  CRITICAL HIT — back-room dice-merging round (10d4 → ladder, cap d20)    │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Place a wager, hit DEAL. Ten d4s drop onto the rolling tray. Drag   │
+  │    one die onto another with the same face value to merge upward       │
+  │    (d4→d6→d8→d10→d12→d20). ROLL re-rolls every die (two ROLLs per     │
+  │    round; merge-triggered rolls are free). Score = sum of die values: │
+  │    d4=0, d6=3, d8=7, d10=15, d12=31, d20=63 (d4s are worthless until  │
+  │    paired). Round AUTO-SETTLES when out                               │
+  │    of rerolls AND no merges remain: <22 = bust (wager burned); 22–29 │
+  │    = ×1 PUFF (wager refunded); 30–41 = ×2 HIT; 42–62 = ×3 BIG HIT;   │
+  │    63+ = ×6 CRITICAL HIT. RESET abandons a live round, refunds       │
+  │    nothing. Merging stops at d20. Sounds: tumble loop, settle thud,   │
+  │    merge chime, win chord, bust drop, crit flourish (Web Audio).      │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, child.js, header.js, criticalhit/sfx.js,            │
+  │      criticalhit/smoke.js, criticalhit/page.js                           │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #dm-pool, #dm-main, #dm-roll, #dm-reset, #dm-hint,           │
+  │      #dm-rerolls, #dm-score, #dm-balance, #dm-wager, #dm-wager-max,      │
+  │      #dm-result                                                          │
+  │    decoration DOM (aside.dm-room, aria-hidden): drop-ceiling tile row,   │
+  │      taped wall poster (D&D 3.5), moldering box stack (Catan/Risk/      │
+  │      Ice Age/D&D Starter), ashtray with smoldering joint + smoke wisps. │
+  │      Pure CSS, no JS — purely atmospheric.                               │
+  │    flow: page.js init → phase='idle', empty pool, Coins+Wager shown;    │
+  │      DEAL → Wallet.spend(wager) + Child.recordPlay → initDice (10× d4) │
+  │        → animated tumble, phase='live';                                 │
+  │      click die → toggleHold (live only);                                 │
+  │      drag die A → dragover die B with matching value highlights B as    │
+  │        drop target; drop → tryMerge → remove A, upgrade B size,         │
+  │        animateRoll → settle on fresh face (free auto-roll);             │
+  │      #dm-roll → guard live + rerollsLeft>0, rerollsLeft--, rollAllFree;│
+  │      CASH OUT → score=Σ SCORE_BY_SIZE[size]; tier lookup; payout=      │
+  │        wager*mult (0 if <8); Wallet.add(payout); banner shown;          │
+  │        phase='settled';                                                  │
+  │      NEW ROUND → dice=[], phase='idle' (wager retained for replay);    │
+  │      #dm-reset → newRound (abandons live round, no refund).             │
+  │    storage R/W: wendys_palace_child (W via Child.recordPlay);           │
+  │      sinnerbox (W via Wallet.spend/add);                                │
+  │      wendys_palace_intro_seen, wendys_palace_death, wendys_palace_child │
+  │      (R via inline guards).                                              │
+  │    routes out: ../index.html (back to lobby), guard-routes to splash/   │
+  │      death/child.                                                        │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Critical Hit</title>
+  <script>(function(){try{var m=false;try{m=window.matchMedia('(pointer: coarse) and (hover: none)').matches;}catch(e){}if(!m){m=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent||'');}if(m){location.replace('../mobile.html');}}catch(e){}})();</script>
+  <!-- demo build: splash/death/child guards stripped -->
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/criticalhit/criticalhit.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+</head>
+<body>
+  <header>
+    <div class="header-nav"><a href="../index.html">← Lobby</a></div>
+    <h1>Critical Hit</h1>
+    <p class="dm-subtitle">Two hits. One crit. Pass the dice.</p>
+  </header>
+
+  <main class="dm-board">
+    <div class="dm-controls">
+      <div class="dm-wager-row">
+        <div class="dm-rerolls-readout dm-coins-readout" aria-live="polite">
+          <span class="dm-rerolls-label">Coins</span>
+          <span class="dm-rerolls-value dm-coins-value" id="dm-balance">0</span>
+        </div>
+        <label class="dm-wager-label" for="dm-wager">Wager</label>
+        <input id="dm-wager" class="dm-wager-input" type="number"
+               min="1" value="5" inputmode="numeric" autocomplete="off">
+        <button id="dm-wager-max" class="dm-btn dm-btn-small" type="button">MAX</button>
+      </div>
+
+      <div class="dm-action-row">
+        <button id="dm-main" class="dm-btn dm-btn-roll" type="button" data-phase="idle">DEAL</button>
+        <button id="dm-roll" class="dm-btn"             type="button">ROLL</button>
+        <div class="dm-rerolls-readout" aria-live="polite">
+          <span class="dm-rerolls-label">Rerolls</span>
+          <span class="dm-rerolls-value" id="dm-rerolls">2</span>
+        </div>
+        <div class="dm-rerolls-readout dm-score-readout" aria-live="polite">
+          <span class="dm-rerolls-label">Score</span>
+          <span class="dm-rerolls-value dm-score-value" id="dm-score">0</span>
+        </div>
+        <button id="dm-reset" class="dm-btn"             type="button">RESET</button>
+      </div>
+    </div>
+
+    <div class="dm-hint" id="dm-hint" aria-live="polite"></div>
+
+    <div class="dm-result" id="dm-result" hidden aria-live="polite" data-outcome="bust">
+      <div class="dm-result-label">BUST</div>
+      <div class="dm-result-detail">Score 0 · need 8 to hit.</div>
+      <div class="dm-result-paytable">
+        <span><b>22–29</b> ×1</span>
+        <span><b>30–41</b> ×2</span>
+        <span><b>42–62</b> ×3</span>
+        <span><b>63+</b> ×6</span>
+      </div>
+    </div>
+
+    <section class="dm-pool" id="dm-pool" aria-label="Rolling tray — drag matching dice together to merge">
+      <!-- Rolling-tray accessories, decorative only. JS only removes .dm-die
+           children on render, so these survive every state change. -->
+      <div class="dm-tray-decor dm-tray-decor-bud" aria-hidden="true">
+        <div class="dm-tray-bud dm-tray-bud-1"></div>
+        <div class="dm-tray-bud dm-tray-bud-2"></div>
+        <div class="dm-tray-bud dm-tray-bud-3"></div>
+        <div class="dm-tray-bud dm-tray-bud-4"></div>
+      </div>
+      <div class="dm-tray-decor dm-tray-decor-tools" aria-hidden="true">
+        <div class="dm-tray-lighter"><span class="dm-tray-lighter-top"></span></div>
+        <div class="dm-tray-papers">
+          <span class="dm-tray-papers-label">ZIG · ZAG</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="dm-room" aria-hidden="true">
+    <!-- Stray xerox sheets visibly cut-up + layered (more, wilder angles) -->
+    <div class="dm-room-sheet dm-room-sheet-1"></div>
+    <div class="dm-room-sheet dm-room-sheet-2"></div>
+    <div class="dm-room-sheet dm-room-sheet-3"></div>
+    <div class="dm-room-sheet dm-room-sheet-4"></div>
+    <div class="dm-room-sheet dm-room-sheet-5"></div>
+
+    <!-- Ink splashes (multiply-blend punctuation against the B&W bg).
+         Magenta-pink is the dominant zine ink; one cyan splash for color
+         contrast (classic 2-color photocopy zine palette). -->
+    <div class="dm-room-ink dm-room-ink-1"></div>
+    <div class="dm-room-ink dm-room-ink-2"></div>
+    <div class="dm-room-ink dm-room-ink-3"></div>
+    <div class="dm-room-ink dm-room-ink-4"></div>
+    <div class="dm-room-ink dm-room-ink-5"></div>
+    <div class="dm-room-ink dm-room-ink-6"></div>
+    <div class="dm-room-ink dm-room-ink-cyan"></div>
+
+    <!-- Stenciled "VOID 1995" property stamp, slightly faded -->
+    <div class="dm-room-stamp">VOID&nbsp;·&nbsp;1995</div>
+
+    <!-- Diagonal black duct-tape strip across the upper-left corner -->
+    <div class="dm-room-tape"></div>
+
+    <!-- Marker scribbles — careless strikethroughs in red ink -->
+    <div class="dm-room-scribble dm-room-scribble-1"></div>
+    <div class="dm-room-scribble dm-room-scribble-2"></div>
+
+    <!-- Caution-tape strip slashed across, yellow/black diagonal -->
+    <div class="dm-room-caution"></div>
+
+    <!-- REJECTED stamp, big, red, hot-canted -->
+    <div class="dm-room-rejected">REJECTED</div>
+
+    <!-- Cigarette burn-holes (smoldering edges, holes through the page) -->
+    <div class="dm-room-burn dm-room-burn-1"></div>
+    <div class="dm-room-burn dm-room-burn-2"></div>
+    <div class="dm-room-burn dm-room-burn-3"></div>
+
+    <!-- Smiley face sticker, yellow, off-axis -->
+    <div class="dm-room-smiley" aria-hidden="true">
+      <div class="dm-room-smiley-eye dm-room-smiley-eye-l"></div>
+      <div class="dm-room-smiley-eye dm-room-smiley-eye-r"></div>
+      <div class="dm-room-smiley-mouth"></div>
+    </div>
+
+    <!-- Animated scan/static layer — fixed full-screen, lowest z-index -->
+    <div class="dm-room-scan"></div>
+    <div class="dm-room-flicker"></div>
+
+    <!-- Drop ceiling tile hanging askew, brown water stain -->
+    <div class="dm-room-ceiling">
+      <div class="dm-room-ceiling-tile"></div>
+      <div class="dm-room-ceiling-tile dm-room-ceiling-tile-stained"></div>
+      <div class="dm-room-ceiling-tile"></div>
+    </div>
+
+    <!-- Faded poster taped to the wall -->
+    <div class="dm-room-poster">
+      <span class="dm-room-poster-eyebrow">NEW!</span>
+      <span class="dm-room-poster-title">D&amp;D 3.5</span>
+      <span class="dm-room-poster-sub">CORE BOOKS IN STOCK</span>
+      <span class="dm-room-poster-price">$29.99</span>
+    </div>
+
+    <!-- Stack of moldering board-game boxes, bottom-left -->
+    <div class="dm-room-boxes">
+      <div class="dm-box dm-box-a">CATAN</div>
+      <div class="dm-box dm-box-b">RISK</div>
+      <div class="dm-box dm-box-c">MAGIC: ICE AGE</div>
+      <div class="dm-box dm-box-d">D&amp;D STARTER</div>
+    </div>
+
+    <!-- Joint in an ashtray, bottom-right. The smoke that rises off it is
+         drawn by smoke.js on the canvas overlay below, not by CSS wisps. -->
+    <div class="dm-room-ashtray">
+      <div class="dm-room-joint"></div>
+      <div class="dm-room-ember"></div>
+      <div class="dm-room-ashtray-bowl"></div>
+    </div>
+  </aside>
+
+  <!-- Smoke particle canvas — sits above the bg, below the play board.
+       Drawn by js/criticalhit/smoke.js. Mouse perturbs the column. -->
+  <canvas id="dm-smoke-canvas" aria-hidden="true"></canvas>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/criticalhit/sfx.js"></script>
+  <script src="../js/criticalhit/smoke.js"></script>
+  <script src="../js/criticalhit/page.js"></script>
+</body>
+</html>

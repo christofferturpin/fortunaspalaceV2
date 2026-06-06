@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  MINIGAME-CLOSENESS — single wheel, two meters                           │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Time-spent-with-baby minigame. One wheel, 20 equal wedges:            │
+  │      • +CLOSE × 5  (25%) — fills a 3-tick closeness meter; on the 3rd    │
+  │        tick gives +1 closeness and resets the meter.                     │
+  │      • STRIKE × 5  (25%) — fills a 2-X strike meter; on the 2nd strike   │
+  │        Your Child hurts itself (−1 wellness) and the meter resets.       │
+  │      • AGAIN × 4   (20%) — free auto-respin.                             │
+  │      • +1% × 2     (10%) / +5% × 1 (5%) / +10% × 1 (5%) — coin bonuses   │
+  │        scaled to wallet balance.                                         │
+  │      • HURT × 1    (5%)  — instant −1 wellness, no warning, no meter.    │
+  │      • MEAL × 1    (5%)  — +1 hunger for Your Child.                     │
+  │    Meters carry between spins on the same page visit and reset on        │
+  │    reload. The status line under the wheel narrates each spin. Synth     │
+  │    chimes via the inner Sound IIFE in page.js (tick/flip/close/coin/     │
+  │    bigCoin/bust). Outcomes spawn ❤/◆/★/✕/⌇/↻ particle bursts.            │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js,                              │
+  │      minigame-closeness/wheel.js, minigame-closeness/page.js, header.js  │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → ../splash.html                          │
+  │      wendys_palace_death.dead → ../death.html                            │
+  │      any child stat<=0 → ../child-died.html                              │
+  │    DOM ids: #balance, #closeness-main (injected by page.js: #cls-close-  │
+  │      meter, #cls-strike-meter, #cls-mount, #cls-status, #cls-rules-body, │
+  │      #cls-wheel, #cls-wheel-btn)                                         │
+  │    flow: page.js DOMContentLoaded → init() → inject rules drawer + meter │
+  │      bar + #cls-mount + #cls-status → ClosenessWheel.mount(#cls-mount).  │
+  │      wheel.js spin() lands on SLOTS[idx] → window.Closeness.applyOutcome │
+  │      (kind ∈ {closetick, money1/5/10, strike, hurt, meal, again}) →      │
+  │      page.js routes effects to Child.applyEffects / Wallet.add /         │
+  │      Child.recordPlay, advances/resets the meters, spawns particles,     │
+  │      writes a status beat. On kind==='again' wheel.js auto-respins after │
+  │      ~700 ms.                                                            │
+  │    storage R/W: sinnerbox (Wallet R/W), wendys_palace_child (R/W via     │
+  │      Child module). Meters are in-memory only (reset on reload).         │
+  │      guards read wendys_palace_intro_seen/_death/_child.                 │
+  │    routes out: child.html (Back / header-nav), guard-routes to           │
+  │      ../splash.html / ../death.html / ../child-died.html                 │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Time With Your Child</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0)location.replace('../child-died.html');}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/minigame-closeness/minigame-closeness.css">
+</head>
+<body class="nursery">
+  <div class="wallpaper-stains" aria-hidden="true"></div>
+
+  <header>
+    <div class="header-nav"><a href="child.html">← Back to them</a></div>
+    <h1>Time With Your Child</h1>
+    <p class="minigame-subtitle">Spin while Your Child watches.</p>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+    </div>
+  </header>
+
+  <main id="closeness-main"></main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/minigame-closeness/wheel.js"></script>
+  <script src="../js/minigame-closeness/page.js"></script>
+  <script src="../js/header.js"></script>
+</body>
+</html>

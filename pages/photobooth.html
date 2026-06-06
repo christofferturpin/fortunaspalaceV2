@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  PHOTOBOOTH — webcam VHS-postcard composer                               │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A photobooth that takes a webcam snapshot, then composes a VHS-       │
+  │    degraded postcard from it (chroma shift, scanlines, tear). The page   │
+  │    body is essentially empty — js/photobooth/page.js injects the booth   │
+  │    markup into #photobooth-main on DOMContentLoaded. The player clicks   │
+  │    ALLOW (grants camera), then TELL (reads clipboard as the postcard's  │
+  │    "do you remember" line), then SNAP — which spends 5 coins, picks a   │
+  │    random greeting/business/memory pool from postcards.js, overlays the │
+  │    child's stats as a phosphor stamp, and opens the finished PNG in a   │
+  │    new window. quotes.json is fetched async to fill ghost-quote layers. │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, photobooth/postcards.js,     │
+  │      photobooth/page.js, header.js                                       │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #photobooth-main (injected: #booth-allow,          │
+  │      #booth-tell, #booth-snap, video, canvas)                            │
+  │    flow: page.js init → inject booth → bind allow/tell/snap →            │
+  │      requestCamera→startPreview(rAF renderFrame) →                       │
+  │      requestClipboard(clipText) → takeSnapshot: Wallet.spend(COST=5) →   │
+  │      Child.recordPlay → composePostcard(greeting,business,clipText) →    │
+  │      Blob → URL.createObjectURL → window.open                            │
+  │    storage R/W: sinnerbox (Wallet), wendys_palace_child,                 │
+  │      wendys_palace_intro_seen (R), wendys_palace_death (R);              │
+  │      fetch ../assets/json/quotes.json (R) → QUOTES                       │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Photobooth</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=EB+Garamond:ital,wght@0,400;1,400;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/photobooth/photobooth.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body>
+  <header>
+    <h1>Photobooth</h1>
+    <p class="photobooth-subtitle">Step inside.</p>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+    </div>
+  </header>
+
+  <main id="photobooth-main"></main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/photobooth/postcards.js"></script>
+  <script src="../js/photobooth/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

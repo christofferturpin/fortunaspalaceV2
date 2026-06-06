@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — FORTUNA'S DECK (Signed Playing Cards, 400,000 coins)        │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    The final item, and the trigger for the final boss. A deck of         │
+  │    playing cards, plum-and-gold case, the name FORTUNA STONECIPHER       │
+  │    MAYER embossed across the band. A wax sigil holds the wrap.           │
+  │    Three short italic lines under it. One button: "Cut the deck."       │
+  │    Clicking the button is sitting down at her table. It routes straight  │
+  │    to bossfight-fortuna.html. The deck is the door; this page is the     │
+  │    threshold. Once owned, the shelf shows REVISIT and the player can     │
+  │    walk back through it any time.                                        │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/child.js (for the kaomoji cosmetic toggle)            │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .dk-scene > .dk-deck (stacked .dk-card layers + .dk-band +      │
+  │      .dk-seal), .dk-prose (3 <p>), a.dk-cut (primary CTA), a.dk-back    │
+  │    flow: anchor.dk-cut → location.assign('../bossfight-fortuna.html');  │
+  │      no script logic beyond href                                         │
+  │    storage R/W: writes wendys_palace_child.cosmetics.deck via           │
+  │      Child.setCosmetic; ownership tracked in wendys_palace_giftshop,    │
+  │      key='deck', by giftshopindex.html                                  │
+  │    routes out: ../bossfight-fortuna.html (DEAL), giftshopindex.html     │
+  │      (← Back to the Gift Shop)                                          │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fortuna's Deck</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400&family=Limelight&family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at center, #1a0e22 0%, #0a0410 70%, #020005 100%);
+      color: #f0e6c8;
+      font-family: 'Cormorant Garamond', serif;
+      overflow-x: hidden;
+    }
+    .dk-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 22px 60px;
+      gap: 36px;
+      position: relative;
+    }
+    .dk-scene::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(1px 1px at 14% 22%, rgba(232, 196, 96, 0.5), transparent 60%),
+        radial-gradient(1px 1px at 78% 30%, rgba(232, 196, 96, 0.5), transparent 60%),
+        radial-gradient(1px 1px at 30% 76%, rgba(232, 196, 96, 0.5), transparent 60%),
+        radial-gradient(1px 1px at 84% 70%, rgba(232, 196, 96, 0.5), transparent 60%);
+      animation: dk-drift 16s ease-in-out infinite alternate;
+    }
+    @keyframes dk-drift {
+      from { transform: translateY(-6px); }
+      to   { transform: translateY(6px); }
+    }
+
+    /* ──────────────── The deck ──────────────── */
+    .dk-deck {
+      position: relative;
+      width: 220px;
+      height: 320px;
+      filter: drop-shadow(0 24px 36px rgba(0,0,0,0.75));
+    }
+    .dk-card {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      background:
+        linear-gradient(150deg,
+          #2a1832 0%,
+          #1c0e22 38%,
+          #110610 100%);
+      border: 1px solid rgba(232, 196, 96, 0.55);
+      box-shadow:
+        inset 0 0 0 1px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 232, 180, 0.18),
+        inset 0 -6px 14px rgba(0, 0, 0, 0.55);
+    }
+    .dk-card-stack-3 { transform: translate(6px, 6px) rotate(-1.2deg); opacity: 0.92; }
+    .dk-card-stack-2 { transform: translate(3px, 3px) rotate(-0.4deg); opacity: 0.96; }
+    .dk-card-top     { transform: translate(0, 0)    rotate(0); }
+    .dk-card-top::before {
+      content: '';
+      position: absolute;
+      inset: 12px;
+      border: 1px solid rgba(232, 196, 96, 0.55);
+      border-radius: 6px;
+      background:
+        repeating-linear-gradient(45deg,
+          transparent 0 6px,
+          rgba(232, 196, 96, 0.06) 6px 7px),
+        repeating-linear-gradient(-45deg,
+          transparent 0 6px,
+          rgba(232, 196, 96, 0.06) 6px 7px);
+      pointer-events: none;
+    }
+    .dk-card-top::after {
+      content: '';
+      position: absolute;
+      inset: 22px;
+      border: 1px solid rgba(232, 196, 96, 0.32);
+      border-radius: 4px;
+      background:
+        radial-gradient(ellipse at center,
+          rgba(232, 196, 96, 0.16) 0%,
+          transparent 60%);
+      pointer-events: none;
+    }
+    .dk-monogram {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'UnifrakturCook', serif;
+      font-weight: 700;
+      font-size: 70px;
+      letter-spacing: -0.04em;
+      color: #e8c460;
+      text-shadow:
+        0 1px 0 rgba(0, 0, 0, 0.7),
+        0 0 18px rgba(232, 196, 96, 0.4);
+      line-height: 1;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .dk-pip-corner {
+      position: absolute;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      color: rgba(232, 196, 96, 0.7);
+      pointer-events: none;
+    }
+    .dk-pip-tl { top: 16px;    left: 18px;  }
+    .dk-pip-br { bottom: 16px; right: 18px; transform: rotate(180deg); }
+
+    .dk-band {
+      position: absolute;
+      top: 50%;
+      left: -10px;
+      right: -10px;
+      transform: translateY(-50%);
+      height: 38px;
+      background:
+        linear-gradient(180deg,
+          #f5ecd6 0%,
+          #e6d6a8 50%,
+          #c8a878 100%);
+      box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 250, 220, 0.7),
+        inset 0 -3px 6px rgba(130, 90, 40, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+    }
+    .dk-band-text {
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      color: #2a1808;
+      text-transform: uppercase;
+      text-align: center;
+      line-height: 1.15;
+    }
+    .dk-band-text .dk-band-name {
+      font-family: 'Limelight', serif;
+      font-size: 13px;
+      letter-spacing: 0.10em;
+      color: #1a0a04;
+    }
+    .dk-seal {
+      position: absolute;
+      top: 50%;
+      right: -16px;
+      transform: translateY(-50%);
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 32% 28%,
+          #d8302a 0%,
+          #9a1c18 55%,
+          #5a0a08 100%);
+      box-shadow:
+        inset 0 -3px 6px rgba(0, 0, 0, 0.45),
+        inset 0 2px 3px rgba(255, 200, 200, 0.32),
+        0 3px 6px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'UnifrakturCook', serif;
+      font-size: 22px;
+      color: #2a0808;
+      text-shadow: 0 1px 0 rgba(255, 200, 200, 0.18);
+      z-index: 4;
+    }
+
+    /* ──────────────── Prose + actions ──────────────── */
+    .dk-prose {
+      max-width: 560px;
+      text-align: center;
+      font-style: italic;
+      font-size: 21px;
+      line-height: 1.55;
+      color: rgba(240, 230, 200, 0.92);
+    }
+    .dk-prose p { margin: 0 0 12px; }
+    .dk-prose p:last-child { margin: 0; }
+    .dk-prose .dk-line-quiet {
+      font-family: 'Special Elite', monospace;
+      font-style: normal;
+      font-size: 13px;
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      color: rgba(232, 196, 96, 0.6);
+      padding-top: 12px;
+      margin-top: 8px;
+      border-top: 1px dashed rgba(232, 196, 96, 0.30);
+    }
+
+    .dk-actions {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .dk-cut {
+      display: inline-block;
+      padding: 16px 38px;
+      font-family: 'Limelight', serif;
+      font-size: 18px;
+      letter-spacing: 0.30em;
+      text-transform: uppercase;
+      color: #1a0a04;
+      text-decoration: none;
+      background:
+        linear-gradient(180deg, #f4d96a 0%, #c8a040 55%, #7a5a1c 100%);
+      border: 1px solid #5a3a14;
+      border-radius: 4px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 240, 200, 0.55),
+        inset 0 -3px 8px rgba(60, 30, 8, 0.5),
+        0 6px 14px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+    }
+    .dk-cut:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 240, 200, 0.6),
+        inset 0 -3px 8px rgba(60, 30, 8, 0.5),
+        0 8px 18px rgba(0, 0, 0, 0.55),
+        0 0 18px rgba(232, 196, 96, 0.35);
+    }
+    .dk-cut:active { transform: translateY(0); filter: brightness(0.97); }
+
+    .kc-bay {
+      display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px;
+    }
+    .kc-preview {
+      font-family: 'Special Elite', monospace; font-size: 22px; letter-spacing: 0.04em;
+      color: #d8c8b0; background: rgba(20,14,10,0.6);
+      border: 1px solid rgba(201,161,74,0.35); border-radius: 4px;
+      padding: 10px 18px; min-width: 160px; text-align: center;
+      white-space: pre; line-height: 1.1;
+    }
+    .kc-toggle {
+      font-family: 'Special Elite', monospace; font-size: 14px;
+      letter-spacing: 0.26em; text-transform: uppercase; color: #d8c8b0;
+      padding: 12px 26px; background: rgba(20,14,10,0.6);
+      border: 1px solid rgba(201,161,74,0.5); border-radius: 4px;
+      cursor: pointer; min-width: 260px;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .kc-toggle:hover { background: rgba(201,161,74,0.18); border-color: #c9a14a; }
+    .kc-toggle.on { background: rgba(201,161,74,0.22); border-color: #d4b46a; color: #f0d890; }
+
+    .dk-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8b0;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+    }
+    .dk-back:hover {
+      background: rgba(201, 161, 74, 0.15);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="dk-scene">
+    <div class="dk-deck" aria-label="A deck of playing cards bound with a paper band signed Fortuna Stonecipher Mayer">
+      <div class="dk-card dk-card-stack-3"></div>
+      <div class="dk-card dk-card-stack-2"></div>
+      <div class="dk-card dk-card-top">
+        <div class="dk-pip-corner dk-pip-tl">F</div>
+        <div class="dk-pip-corner dk-pip-br">F</div>
+        <div class="dk-monogram">F</div>
+      </div>
+      <div class="dk-band">
+        <div class="dk-band-text">
+          The Palace · House Deck<br>
+          <span class="dk-band-name">Fortuna Stonecipher Mayer</span>
+        </div>
+      </div>
+      <div class="dk-seal" aria-hidden="true">✠</div>
+    </div>
+
+    <div class="dk-prose">
+      <p>Her own deck. Plum-backed, gold-edged. The corners worn smooth.</p>
+      <p>The band is paper. The name is hers, written in her own hand.</p>
+      <p>She has been waiting at the table all night.</p>
+      <p class="dk-line-quiet">It is your turn to deal.</p>
+    </div>
+
+    <div class="dk-actions">
+      <a class="dk-cut" href="../bossfight-fortuna.html">Cut the deck</a>
+    </div>
+
+    <div class="kc-bay">
+      <div class="kc-preview" id="kc-preview" aria-hidden="true">(o_o)</div>
+      <button class="kc-toggle" type="button" aria-pressed="false">Mark them with the stars</button>
+    </div>
+
+    <a class="dk-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/child.js"></script>
+  <script>
+    (function () {
+      const ID = 'deck';
+      const OFF = 'Mark them with the stars';
+      const ON  = 'Lift the stars off';
+      const btn  = document.querySelector('.kc-toggle');
+      const prev = document.getElementById('kc-preview');
+      if (!btn || !window.Child) return;
+      function refresh() {
+        const on = Child.getCosmetic(ID);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.textContent = on ? ON : OFF;
+      }
+      let pi = 0;
+      function tick() {
+        if (!prev) return;
+        const d = Child.describeFace();
+        prev.textContent = d.frames[pi % d.frames.length];
+        pi++;
+      }
+      btn.addEventListener('click', () => Child.setCosmetic(ID, !Child.getCosmetic(ID)));
+      Child.onChange(refresh);
+      refresh();
+      tick();
+      setInterval(tick, 420);
+    })();
+  </script>
+</body>
+</html>

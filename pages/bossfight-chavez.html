@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BOSSFIGHT · CHAVEZ / GABRIEL — heads-up no-limit Hold'em                │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Agent Gabriel (slug 'chavez' for storage compat), the welfare-officer │
+  │    angel. Shared Hold'em shell (holdem.css + holdem/ai/page.js); the     │
+  │    per-boss layer is gabriel.css, which sets the eyesurgery.gif as the   │
+  │    fixed page background and adds a single static gold glow on framing   │
+  │    panels plus an arterial-red glow on the player's cards.               │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    css: ../css/base.css, ../css/bossfight/holdem.css,                    │
+  │         ../css/bossfight/gabriel.css                                     │
+  │    palette vars on body: --bf-bg, --bf-bg-grade, --bf-fg, --bf-fg-dim,   │
+  │      --bf-accent, --bf-accent-deep, --bf-felt, --bf-felt-edge,           │
+  │      --bf-card-face, --bf-card-back, --bf-suit-black, --bf-suit-red      │
+  │    body bg (gabriel.css): assets/images/eyesurgery.gif fixed contain     │
+  │    inline route-guards: NONE (reachable via debug hub)                   │
+  │    BossConfig: { slug:'chavez', name:'Agent Gabriel', epithet, starts,   │
+  │      aiStyle (tightness:1.10, aggression:0.95, bluffFreq:0.85), kaomoji }│
+  │    DOM ids: #bf-hand, #bf-blinds, #bf-street, #bf-pot,                   │
+  │      #bf-opp-name/-stack/-cards/-bet/-seat,                              │
+  │      #bf-player-stack/-cards/-bet/-seat, #bf-community,                  │
+  │      #bf-actions, #bf-act-fold/-passive/-aggro,                          │
+  │      #bf-sizing, #bf-raise, #bf-raise-value, .bf-preset                  │
+  │    storage R/W: wendys_palace_boss_chavez, wendys_palace_bosses_beaten   │
+  │    routes out: debug-bosses.html                                         │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Gabriel — Fortuna's Palace</title>
+  <script>
+    window.PAGE_VERSION = 'gabriel v0.11 · eye-tile-mask';
+    console.log('%c[page version] ' + window.PAGE_VERSION,
+                'color:#c9a14a;background:#1a1208;padding:2px 6px;border-radius:3px;font-family:monospace');
+  </script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bossfight/holdem.css">
+  <link rel="stylesheet" href="../css/bossfight/gabriel.css">
+  <style>
+    body.bf-body {
+      --bf-bg:          #f6efe0;
+      --bf-bg-grade:    #fff5d0;
+      --bf-fg:          #1a1410;
+      --bf-fg-dim:      #8a6e1e;
+      --bf-accent:      #c9a14a;
+      --bf-accent-deep: #8a6e1e;
+      --bf-felt:        #ece3cf;
+      --bf-felt-edge:   #c9a14a;
+      --bf-card-face:   #fff8df;
+      --bf-card-back:   #2a4870;
+      --bf-suit-black:  #1a1410;
+      --bf-suit-red:    #9b1d20;
+    }
+  </style>
+</head>
+<body class="bf-body bf-gabriel">
+
+  <header class="bf-header">
+    <h1>
+      <span class="bf-gabriel-vs">You vs.</span>
+      <span class="bf-gabriel-name">☩ Agent Gabriel ☩</span>
+      <span class="bf-epithet">A standard visit from welfare services</span>
+    </h1>
+    <a class="bf-back-link" href="debug-bosses.html">← hub</a>
+  </header>
+
+  <div class="bf-status">
+    <div class="bf-status-cell">Hand <b id="bf-hand">#1</b></div>
+    <div class="bf-status-cell">Blinds <b id="bf-blinds">1/2</b></div>
+    <div class="bf-status-cell">Street <b id="bf-street">—</b></div>
+  </div>
+
+  <div class="bf-seat bf-seat-opp" id="bf-opp-seat">
+    <div class="bf-boss-avatar-wrap" id="bf-boss-avatar-wrap">
+      <div class="bf-boss-avatar-title" id="bf-boss-avatar-title">Agent Gabriel</div>
+      <div class="bf-boss-avatar-frame">
+        <pre class="bf-boss-avatar" id="bf-boss-avatar"></pre>
+      </div>
+      <span class="bf-boss-tell" id="bf-boss-tell"></span>
+    </div>
+    <div class="bf-seat-info">
+      <span class="bf-seat-name" id="bf-opp-name">Agent Gabriel</span>
+      <span class="bf-seat-stack"><span id="bf-opp-stack">50</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-opp-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-opp-cards"></div>
+  </div>
+
+  <div class="bf-community-row">
+    <div class="bf-pot-display" id="bf-pot-display">
+      <span class="bf-pot-label">Pot</span>
+      <span class="bf-pot-value" id="bf-pot">0</span>
+    </div>
+    <div class="bf-community" id="bf-community"></div>
+  </div>
+
+  <!-- Gabriel's monologue — italic whispers right under the community
+       cards; the inline spawner script at the bottom of the page swaps
+       lines on a 6.5s cycle with a brief opacity fade. -->
+  <div id="bf-gabriel-monologue" class="bf-gabriel-monologue" aria-hidden="true"></div>
+
+  <div class="bf-seat bf-seat-player" id="bf-player-seat">
+    <div class="bf-seat-info">
+      <span class="bf-seat-name">You</span>
+      <span class="bf-seat-stack"><span id="bf-player-stack">100</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-player-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-player-cards"></div>
+  </div>
+
+  <div class="bf-log" id="bf-log">
+    <div class="bf-log-header">
+      Play Log
+      <button id="bf-log-clear" class="bf-log-clear" type="button">Clear</button>
+    </div>
+    <div class="bf-log-scroll" id="bf-log-scroll"></div>
+  </div>
+
+  <div class="bf-actions" id="bf-actions">
+    <button id="bf-act-fold" class="bf-act-fold" type="button">Fold</button>
+    <button id="bf-act-passive" type="button">Check</button>
+    <button id="bf-act-aggro" class="bf-act-aggro" type="button">Bet</button>
+    <div class="bf-sizing" id="bf-sizing">
+      <button class="bf-preset" data-preset="min" type="button">Min</button>
+      <button class="bf-preset" data-preset="half" type="button">½</button>
+      <button class="bf-preset" data-preset="pot" type="button">Pot</button>
+      <button class="bf-preset" data-preset="all" type="button">All</button>
+      <input id="bf-raise" type="range" min="0" max="0" value="0">
+      <span id="bf-raise-value" class="bf-raise-value">0</span>
+    </div>
+  </div>
+
+  <script>
+    window.BossConfig = {
+      // Display name is Gabriel; slug stays 'chavez' so existing localStorage
+      // boss records (wendys_palace_boss_chavez, beaten list entries) survive
+      // the rename. He's still the same character — Christian Angel, the
+      // welfare officer — just signing his name differently now.
+      slug: 'chavez',
+      name: 'Agent Gabriel',
+      epithet: 'A Christian Angel',
+      startingStacks: { playerChips: 100, oppChips: 50 },
+      aiStyle: { tightness: 1.10, aggression: 0.95, bluffFreq: 0.85, loose: 1.00, mixedness: 0.9 },
+      // Kaomoji avatar — face only here; the two-line MAGA ball cap is
+      // drawn in red by gabriel.css via a ::before pseudo on the avatar
+      // pre, so we leave cap empty so page.js doesn't also prepend it.
+      // Mood-keyed face frames cycle at 520ms; mood derives from his stack
+      // vs. his starting stack (see avatarMood in page.js).
+      kaomoji: {
+        cap: '',
+        faces: {
+          broken:    ['(✗_✗)', '(x_x)', '(✗_✗)', '(x_x)'],
+          desperate: ['(⊙_⊙;)', '(⊙~⊙)', '(Ô_Ô)', '(⊙_⊙;)'],
+          pressured: ['(o_o)',  '(•_•)', '(o_o)',  '(•_o)'],
+          even:      ['(◉_◉)',  '(◉o◉)', '(◉_◉)',  '(◉-◉)'],
+          ahead:     ['(◉‿◉)',  '(◉_◉)', '(◉‿◉)',  '(◉.◉)'],
+          dominant:  ['(◕‿◕)',  '(¬‿¬)', '(◕‿◕)',  '(¬‿¬)'],
+        },
+        tells: {
+          broken:    'done',
+          desperate: 'sweating',
+          pressured: 'watching you',
+          even:      'patient',
+          ahead:     'patient',
+          dominant:  'amused',
+        },
+      },
+    };
+  </script>
+  <script>
+    /* Gabriel's monologue — soft italic whispers right under the community
+       cards, ONE line per hand. The bank is 22 phrases shuffled at load.
+       A MutationObserver on #bf-hand advances to the next line whenever
+       page.js bumps the hand counter, so Gabriel says exactly one thing
+       per hand rather than chattering on a timer. Gabriel's voice is the
+       Southern in-group "we" looking down at the queers, single mothers,
+       Black neighbours, welfare-recipient outcasts of their own outcast
+       region. Velvet propriety, bless-your-heart pity, fake concern,
+       coded "your kind" — no slurs; the contempt is in the register.
+       The 420ms fade matches the CSS opacity transition. */
+    (function () {
+      var el = document.getElementById('bf-gabriel-monologue');
+      if (!el) return;
+      var LINES = [
+        "You don't belong here.",
+        "Bless your heart.",
+        "You're a freak.",
+        "I'll pray for you.",
+        "You and your degenerate spawn shouldn't be here.",
+        "Where's the father?",
+        "How dare you sin against our propriety?",
+        "Decent folks don't come here.",
+        "Have you no shame?",
+        "Your kind has had every chance.",
+        "Such a waste.",
+        "I just feel sorry for you.",
+        "Cover up.",
+        "Read your Bible.",
+        "We worked for what we have.",
+        "Some people just won't be helped.",
+        "What would your mother say?",
+        "You should be at home.",
+        "This used to be a nice neighborhood.",
+        "I'll be praying for your soul.",
+        "You're an embarrassment to your family.",
+      ];
+      // Fisher-Yates shuffle so Gabriel's order varies between sessions
+      for (var j = LINES.length - 1; j > 0; j--) {
+        var k = Math.floor(Math.random() * (j + 1));
+        var tmp = LINES[j]; LINES[j] = LINES[k]; LINES[k] = tmp;
+      }
+      var i = 0;
+      el.textContent = LINES[0];
+
+      // Advance one line each time page.js writes a new hand number into
+      // #bf-hand. characterData+subtree catches the text-node update; we
+      // skip the first observed mutation when it's the initial render
+      // (same value as currently shown).
+      var handEl = document.getElementById('bf-hand');
+      if (!handEl) return;
+      new MutationObserver(function () {
+        el.classList.add('is-fading');
+        setTimeout(function () {
+          i = (i + 1) % LINES.length;
+          el.textContent = LINES[i];
+          el.classList.remove('is-fading');
+        }, 420);
+      }).observe(handEl, { childList: true, subtree: true, characterData: true });
+    })();
+  </script>
+  <script>
+    /* Orbital-eye rings — one rotating ring per panel, with N eyes pinned
+       at static angles inside it. The ring spins (single animation), the
+       eyes ride along — math: all N eyes share the same circular path at
+       angles θ_i = i * 360°/N, distance --radius from centre. */
+    (function () {
+      var PANELS = ['#bf-opp-seat', '.bf-community-row', '#bf-player-seat', '#bf-log'];
+      var N = 6;
+      PANELS.forEach(function (sel) {
+        var panel = document.querySelector(sel);
+        if (!panel) return;
+        var ring = document.createElement('div');
+        ring.className = 'bf-gabriel-orbit';
+        for (var i = 0; i < N; i++) {
+          var eye = document.createElement('span');
+          eye.className = 'bf-gabriel-orbit-eye';
+          eye.style.setProperty('--idx', i);
+          eye.textContent = '👁';  // 👁
+          ring.appendChild(eye);
+        }
+        panel.appendChild(ring);
+      });
+    })();
+  </script>
+  <script>
+    /* Jelly panels — mouse movement kicks each gameplay panel away from the
+       cursor, then a spring pulls it back. Velocity also feeds a small skew
+       so the panel wobbles, not just slides. Pure CSS transforms updated
+       per rAF, no transition needed. Constants tuned for "gel" not "rubber"
+       (under-damped enough to wobble, over-damped enough to settle in <1s
+       after the cursor stops). */
+    (function () {
+      var SELECTORS = ['#bf-opp-seat', '.bf-community-row', '#bf-player-seat', '#bf-log', '#bf-actions'];
+      var panels = [];
+      SELECTORS.forEach(function (s) {
+        var el = document.querySelector(s);
+        if (el) panels.push(el);
+      });
+      if (!panels.length) return;
+      var st = panels.map(function () { return { x: 0, y: 0, vx: 0, vy: 0 }; });
+
+      var lastMx = null, lastMy = null;
+      document.addEventListener('mousemove', function (e) {
+        if (lastMx == null) { lastMx = e.clientX; lastMy = e.clientY; return; }
+        var mdx = e.clientX - lastMx, mdy = e.clientY - lastMy;
+        lastMx = e.clientX; lastMy = e.clientY;
+        var speed = Math.sqrt(mdx * mdx + mdy * mdy);
+        if (speed < 1.5) return;
+        panels.forEach(function (p, i) {
+          var r = p.getBoundingClientRect();
+          var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          var ddx = cx - e.clientX, ddy = cy - e.clientY;
+          var d = Math.sqrt(ddx * ddx + ddy * ddy) + 1;
+          // Kick falloff with distance — close panels jiggle, far ones barely
+          var fall = Math.min(1, 160 / d);
+          var kick = Math.min(speed * 0.012, 1.4) * fall;
+          st[i].vx += (ddx / d) * kick;
+          st[i].vy += (ddy / d) * kick;
+        });
+      });
+
+      var K = 0.14;   // spring stiffness (higher = snappier return)
+      var DAMP = 0.60; // velocity damping per frame (lower = quicker settle)
+      function tick() {
+        panels.forEach(function (p, i) {
+          var s = st[i];
+          s.vx += -K * s.x;
+          s.vy += -K * s.y;
+          s.vx *= DAMP;
+          s.vy *= DAMP;
+          s.x += s.vx;
+          s.y += s.vy;
+          var idle = Math.abs(s.x) < 0.05 && Math.abs(s.y) < 0.05 &&
+                     Math.abs(s.vx) < 0.05 && Math.abs(s.vy) < 0.05;
+          if (idle) {
+            if (p.style.transform) p.style.transform = '';
+            return;
+          }
+          // Skew driven by velocity, not position — gives the leading edge
+          // a lean as the panel moves rather than a static tilt at rest
+          var skX = Math.max(-0.4, Math.min(0.4, s.vy * 0.08));
+          var skY = Math.max(-0.4, Math.min(0.4, s.vx * 0.08));
+          p.style.transform =
+            'translate(' + s.x.toFixed(2) + 'px,' + s.y.toFixed(2) + 'px)' +
+            ' skew(' + skY.toFixed(2) + 'deg,' + skX.toFixed(2) + 'deg)';
+        });
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    })();
+  </script>
+  <script src="../js/bossfight/toast.js"></script>
+  <script src="../js/bossfight/holdem.js"></script>
+  <script src="../js/bossfight/ai.js"></script>
+  <script src="../js/bossfight/page.js"></script>
+
+  <script>
+    /* ─── Biblical-Phrygian organ music for Agent Gabriel ────────────
+       Opens with sustained pipe-organ chords in the Phrygian mode —
+       the canonical biblical / Gregorian liturgical scale. 4-bar
+       progression i → ♭II → ♭VII → i (the "Phrygian/Andalusian"
+       cadence; the ♭II major over the tonic is the signature
+       ancient/Spanish-biblical chord).
+
+       Form:
+         · Loop 0 (intro): pipe organ + soft choir only — players
+                          hear the chord progression naked first.
+         · Loop 1+:        full arrangement: organ + wurlitzer pad +
+                          choir slap + walking bass + house drums.
+       Regenerates every 4 loops with fresh tempo + root + drum mode.
+
+       Synth roster:
+         · pipe organ: saw + sine octave + sine fifth, slow bloom-in
+                       sustain — the lead voice. Routed through the
+                       phaser for the swirling biblical wash.
+         · wurlitzer:  warm electric organ pad with tremolo, octave
+                       below the pipe organ. Also through phaser.
+         · choir slap: sine "AHH" + bandpass vowel formant, fires
+                       three stacked voices on every chord change.
+         · bass:       square root-tone pulsed on each beat.
+         · house kit:  kick on every beat, snare on 2 & 4, closed
+                       hat on the "and," open hat at loop end. */
+    (function () {
+      var ctx = null, master = null, schedTimer = null;
+      // Shared filter-sweep LFO — runs continuously at boot, drives the
+      // lowpass cutoff of every arp note so the arpeggio "breathes"
+      // through a wah/sweep envelope as it rolls. Tied into Voice 1
+      // (arpVoice) only; chord slaps and bass don't get swept.
+      var sweepLfo = null, sweepLfoGain = null;
+      // Phaser bus — 4-stage allpass chain with a slow shared LFO
+      // sweeping the filter frequencies. Voice 1 (arp) + Voice 3
+      // (wurlitzer) route here for the trippy swirl; voice 2 (choir
+      // slaps), bass, and drums stay dry so rhythm reads cleanly.
+      var phaserBus = null;
+      // Comb-filter bus — short feedback delay whose delay time is
+      // modulated by a fast LFO (cycling at 32nd-note rate). The
+      // church bell routes through this to get the swirling
+      // metallic-shimmer sweep on every strike.
+      var combBus = null, combDelay = null, combLfoRef = null;
+      // combLfoGainRef is promoted to module scope so drum hits can
+      // spike the comb-sweep amplitude in real time — each kick /
+      // snare crank the swing depth up for a beat, then it rides
+      // back. Couples the drum kit to the organ's filter sweep.
+      var combLfoGainRef = null;
+      var COMB_LFO_BASE  = 0.0045;
+      var COMB_LFO_HIT   = 0.022;
+      // Sub bus — splits off a copy of the organ signal, runs it
+      // through reverb → echo → octave-down, then back to master.
+      // Gives a ghost-pitch-shifted shadow under the dry organ chord.
+      // Note: Web Audio has no built-in pitch shifter, so the "octave
+      // down" is faked by scheduling a parallel pipeOrgan voice at
+      // hz/2 — same harmonic content one octave below — into this
+      // bus. Same sustained envelope, same comb sweep follows it.
+      var subBus = null;
+      var booted = false, muted = false;
+      var pattern = null, stepIdx = 0, nextTime = 0;
+      var LOOKAHEAD_MS = 100, AHEAD_S = 0.18;
+      // 8-bar loop, 16 steps per bar = 128 steps total. Each chord
+      // in the biblical Phrygian progression lasts a DOUBLE WHOLE
+      // note — 2 bars / 32 steps — so the 4-chord cycle spans the
+      // full 8-bar loop. Long bloom per chord, plenty of room for
+      // the comb sweep + phaser to do their thing.
+      var STEPS_PER_LOOP = 128;
+      var BAR_STEPS = 16;
+      var CHORD_STEPS = 32;      // 2 bars per chord (double whole)
+      var LOOPS_BEFORE_RESHUFFLE = 2;
+      var loopCount = 0;
+
+      // Phrygian mode — 1, ♭2, ♭3, 4, 5, ♭6, ♭7. The biblical/Gregorian
+      // mode; the ♭2 gives the characteristic "ancient liturgical"
+      // sound, and the ♭II chord built on it is the signature Phrygian
+      // chord that drives the cadence.
+      var PHRYGIAN = [0, 1, 3, 5, 7, 8, 10, 12];
+
+      // Iconic Phrygian/Andalusian progression — i → ♭II → ♭VII → i.
+      // Each chord = triad [root, third, fifth] in semitones from
+      // pattern root. The ♭II major chord (F over E in E-Phrygian)
+      // is the signature biblical/Spanish-cadence sound.
+      //   i:    [0, 3, 7]    1, ♭3, 5    — minor home chord
+      //   ♭II:  [1, 5, 8]    ♭2, 4, ♭6   — Phrygian's "ancient" chord
+      //   ♭VII: [10, 13, 17] ♭7, ♭9, 4   — descending bridge
+      //   i:    [0, 3, 7]    return home
+      var CHORD_PROGRESSION = [
+        [0,  3,  7],
+        [1,  5,  8],
+        [10, 13, 17],
+        [0,  3,  7],
+      ];
+      // Bass: root note of each bar's chord, simple. Tracks the
+      // progression directly rather than ostinato cycling.
+      var BAR_ROOTS = [0, 1, 10, 0];
+
+      // Session key — chosen ONCE per page load (in boot). Stays the
+      // same key for every pattern regen this session; only changes
+      // on a page reload. 12 chromatic options from A2 to G#3 so each
+      // session sounds distinct without re-keying mid-song.
+      var SESSION_ROOT_HZ = null;
+
+      function newPattern() {
+        // Tempo seed = 120 BPM; updateTempo() overwrites each tick
+        // based on Gabriel's chip count.
+        var bpm = 120;
+        var drumMode = ['rise', 'stab', 'crush'][Math.floor(Math.random() * 3)];
+        return { bpm: bpm, rootHz: SESSION_ROOT_HZ, drumMode: drumMode };
+      }
+
+      // Read Gabriel's live chip count from the DOM and remap to a
+      // BPM ramp:  full stack (50) → 120 BPM, zero → 140 BPM. Called
+      // every scheduler tick so the tempo tracks the boss's losses
+      // in near-real-time. Re-tunes the comb-sweep LFO whenever the
+      // tempo actually changes.
+      var TEMPO_MIN = 120, TEMPO_MAX = 140, OPP_START = 50;
+      function updateTempo() {
+        if (!pattern) return;
+        var oppEl = document.getElementById('bf-opp-stack');
+        if (!oppEl) return;
+        var chips = parseInt(oppEl.textContent, 10);
+        if (!isFinite(chips)) return;
+        var ratio = Math.max(0, Math.min(1, chips / OPP_START));
+        var newBpm = Math.round(TEMPO_MIN + (1 - ratio) * (TEMPO_MAX - TEMPO_MIN));
+        if (newBpm !== pattern.bpm) {
+          pattern.bpm = newBpm;
+          retuneComb();
+        }
+      }
+
+      function scheduler() {
+        // Adjust tempo each tick from Gabriel's chip count so the BPM
+        // ramps live as the boss loses (cheap — one DOM read + compare).
+        updateTempo();
+        while (nextTime < ctx.currentTime + AHEAD_S) {
+          schedStep(stepIdx, nextTime);
+          var stepSec = (60 / pattern.bpm) / 4;  // 16th-note duration
+          nextTime += stepSec;
+          stepIdx++;
+          if (stepIdx >= STEPS_PER_LOOP) {
+            stepIdx = 0;
+            loopCount++;
+            if (loopCount >= LOOPS_BEFORE_RESHUFFLE) {
+              pattern = newPattern();
+              retuneComb();
+              loopCount = 0;
+            }
+          }
+        }
+      }
+
+      // Sidechain trigger — every drum hit calls this. Spikes the
+      // comb-sweep LFO amplitude up to COMB_LFO_HIT then rides back
+      // to COMB_LFO_BASE over ~140ms. The organ's filter sweep
+      // visibly opens up on every kick / snare hit.
+      function combHit(t) {
+        if (!combLfoGainRef) return;
+        var g = combLfoGainRef.gain;
+        g.cancelScheduledValues(t);
+        g.setValueAtTime(COMB_LFO_HIT, t);
+        g.exponentialRampToValueAtTime(COMB_LFO_BASE, t + 0.14);
+      }
+
+      // Set the comb-sweep LFO to cycle at the current 16th-note rate
+      // — one full sweep per 16th, locking the comb's metallic
+      // shimmer to the underlying pulse. 16th period = (60/bpm)/4 sec
+      // → LFO Hz = bpm/15. Called at boot + every pattern regen.
+      function retuneComb() {
+        if (!combDelay || !pattern) return;
+        var period16 = (60 / pattern.bpm) / 4;
+        if (combLfoRef) combLfoRef.frequency.setTargetAtTime(1 / period16, ctx.currentTime, 0.05);
+      }
+
+      function schedStep(step, t) {
+        var stepSec = (60 / pattern.bpm) / 4;
+        var inBeat = step % 4;
+        var beatNum = Math.floor((step % BAR_STEPS) / 4);    // 0..3 within the bar
+        var chordIdx = Math.floor(step / CHORD_STEPS);       // 0..3 within the 8-bar loop
+        var chord = CHORD_PROGRESSION[chordIdx];
+        var rootOffset = BAR_ROOTS[chordIdx];
+
+        // Intro disabled — drums + bass fire from the first beat so
+        // the kit is audible immediately.
+        var isIntro = false;
+
+        // The LAST chord of each loop (chordIdx === 3) is a held
+        // resolution — sustains ~1.5× the normal slot duration so the
+        // chord rings past the loop boundary, swinging into the next
+        // loop. Adds the "hit on the synth holds" lift toward the end.
+        var isLastChord = chordIdx === 3;
+        var holdMult    = isLastChord ? 1.55 : 0.97;
+        // ~1-in-8 chord changes (12.5%) get re-articulated as a
+        // double hit — second strike lands 1/8 later, all three voices
+        // re-fire together. Quick punchy second hit on top of the
+        // sustaining first chord.
+        var doubleHit   = (step % CHORD_STEPS === 0) && Math.random() < 0.125;
+        var doubleDelay = stepSec * 2;     // 1/8-note offset
+
+        // ── Voice 1: PIPE ORGAN chord pad — sustained across each
+        // DOUBLE WHOLE (2-bar) chord slot. Last chord holds longer
+        // for the end-of-loop sustain. Routed through the comb-filter
+        // bus for the 16th-note shimmer sweep.
+        if (step % CHORD_STEPS === 0) {
+          var chordDur = stepSec * CHORD_STEPS * holdMult;
+          for (var v = 0; v < chord.length; v++) {
+            var organHz = pattern.rootHz * 2 * Math.pow(2, chord[v] / 12);
+            pipeOrgan(organHz, t, chordDur, 0.075);
+            pipeOrgan(organHz * 0.5, t, chordDur, 0.055, subBus);
+            if (doubleHit) {
+              // Shorter, punchier second hit — re-articulates the chord
+              pipeOrgan(organHz, t + doubleDelay, chordDur * 0.55, 0.075);
+              pipeOrgan(organHz * 0.5, t + doubleDelay, chordDur * 0.55, 0.055, subBus);
+            }
+          }
+        }
+
+        // ── Voice 2: Wurlitzer pad — same chord, octave lower.
+        // Also extended on the last chord.
+        if (step % CHORD_STEPS === 0 && !isIntro) {
+          var chordDur2 = stepSec * CHORD_STEPS * holdMult;
+          for (var w = 0; w < chord.length; w++) {
+            var wurliHz = pattern.rootHz * Math.pow(2, chord[w] / 12);
+            wurlitzer(wurliHz, t, chordDur2, 0.07);
+            if (doubleHit) {
+              wurlitzer(wurliHz, t + doubleDelay, chordDur2 * 0.55, 0.07);
+            }
+          }
+        }
+
+        // ── Voice 3: Choir slap on the chord change. On the last
+        // chord, the slap holds longer (stepSec * 10 instead of 6)
+        // so the vocal "AHH" sustains into the loop reset for the
+        // dramatic resolution swing.
+        if (step % CHORD_STEPS === 0) {
+          var slapGain = isIntro ? 0.07 : 0.13;
+          var slapDur  = stepSec * (isLastChord ? 10 : 6);
+          for (var c = 0; c < chord.length; c++) {
+            var slapHz = pattern.rootHz * 4 * Math.pow(2, chord[c] / 12);
+            choirStab(slapHz, t, slapDur, slapGain);
+            if (doubleHit) {
+              // Shorter second slap — quick "AHH-ah" re-articulation
+              choirStab(slapHz, t + doubleDelay, stepSec * 3, slapGain * 0.85);
+            }
+          }
+        }
+
+        // ── Bass — root of the current bar's chord, pulsed on each
+        // beat. Skipped during intro.
+        if (!isIntro && inBeat === 0) {
+          var bassHz = pattern.rootHz * Math.pow(2, rootOffset / 12);
+          bass(bassHz, t, stepSec * 4 * 1.05, 0.18);
+        }
+
+        // ── Drums (no intro) ──
+        if (isIntro) return;
+
+        var dm = pattern.drumMode;
+
+        var loopHalf2 = step >= STEPS_PER_LOOP / 2;           // bars 5-8
+        var lastBar   = step >= STEPS_PER_LOOP - BAR_STEPS;   // bar 8 only
+        var barPos    = step % BAR_STEPS;                     // 0..15
+
+        // ── BREAKCORE KICK PATTERN ──
+        // Probabilistic 16th grid. Every kick hit also fires combHit()
+        // so the organ's comb-sweep depth spikes — the filter visibly
+        // opens up on every kick.
+        var KICK_PROB = [
+          0.95, 0.10, 0.40, 0.15,    // beat 1: hit + occasional double
+          0.04, 0.30, 0.18, 0.45,    // beat 2: snare here, busy kicks
+          0.85, 0.10, 0.50, 0.22,    // beat 3: hit + doubles
+          0.06, 0.38, 0.55, 0.45,    // beat 4: snare here + busy lead-in
+        ];
+        var kickMult = dm === 'crush' ? 1.25 : dm === 'stab' ? 1.0 : 0.78;
+        if (Math.random() < KICK_PROB[barPos] * kickMult) {
+          var kVel = 0.95 + Math.random() * 0.6;
+          if (barPos === 0 || barPos === 8) kVel = 1.55;       // on-the-beat slam
+          tripHopKick(t, kVel);
+          combHit(t);
+        }
+
+        // ── BREAKCORE SNARE PATTERN ──
+        // Standard backbeat on 2 & 4 + random stuttered 32nd-note
+        // rolls peppered through the bar. Crush mode gets a "machine
+        // gun" 32nd-burst across the last beat of bar 8.
+        if (barPos === 4 || barPos === 12) {
+          var snareGain = dm === 'crush' ? 1.50 : dm === 'stab' ? 1.40 : 1.20;
+          houseSnare(t, snareGain);
+          combHit(t);
+        }
+        // Random snare stutter — 18% (or 28% in crush) chance per
+        // non-backbeat 16th. Fires a 2- or 3-hit 32nd-note roll
+        // inside that 16th, ascending velocity.
+        var stutterChance = (dm === 'crush' ? 0.28 : 0.18);
+        if (barPos !== 4 && barPos !== 12 && Math.random() < stutterChance) {
+          var n = Math.random() < 0.4 ? 3 : 2;
+          var spacing = stepSec / n;
+          for (var s = 0; s < n; s++) {
+            houseSnare(t + s * spacing, 0.32 + s * 0.18);
+          }
+          combHit(t);
+        }
+        // Machine-gun snare burst on the last beat of bar 8 in crush:
+        // 8 hits in one beat (32nd-notes), ramping in velocity.
+        if (dm === 'crush' && step === STEPS_PER_LOOP - 4) {
+          for (var b = 0; b < 8; b++) {
+            houseSnare(t + b * (stepSec / 2), 0.55 + b * 0.08);
+          }
+          combHit(t);
+          combHit(t + stepSec);
+        }
+
+        // ── Hip-hop hi-hat shuffle ──
+        // Main 8th-note hat on every "and."
+        if (inBeat === 2) {
+          var swingDelay = stepSec * 0.06;
+          var vel = 0.65 + (Math.random() - 0.5) * 0.12;
+          hiphopHat(t + swingDelay, vel);
+        }
+
+        // 16th-triplet roll on the last 16th of selected bars.
+        if (inBeat === 3 && beatNum === 3 && (loopHalf2 || lastBar)) {
+          var roll = stepSec / 3;
+          hiphopHat(t + roll * 0,    0.60);
+          hiphopHat(t + roll * 1,    0.72);
+          hiphopHat(t + roll * 2,    0.90);
+        }
+
+        // Random ghost-velocity hats — denser in second half.
+        var ghostChance = loopHalf2 ? 0.30 : 0.16;
+        if (inBeat !== 2 && Math.random() < ghostChance) {
+          hiphopHat(t, 0.22 + Math.random() * 0.12);
+        }
+
+        // ── BREAKBEAT HAT-CLICK LAYER ──
+        // Constant 16th-note click texture underneath the main hat
+        // shuffle. Density varies by chord position so the loop has
+        // shape: home chord = moderate, ♭II = sparse, ♭VII = busy,
+        // resolution = full breakbeat workout. 18% chance of a 32nd-
+        // note flam (double click) on any fire for the ragged edge.
+        // Lower-pitched than hiphopHat so it reads as a separate layer
+        // instead of doubling the same frequency band.
+        var CLICK_DENSITY = [0.55, 0.35, 0.75, 0.85];
+        var clickP = CLICK_DENSITY[chordIdx];
+        if (Math.random() < clickP) {
+          var cVel = 0.20 + Math.random() * 0.18;
+          hatClick(t, cVel);
+          // Flam — second click 1/32 later at slightly higher velocity
+          if (Math.random() < 0.18) {
+            hatClick(t + stepSec * 0.5, cVel * 1.25);
+          }
+        }
+
+        // Snare-roll fill at loop end in crush mode.
+        if (dm === 'crush' && step >= STEPS_PER_LOOP - 4 && inBeat === 0) {
+          snareRoll(t, stepSec * 4);
+        }
+      }
+
+      // Organ stab — sawtooth + sine octave + sine octave-+-fifth, but
+      // with a hard fast attack and quick decay instead of sustain.
+      // This is what gives the rhythmic punching feel (vs. the held
+      // cathedral organ from the prior version).
+      // Arp voice — same osc stack as organStab but the lowpass cutoff
+      // is modulated by the shared sweep LFO. Resonant Q so the wah
+      // reads clearly as the cutoff sweeps across the harmonic stack.
+      // Procedural reverb impulse — exponentially decaying white noise
+      // across both channels. `seconds` = tail length, `decayRate`
+      // controls how fast the noise envelope falls off (higher = drier).
+      function makeReverbIR(seconds, decayRate) {
+        var len = Math.floor(ctx.sampleRate * seconds);
+        var buf = ctx.createBuffer(2, len, ctx.sampleRate);
+        for (var c = 0; c < 2; c++) {
+          var d = buf.getChannelData(c);
+          for (var i = 0; i < len; i++) {
+            var env = Math.pow(1 - i / len, decayRate);
+            d[i] = (Math.random() * 2 - 1) * env;
+          }
+        }
+        return buf;
+      }
+
+      // Pipe organ pad — sawtooth fundamental + sine octave + sine
+      // perfect-5th (octave + fifth), all through a soft lowpass,
+      // with a slow attack and long release so each chord blooms in
+      // and fades into the next. Routed through the phaser for the
+      // trippy biblical swirl. Sustained, not stabbed.
+      function pipeOrgan(hz, t, dur, gain, target) {
+        // Default route: comb bus → master (drier comb sweep on the
+        // sustained chord). When `target` is explicitly the sub bus,
+        // the voice goes through verb → echo → master instead, used
+        // for the octave-down pitch-shifted ghost.
+        var bus = target || combBus || phaserBus || master;
+        var saw = ctx.createOscillator();
+        saw.type = 'sawtooth';
+        saw.frequency.setValueAtTime(hz, t);
+        var oct = ctx.createOscillator();
+        oct.type = 'sine';
+        oct.frequency.setValueAtTime(hz * 2, t);
+        var fifth = ctx.createOscillator();
+        fifth.type = 'sine';
+        fifth.frequency.setValueAtTime(hz * 3, t);
+        var lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = Math.min(hz * 6, 2600);
+        lp.Q.value = 0.6;
+        var sawG = ctx.createGain();   sawG.gain.value = 1.0;
+        var octG = ctx.createGain();   octG.gain.value = 0.38;
+        var fifthG = ctx.createGain(); fifthG.gain.value = 0.20;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + dur * 0.18);          // slow bloom in
+        g.gain.linearRampToValueAtTime(gain * 0.85, t + dur * 0.7);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);          // fade into next chord
+        saw.connect(sawG).connect(lp);
+        oct.connect(octG).connect(lp);
+        fifth.connect(fifthG).connect(lp);
+        lp.connect(g).connect(bus);
+        saw.start(t); oct.start(t); fifth.start(t);
+        saw.stop(t + dur + 0.05);
+        oct.stop(t + dur + 0.05);
+        fifth.stop(t + dur + 0.05);
+      }
+
+      // Church bell — fundamental + 4 partials at bell-specific
+      // ratios (octave, perfect-12th, "tierce" minor 10th, "nominal"
+      // octave-and-major-3rd). Long exponential decay; each partial
+      // decays at a slightly different rate, giving the realistic
+      // bell shimmer. Routed through the comb-filter bus for the
+      // swirling sweep effect.
+      function churchBell(hz, t) {
+        var bus = combBus || master;
+        // Gains cut ~55% and decays shortened so the bell sits under
+        // the choir/wurlitzer instead of dominating, and successive
+        // strikes don't overlap into a constant ring.
+        var partials = [
+          { mult: 0.5,  gain: 0.20, dur: 3.2 },   // hum tone, octave below
+          { mult: 1.0,  gain: 0.24, dur: 2.6 },   // strike fundamental
+          { mult: 2.0,  gain: 0.15, dur: 1.9 },   // octave
+          { mult: 2.4,  gain: 0.11, dur: 1.5 },   // minor tierce — the bell's "wrong" partial
+          { mult: 3.0,  gain: 0.08, dur: 1.3 },   // perfect twelfth
+          { mult: 4.2,  gain: 0.05, dur: 0.9 },   // nominal
+        ];
+        for (var i = 0; i < partials.length; i++) {
+          var p = partials[i];
+          var osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(hz * p.mult, t);
+          var g = ctx.createGain();
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(p.gain, t + 0.006);   // hard strike attack
+          g.gain.exponentialRampToValueAtTime(0.0001, t + p.dur);
+          osc.connect(g).connect(bus);
+          osc.start(t);
+          osc.stop(t + p.dur + 0.05);
+        }
+      }
+
+      function arpVoice(hz, t, dur, gain) {
+        var saw = ctx.createOscillator();
+        saw.type = 'sawtooth';
+        saw.frequency.setValueAtTime(hz, t);
+        var oct = ctx.createOscillator();
+        oct.type = 'sine';
+        oct.frequency.setValueAtTime(hz * 2, t);
+        var lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        // Base cutoff sits mid-band; the LFO adds ±1200Hz around it,
+        // giving a sweep range of roughly 300Hz → 2700Hz.
+        lp.frequency.value = 1500;
+        lp.Q.value = 5.5;       // resonant — makes the sweep audible
+        if (sweepLfoGain) sweepLfoGain.connect(lp.frequency);
+        var sawG = ctx.createGain(); sawG.gain.value = 1.0;
+        var octG = ctx.createGain(); octG.gain.value = 0.35;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + 0.008);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.001, gain * 0.5), t + dur * 0.35);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        saw.connect(sawG).connect(lp);
+        oct.connect(octG).connect(lp);
+        lp.connect(g).connect(phaserBus || master);
+        saw.start(t); oct.start(t);
+        saw.stop(t + dur + 0.05);
+        oct.stop(t + dur + 0.05);
+      }
+
+      function organStab(hz, t, dur, gain) {
+        var saw = ctx.createOscillator();
+        saw.type = 'sawtooth';
+        saw.frequency.setValueAtTime(hz, t);
+        var oct = ctx.createOscillator();
+        oct.type = 'sine';
+        oct.frequency.setValueAtTime(hz * 2, t);
+        var fifth = ctx.createOscillator();
+        fifth.type = 'sine';
+        fifth.frequency.setValueAtTime(hz * 3, t);
+        var lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = Math.min(hz * 8, 3200);
+        var sawG = ctx.createGain(); sawG.gain.value = 1.0;
+        var octG = ctx.createGain(); octG.gain.value = 0.35;
+        var fifthG = ctx.createGain(); fifthG.gain.value = 0.18;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + 0.008);   // FAST attack
+        g.gain.exponentialRampToValueAtTime(Math.max(0.001, gain * 0.5), t + dur * 0.35);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        saw.connect(sawG).connect(lp);
+        oct.connect(octG).connect(lp);
+        fifth.connect(fifthG).connect(lp);
+        lp.connect(g).connect(master);
+        saw.start(t); oct.start(t); fifth.start(t);
+        saw.stop(t + dur + 0.05);
+        oct.stop(t + dur + 0.05);
+        fifth.stop(t + dur + 0.05);
+      }
+
+      // Choir stab — syllabic "AHH" punch with fast attack + medium
+      // release. Sine voice + bandpass-filtered noise on the same
+      // pitch gives the vowel formant; subtle vibrato.
+      function choirStab(hz, t, dur, gain) {
+        var osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(hz, t);
+        var lfo = ctx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.value = 5.4;
+        var lfoGain = ctx.createGain();
+        lfoGain.gain.value = hz * 0.010;
+        lfo.connect(lfoGain).connect(osc.frequency);
+        var bufLen = Math.max(1, Math.floor(ctx.sampleRate * dur));
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * 0.6;
+        var noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        var nbp = ctx.createBiquadFilter();
+        nbp.type = 'bandpass';
+        nbp.frequency.value = Math.max(800, hz * 1.8);
+        nbp.Q.value = 1.0;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + 0.04);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        var noiseG = ctx.createGain();
+        noiseG.gain.setValueAtTime(0, t);
+        noiseG.gain.linearRampToValueAtTime(gain * 0.28, t + 0.04);
+        noiseG.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(g).connect(master);
+        noise.connect(nbp).connect(noiseG).connect(master);
+        osc.start(t); lfo.start(t); noise.start(t);
+        osc.stop(t + dur + 0.05);
+        lfo.stop(t + dur + 0.05);
+      }
+
+      // Pedal-tone bass — square wave through a lowpass for the deep
+      // throbbing pulse under the choir. Drives the descending
+      // chromatic ostinato that defines this register.
+      // Wurlitzer voice — warm electric organ for the gospel chord
+      // pad. Sine fundamental + slightly detuned sine + a quiet square
+      // overlay for the electric bite, all through a mid-band lowpass.
+      // ~5.5Hz amplitude tremolo (the characteristic Wurlitzer wobble).
+      // Used for held chord pads, not stabs — sustains across the
+      // chord slot beneath the arp + choir slap.
+      function wurlitzer(hz, t, dur, gain) {
+        var sine = ctx.createOscillator();
+        sine.type = 'sine';
+        sine.frequency.setValueAtTime(hz, t);
+        // Detuned chorus partner
+        var sine2 = ctx.createOscillator();
+        sine2.type = 'sine';
+        sine2.frequency.setValueAtTime(hz * 1.006, t);
+        // Quiet square for the electric bite
+        var sq = ctx.createOscillator();
+        sq.type = 'square';
+        sq.frequency.setValueAtTime(hz, t);
+        var lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = Math.min(hz * 5, 2200);
+        lp.Q.value = 0.9;
+        var sineG = ctx.createGain(); sineG.gain.value = 1.0;
+        var sine2G = ctx.createGain(); sine2G.gain.value = 0.6;
+        var sqG = ctx.createGain();   sqG.gain.value = 0.12;
+        // Tremolo via amplitude LFO — ~5.5Hz wobble on the master gain
+        var tremLfo = ctx.createOscillator();
+        tremLfo.type = 'sine';
+        tremLfo.frequency.value = 5.5;
+        var tremGain = ctx.createGain();
+        tremGain.gain.value = gain * 0.22;   // ±22% amplitude wobble
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + 0.06);
+        g.gain.linearRampToValueAtTime(gain * 0.78, t + dur * 0.7);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        tremLfo.connect(tremGain).connect(g.gain);
+        sine.connect(sineG).connect(lp);
+        sine2.connect(sine2G).connect(lp);
+        sq.connect(sqG).connect(lp);
+        lp.connect(g).connect(phaserBus || master);
+        sine.start(t); sine2.start(t); sq.start(t); tremLfo.start(t);
+        sine.stop(t + dur + 0.05);
+        sine2.stop(t + dur + 0.05);
+        sq.stop(t + dur + 0.05);
+        tremLfo.stop(t + dur + 0.05);
+      }
+
+      function bass(hz, t, dur, gain) {
+        var osc = ctx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(hz, t);
+        var lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = Math.min(hz * 4, 600);
+        lp.Q.value = 1.2;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(gain, t + 0.006);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.001, gain * 0.5), t + dur * 0.5);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(lp).connect(g).connect(master);
+        osc.start(t);
+        osc.stop(t + dur + 0.02);
+      }
+
+      // Timpani — orchestral pitched-drum boom. Lower than a kick,
+      // longer tail, with a touch of resonance. The dramatic pulse.
+      function timpani(t, gainScale) {
+        gainScale = gainScale || 1;
+        var osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(90, t);
+        osc.frequency.exponentialRampToValueAtTime(38, t + 0.12);
+        // Resonant noise overlay for the skin attack
+        var bufLen = ctx.sampleRate * 0.04;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+        var noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        var nbp = ctx.createBiquadFilter();
+        nbp.type = 'bandpass';
+        nbp.frequency.value = 180;
+        nbp.Q.value = 4;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.62 * gainScale, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+        var noiseG = ctx.createGain();
+        noiseG.gain.setValueAtTime(0.35 * gainScale, t);
+        noiseG.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+        osc.connect(g).connect(master);
+        noise.connect(nbp).connect(noiseG).connect(master);
+        osc.start(t);
+        noise.start(t);
+        osc.stop(t + 0.6);
+      }
+
+      // Orchestral snare roll — rolling noise crescendo. Used as the
+      // dramatic punch-in to the next phrase, builds energy across a
+      // beat or two.
+      // House snare/clap — short bright noise burst with body around
+      // 800Hz. Punchier than the orchestral snare; this is the gospel-
+      // house snap on 2 & 4. Two stacked envelopes give a quick double
+      // attack — reads as a layered snare-and-clap hit.
+      // Dirty trip-hop kick — lower fundamental (55→18Hz drop), longer
+      // tail (~480ms), with a noise transient click at the attack and
+      // a WaveShaper for soft-clipping saturation. The saturation
+      // gives it the grimy Portishead/Massive Attack edge — not just
+      // a clean 4-on-floor pulse but a chunky, slightly distorted
+      // sub-and-body punch.
+      function tripHopKick(t, gainScale) {
+        gainScale = gainScale || 1;
+        // Sub-body — sine drop, now starting at 75Hz so the punch is
+        // audible on small speakers, dropping to 32Hz sub. Lowpass
+        // opens to 520Hz so the saturated body harmonics come through
+        // (not just sub-rumble).
+        var osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(75, t);
+        osc.frequency.exponentialRampToValueAtTime(32, t + 0.20);
+        var shaper = ctx.createWaveShaper();
+        shaper.curve = (function () {
+          var n = 2048, c = new Float32Array(n), k = 4.5;
+          for (var i = 0; i < n; i++) {
+            var x = (i * 2) / n - 1;
+            c[i] = (1 + k) * x / (1 + k * Math.abs(x));
+          }
+          return c;
+        })();
+        var post = ctx.createBiquadFilter();
+        post.type = 'lowpass';
+        post.frequency.value = 520;                          // wider — body audible
+        var bodyG = ctx.createGain();
+        bodyG.gain.setValueAtTime(1.40 * gainScale, t);     // boosted further
+        bodyG.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
+        osc.connect(shaper).connect(post).connect(bodyG).connect(master);
+        osc.start(t);
+        osc.stop(t + 0.5);
+        // Attack click — louder, lower freq for a more "thwack"
+        // transient that's audible on every system.
+        var bufLen = ctx.sampleRate * 0.03;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+        var noise = ctx.createBufferSource();
+        noise.buffer = buf;
+        var bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 850;
+        bp.Q.value = 1.5;
+        var noiseG = ctx.createGain();
+        noiseG.gain.setValueAtTime(0.55 * gainScale, t);    // boosted further
+        noiseG.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+        noise.connect(bp).connect(noiseG).connect(master);
+        noise.start(t);
+      }
+
+      // Breakbeat hat click — shorter and lower-pitched than the
+      // main hiphopHat. Bandpass at 5500Hz instead of highpass at
+      // 9500Hz, 12ms decay. Reads as a "tk" click underneath the
+      // "ts" of the main hat, so the two layers occupy different
+      // frequency bands without masking each other.
+      function hatClick(t, gain) {
+        var bufLen = ctx.sampleRate * 0.014;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen * 0.4);
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        var bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 5500;
+        bp.Q.value = 2.2;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(gain, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.012);
+        src.connect(bp).connect(g).connect(master);
+        src.start(t);
+      }
+
+      // Hip-hop hi-hat — tight bright noise burst, shorter and
+      // sharper than the house closedHat. Highpass at 9500Hz for
+      // the "ts" sizzle, 22ms decay so 16th-triplet rolls don't
+      // smear into each other.
+      function hiphopHat(t, gain) {
+        var bufLen = ctx.sampleRate * 0.025;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen * 0.6);
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        var hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 9500;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(gain, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.022);
+        src.connect(hp).connect(g).connect(master);
+        src.start(t);
+      }
+
+      function houseSnare(t, gainScale) {
+        gainScale = gainScale || 1;
+        var bufLen = ctx.sampleRate * 0.13;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen * 0.7);
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        var bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 1100;
+        bp.Q.value = 1.4;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.65 * gainScale, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+        // Body tone — short sine tap at 200Hz for the drum-head thud
+        var body = ctx.createOscillator();
+        body.type = 'triangle';
+        body.frequency.setValueAtTime(220, t);
+        body.frequency.exponentialRampToValueAtTime(140, t + 0.04);
+        var bodyG = ctx.createGain();
+        bodyG.gain.setValueAtTime(0.32 * gainScale, t);
+        bodyG.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+        src.connect(bp).connect(g).connect(master);
+        body.connect(bodyG).connect(master);
+        src.start(t);
+        body.start(t);
+        body.stop(t + 0.08);
+      }
+
+      // Closed hi-hat — short sharp highpassed noise burst.
+      function closedHat(t, gainScale) {
+        gainScale = gainScale || 1;
+        var bufLen = ctx.sampleRate * 0.04;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        var hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 7500;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.18 * gainScale, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+        src.connect(hp).connect(g).connect(master);
+        src.start(t);
+      }
+
+      // Open hi-hat — longer, sustained noise with a slow decay tail.
+      // The classic house "lift" sound that telegraphs the next phrase.
+      function openHat(t) {
+        var bufLen = ctx.sampleRate * 0.32;
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        var hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 6000;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.22, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.30);
+        src.connect(hp).connect(g).connect(master);
+        src.start(t);
+      }
+
+      function snareRoll(t, dur) {
+        var bufLen = Math.max(1, Math.floor(ctx.sampleRate * dur));
+        var buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        var hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 1400;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.22, t + dur * 0.85);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        src.connect(hp).connect(g).connect(master);
+        src.start(t);
+        src.stop(t + dur + 0.02);
+      }
+
+      // Cathedral bell — high sine ping with long exponential decay.
+      function bell(hz, t) {
+        var osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(hz, t);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.22, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+        osc.connect(g).connect(master);
+        osc.start(t);
+        osc.stop(t + 3.3);
+      }
+
+      function boot() {
+        if (booted) return;
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC();
+        master = ctx.createGain();
+        master.gain.value = 0.42;
+        master.connect(ctx.destination);
+        // Pick a fresh session key on each page load — 12 chromatic
+        // options spanning A2 (110Hz) up to G#3. Log the semitone
+        // offset so it's visible in devtools alongside PAGE_VERSION.
+        var semitone = Math.floor(Math.random() * 12);
+        SESSION_ROOT_HZ = 110 * Math.pow(2, semitone / 12);
+        var noteNames = ['A2','A#2','B2','C3','C#3','D3','D#3','E3','F3','F#3','G3','G#3'];
+        try {
+          console.log('%c[session key] ' + noteNames[semitone] + ' (' + SESSION_ROOT_HZ.toFixed(1) + ' Hz)',
+                      'color:#c9a14a;background:#1a1208;padding:2px 6px;border-radius:3px;font-family:monospace');
+        } catch (e) {}
+        // Start the shared filter-sweep LFO — runs continuously,
+        // outputs ±1200Hz centered at 0. arpVoice connects its
+        // lowpass cutoff AudioParam to this so the sweep is in
+        // phase across all arp notes (rather than restarting per
+        // note). Slow ~12s sweep period for a steady wah.
+        sweepLfo = ctx.createOscillator();
+        sweepLfo.type = 'sine';
+        sweepLfo.frequency.value = 0.05;          // slowed for trippy drift
+        sweepLfoGain = ctx.createGain();
+        sweepLfoGain.gain.value = 1400;
+        sweepLfo.connect(sweepLfoGain);
+        sweepLfo.start();
+
+        // ── Phaser bus — 4 cascaded allpass filters with a slow
+        // shared LFO sweeping their cutoff frequencies. Splits
+        // input → wet (through allpasses) + dry, both → master.
+        // Drives the trippy swirl on the arp + wurlitzer.
+        phaserBus = ctx.createGain();
+        var ap1 = ctx.createBiquadFilter(); ap1.type = 'allpass'; ap1.Q.value = 1.4;
+        var ap2 = ctx.createBiquadFilter(); ap2.type = 'allpass'; ap2.Q.value = 1.4;
+        var ap3 = ctx.createBiquadFilter(); ap3.type = 'allpass'; ap3.Q.value = 1.4;
+        var ap4 = ctx.createBiquadFilter(); ap4.type = 'allpass'; ap4.Q.value = 1.4;
+        ap1.frequency.value =  500;
+        ap2.frequency.value =  900;
+        ap3.frequency.value = 1600;
+        ap4.frequency.value = 2400;
+        // Very slow LFO — ~5 seconds per cycle for the lazy swirl.
+        var phaserLfo = ctx.createOscillator();
+        phaserLfo.type = 'sine';
+        phaserLfo.frequency.value = 0.19;
+        var phaserLfoGain = ctx.createGain();
+        phaserLfoGain.gain.value = 600;            // ±600Hz swing on each stage
+        phaserLfo.connect(phaserLfoGain);
+        phaserLfoGain.connect(ap1.frequency);
+        phaserLfoGain.connect(ap2.frequency);
+        phaserLfoGain.connect(ap3.frequency);
+        phaserLfoGain.connect(ap4.frequency);
+        phaserLfo.start();
+        // Wet branch: bus → ap1 → ap2 → ap3 → ap4 → wetGain → master
+        var wetGain = ctx.createGain(); wetGain.gain.value = 0.65;
+        phaserBus.connect(ap1);
+        ap1.connect(ap2).connect(ap3).connect(ap4).connect(wetGain).connect(master);
+        // Dry branch: bus → dryGain → master
+        var dryGain = ctx.createGain(); dryGain.gain.value = 0.55;
+        phaserBus.connect(dryGain).connect(master);
+
+        // ── Comb-filter bus for the church bell — short modulated
+        // delay with feedback. The delay time is swept by a fast LFO
+        // at the current 1/32nd-note rate (set in retuneComb when the
+        // tempo changes). Feedback creates the resonant comb peaks;
+        // the LFO sweeps them across the bell's harmonics for the
+        // big swirling metallic shimmer on every strike.
+        combBus = ctx.createGain();
+        combDelay = ctx.createDelay(0.05);   // up to 50ms — flanger range
+        combDelay.delayTime.value = 0.006;
+        var combFb = ctx.createGain();
+        combFb.gain.value = 0.78;
+        var combWet = ctx.createGain();
+        combWet.gain.value = 0.28;             // drier — comb is subtle now
+        // Comb-sweep LFO — fast modulation, retuned per tempo to land
+        // on a 32nd-note period.
+        var combLfo = ctx.createOscillator();
+        combLfo.type = 'sine';
+        combLfo.frequency.value = 18;        // retuned in retuneComb()
+        combLfoRef = combLfo;
+        var combLfoGain = ctx.createGain();
+        combLfoGain.gain.value = COMB_LFO_BASE;
+        combLfoGainRef = combLfoGain;
+        combLfo.connect(combLfoGain).connect(combDelay.delayTime);
+        combLfo.start();
+        combBus.connect(combDelay);
+        combDelay.connect(combFb).connect(combDelay);   // feedback loop
+        combDelay.connect(combWet).connect(master);
+        combBus.connect(master);             // dry passthrough
+
+        // ── Sub bus: reverb → echo → master ──
+        // Signal path:  subBus → ConvolverNode (verb wet) ─┐
+        //                     └─→ verbDry  ──────────────→ preEcho
+        //                                                    │
+        //                          ┌──── feedback ──────────┤
+        //                          ▼                         │
+        //                       subDelay → subEchoWet ──→ master
+        //                                  (and preEcho → master via dry)
+        // The octave-down ghost is scheduled separately in schedStep
+        // by calling pipeOrgan() at hz/2 with subBus as the target —
+        // gives the "pitch shifted shadow" register the user wants.
+        subBus = ctx.createGain();
+        subBus.gain.value = 0.55;
+        var verb = ctx.createConvolver();
+        verb.buffer = makeReverbIR(2.6, 1.5);
+        var verbWet = ctx.createGain(); verbWet.gain.value = 0.65;
+        var verbDry = ctx.createGain(); verbDry.gain.value = 0.40;
+        var preEcho = ctx.createGain();
+        subBus.connect(verb).connect(verbWet).connect(preEcho);
+        subBus.connect(verbDry).connect(preEcho);
+        var subDelay = ctx.createDelay(2.0);
+        subDelay.delayTime.value = 0.46;
+        var subFb = ctx.createGain(); subFb.gain.value = 0.42;
+        var subEchoWet = ctx.createGain(); subEchoWet.gain.value = 0.6;
+        preEcho.connect(subDelay);
+        subDelay.connect(subFb).connect(subDelay);
+        subDelay.connect(subEchoWet).connect(master);
+        preEcho.connect(master);             // dry-after-verb passthrough
+
+        pattern = newPattern();
+        retuneComb();
+        stepIdx = 0;
+        loopCount = 0;
+        nextTime = ctx.currentTime + 0.1;
+        schedTimer = setInterval(scheduler, LOOKAHEAD_MS);
+        booted = true;
+        updateToggleLabel();
+      }
+      function setMuted(m) {
+        muted = m;
+        if (master) master.gain.value = muted ? 0 : 0.42;
+        updateToggleLabel();
+      }
+      function updateToggleLabel() {
+        var t = document.getElementById('bf-organ-toggle');
+        if (t) t.textContent = (booted && !muted) ? '♪ on' : '♪ off';
+      }
+
+      // Toggle pill — bottom-left, small, quiet.
+      var pill = document.createElement('button');
+      pill.id = 'bf-organ-toggle';
+      pill.type = 'button';
+      pill.textContent = '♪ off';
+      pill.style.cssText = [
+        'position: fixed',
+        'bottom: 10px',
+        'left: 10px',
+        'z-index: 90',
+        'padding: 4px 10px',
+        'background: rgba(0,0,0,0.7)',
+        'color: #c9a14a',
+        'border: 1px solid #c9a14a',
+        'border-radius: 999px',
+        'font-family: monospace',
+        'font-size: 11px',
+        'letter-spacing: 0.16em',
+        'cursor: pointer',
+        'text-transform: uppercase'
+      ].join(';');
+      pill.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!booted) boot(); else setMuted(!muted);
+      });
+      document.body.appendChild(pill);
+
+      // Also boot on the first non-toggle click anywhere — most browsers
+      // require a user gesture before AudioContext can start, so we
+      // piggyback the player's first table interaction.
+      function bootOnGesture() {
+        if (!booted) boot();
+        document.removeEventListener('click', bootOnGesture, true);
+      }
+      document.addEventListener('click', bootOnGesture, true);
+    })();
+  </script>
+</body>
+</html>

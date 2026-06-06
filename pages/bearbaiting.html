@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BEAR BAITING — bet bear or dogs, watch the pit resolve                  │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A pit-combat betting game styled as an 1800s baiting yard. Each      │
+  │    bait rolls a fresh bear (with scars, mange, blindness, chain        │
+  │    tether, posture) and 3-5 dogs (breed, condition, aggression). The   │
+  │    Field Guide (#bb-fg-*) lists what the player can read off the       │
+  │    animals; the Form Sheet (#bb-fs-*) lists prior bout records. The    │
+  │    bookie posts odds based on a naive power calc that ignores the      │
+  │    cues (eye, mange, posture, condition, aggression) — so a sharp      │
+  │    reader can find edges. The player sets a stake and backs a side;    │
+  │    the pit-canvas combat plays in real time (dogs charge from pens,    │
+  │    trade bites with the bear, damage numbers float up). Winner side    │
+  │    pays stake × bookie odds.                                            │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, bearbaiting/page.js,         │
+  │      header.js                                                           │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #bb-canvas, #bb-round, #bb-prompt, #bb-result,     │
+  │      #bb-odds-bear, #bb-odds-dogs, #bb-wager, #bb-wager-max,             │
+  │      #bb-bet-bear, #bb-bet-dogs, #bb-next, #bb-fg-bear-name,             │
+  │      #bb-fg-bear-cues, #bb-fg-dogs, #bb-fs-bear, #bb-fs-dogs,            │
+  │      #debug-reset                                                        │
+  │    flow: page.js init → bind bet-bear/bet-dogs/next/wager-max → rAF      │
+  │      loop; newRound: rollBear + rollDog×N + layoutPit + computeOdds      │
+  │      (vig=0.07, min 1.10) + renderFieldGuide + renderFormSheet;          │
+  │      placeBet(side): Wallet.spend(wager) (+ Child.recordPlay implicit    │
+  │      via expenses), state='fighting' → updateCombat(dt): dogs penned→    │
+  │      charging→fighting, bites+swipes vs hitChance/dodge → endFight       │
+  │      (winner==betSide ? Wallet.add(floor(wager·payoutMult)) : 0)        │
+  │    storage R/W: sinnerbox (Wallet), wendys_palace_child,                 │
+  │      wendys_palace_intro_seen (R), wendys_palace_death (R)               │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bear Baiting</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bearbaiting/bearbaiting.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body class="bb-body">
+  <header>
+    <h1 class="bb-title">Bear Baiting</h1>
+    <p class="bb-subtitle">Sunday at the pit. Tuppence to watch. Tuppence to wager.</p>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <main>
+    <details class="bb-rules">
+      <summary>How it works</summary>
+      <div class="bb-rules-body">
+        <p>Pick a side — <strong>bear</strong> or <strong>dogs</strong> — and stake your purse. The bookie posts odds, but he isn't always right.</p>
+        <ul>
+          <li>The fight resolves in real time. Bear dies → dogs win. All dogs die → bear wins.</li>
+          <li><strong>You see what the bookie sees, and a little more.</strong> Read the pit. Read the form sheet. Bears have tells. Dogs have tells. The bookie reads the obvious ones.</li>
+          <li>If you back the bear and lose, your stake is gone. Same for the dogs.</li>
+        </ul>
+      </div>
+    </details>
+
+    <section class="bb-pit-wrap">
+      <div class="bb-pit-header">
+        <div class="bb-pit-round">
+          <span class="bb-pit-label">Bait</span>
+          <span class="bb-pit-value" id="bb-round">—</span>
+        </div>
+        <div class="bb-pit-status" id="bb-prompt">Inspect the pit. The bookie's waiting.</div>
+        <div class="bb-pit-result" id="bb-result"></div>
+      </div>
+
+      <div class="bb-pit-canvas-wrap">
+        <canvas id="bb-canvas" width="720" height="400" aria-label="The bear pit"></canvas>
+      </div>
+    </section>
+
+    <section class="bb-floor">
+      <!-- ===== Bookie's chalkboard + bet controls ===== -->
+      <div class="bb-bookie">
+        <div class="bb-bookie-board">
+          <div class="bb-bookie-title">The Bookie</div>
+          <div class="bb-bookie-odds">
+            <div class="bb-odds-row">
+              <span class="bb-odds-side">BEAR</span>
+              <span class="bb-odds-val" id="bb-odds-bear">—</span>
+            </div>
+            <div class="bb-odds-row">
+              <span class="bb-odds-side">DOGS</span>
+              <span class="bb-odds-val" id="bb-odds-dogs">—</span>
+            </div>
+          </div>
+          <div class="bb-bookie-hint">Posted by a man who has never met a milky eye.</div>
+        </div>
+
+        <div class="bb-betting">
+          <div class="bb-wager-row">
+            <label class="bb-wager-label" for="bb-wager">Stake</label>
+            <input id="bb-wager" type="number" min="1" value="5" inputmode="numeric" autocomplete="off">
+            <button id="bb-wager-max" class="bb-btn bb-btn-small" type="button">MAX</button>
+          </div>
+          <div class="bb-bet-row">
+            <button id="bb-bet-bear" class="bb-btn bb-btn-bear" type="button">BACK BEAR</button>
+            <button id="bb-bet-dogs" class="bb-btn bb-btn-dogs" type="button">BACK DOGS</button>
+          </div>
+          <div class="bb-next-row">
+            <button id="bb-next" class="bb-btn bb-btn-next" type="button" hidden>NEXT BAIT →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Field guide + form sheet ===== -->
+      <div class="bb-reading">
+        <section class="bb-fieldguide">
+          <h3 class="bb-section-title">Field Guide</h3>
+          <p class="bb-section-note">What you can see, if you bother.</p>
+          <div class="bb-fg-block">
+            <div class="bb-fg-heading" id="bb-fg-bear-name">—</div>
+            <div class="bb-fg-cues" id="bb-fg-bear-cues"></div>
+          </div>
+          <div class="bb-fg-block">
+            <div class="bb-fg-heading">The Pack</div>
+            <ul class="bb-fg-dogs" id="bb-fg-dogs"></ul>
+          </div>
+        </section>
+
+        <section class="bb-formsheet">
+          <h3 class="bb-section-title">Form Sheet</h3>
+          <p class="bb-section-note">From the docket. Trust at your own risk.</p>
+          <div class="bb-fs-block" id="bb-fs-bear"></div>
+          <div class="bb-fs-block">
+            <ul class="bb-fs-dogs" id="bb-fs-dogs"></ul>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/bearbaiting/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

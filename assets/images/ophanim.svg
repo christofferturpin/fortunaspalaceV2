@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <!--
+    Ophanim — Ezekiel 1:18 "their rings were full of eyes round about them four"
+    Wheel-within-wheel. Decorative background motif for the boss-fight table.
+  -->
+  <defs>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f8e9b0" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#f8e9b0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- soft halo -->
+  <circle cx="150" cy="150" r="150" fill="url(#halo)"/>
+
+  <!-- three concentric rims -->
+  <g fill="none" stroke="#c9a14a" stroke-opacity="0.7">
+    <circle cx="150" cy="150" r="120" stroke-width="1"/>
+    <circle cx="150" cy="150" r="80"  stroke-width="1.3"/>
+    <circle cx="150" cy="150" r="42"  stroke-width="1"/>
+  </g>
+
+  <!-- 8 spokes -->
+  <g stroke="#c9a14a" stroke-width="0.6" stroke-opacity="0.5">
+    <line x1="150" y1="30"  x2="150" y2="270"/>
+    <line x1="30"  y1="150" x2="270" y2="150"/>
+    <line x1="65"  y1="65"  x2="235" y2="235"/>
+    <line x1="65"  y1="235" x2="235" y2="65"/>
+  </g>
+
+  <!-- 12 eyes on the outer rim (r=120) -->
+  <g fill="#1a1410" stroke="#c9a14a" stroke-width="0.6">
+    <g transform="translate(270 150)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(254 210)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(210 254)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(150 270)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(90 254)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(46 210)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(30 150)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(46 90)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(90 46)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(150 30)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(210 46)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+    <g transform="translate(254 90)"><ellipse cx="0" cy="0" rx="10" ry="6" fill="#f6efe0"/><circle cx="0" cy="0" r="3"/></g>
+  </g>
+
+  <!-- 6 eyes on the middle rim (r=80) -->
+  <g fill="#1a1410" stroke="#c9a14a" stroke-width="0.5">
+    <g transform="translate(230 150)"><ellipse cx="0" cy="0" rx="7" ry="4" fill="#f6efe0"/><circle cx="0" cy="0" r="2"/></g>
+    <g transform="translate(190 219)"><ellipse cx="0" cy="0" rx="7" ry="4" fill="#f6efe0"/><circle cx="0" cy="0" r="2"/></g>
+    <g transform="translate(110 219)"><ellipse cx="0" cy="0" rx="7" ry="4" fill="#f6efe0"/><circle cx="0" cy="0" r="2"/></g>
+    <g transform="translate(70 150)"><ellipse cx="0" cy="0" rx="7" ry="4" fill="#f6efe0"/><circle cx="0" cy="0" r="2"/></g>
+    <g transform="translate(110 81)"><ellipse cx="0" cy="0" rx="7" ry="4" fill="#f6efe0"/><circle cx="0" cy="0" r="2"/></g>
+    <g transform="translate(190 81)"><ellipse cx="0" cy="0" rx="7" ry="4" fill="#f6efe0"/><circle cx="0" cy="0" r="2"/></g>
+  </g>
+
+  <!-- central pupil -->
+  <circle cx="150" cy="150" r="14" fill="none" stroke="#c9a14a" stroke-width="0.8"/>
+  <ellipse cx="150" cy="150" rx="9" ry="5" fill="#f6efe0" stroke="#c9a14a" stroke-width="0.6"/>
+  <circle cx="150" cy="150" r="3" fill="#1a1410"/>
+</svg>

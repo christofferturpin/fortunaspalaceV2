@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BOSSFIGHT · FORTUNA — Hold'em (gold leaf / plum velvet / rose madder) │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │  For humans: the final boss. The Palace itself. She's been turning      │
+  │    the wheel the whole time.                                            │
+  │  For AI: same shell — palette + BossConfig differ.                     │
+  │  routes out: debug-bosses.html                                         │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fortuna — Fortuna's Palace</title>
+  <script>
+    window.PAGE_VERSION = 'fortuna v0.1 · stub';
+    console.log('%c[page version] ' + window.PAGE_VERSION,
+                'color:#c9a14a;background:#1a1208;padding:2px 6px;border-radius:3px;font-family:monospace');
+  </script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bossfight/holdem.css">
+  <link rel="stylesheet" href="../css/bossfight/fortuna.css">
+  <style>
+    body.bf-body {
+      --bf-bg:          #1a1224;
+      --bf-bg-grade:    #2a1c3a;
+      --bf-fg:          #f0e6c8;
+      --bf-fg-dim:      #b8a484;
+      --bf-accent:      #c8a040;
+      --bf-accent-deep: #7a5f1c;
+      --bf-felt:        #1f1a2e;
+      --bf-felt-edge:   #5a3a52;
+      --bf-card-face:   #f4ecd4;
+      --bf-card-back:   #2a1830;
+      --bf-suit-black:  #1a0a0a;
+      --bf-suit-red:    #a83040;
+    }
+    /* Under-board monologue — empty by default; fill LINES in the
+       inline script below to activate. Styling uses the page palette
+       so the line tints to the boss's accent automatically. */
+    .bf-monologue {
+      width: 100%;
+      max-width: 560px;
+      margin: -2px auto 0;
+      padding: 6px 14px 2px;
+      font-family: var(--font-body, serif);
+      font-size: 18px;
+      font-style: italic;
+      line-height: 1.45;
+      color: var(--bf-fg);
+      text-align: center;
+      text-shadow:
+        0 0 4px  color-mix(in srgb, var(--bf-accent) 70%, transparent),
+        0 0 14px color-mix(in srgb, var(--bf-accent) 50%, transparent);
+      pointer-events: none;
+      user-select: none;
+      min-height: 1.5em;
+      transition: opacity 420ms ease;
+    }
+    .bf-monologue.is-fading { opacity: 0; }
+  </style>
+</head>
+<body class="bf-body bf-fortuna">
+
+  <header class="bf-header">
+    <h1>Fortuna<span class="bf-epithet">Goddess · not a PC</span></h1>
+    <a class="bf-back-link" href="debug-bosses.html">← hub</a>
+  </header>
+
+  <div class="bf-status">
+    <div class="bf-status-cell">Hand <b id="bf-hand">#1</b></div>
+    <div class="bf-status-cell">Blinds <b id="bf-blinds">1/2</b></div>
+    <div class="bf-status-cell">Street <b id="bf-street">—</b></div>
+  </div>
+
+  <div class="bf-seat bf-seat-opp" id="bf-opp-seat">
+    <div class="bf-boss-avatar-wrap" id="bf-boss-avatar-wrap">
+      <div class="bf-boss-avatar-title" id="bf-boss-avatar-title">Fortuna</div>
+      <div class="bf-boss-avatar-frame">
+        <pre class="bf-boss-avatar" id="bf-boss-avatar"></pre>
+      </div>
+      <span class="bf-boss-tell" id="bf-boss-tell"></span>
+    </div>
+    <div class="bf-seat-info">
+      <span class="bf-seat-name" id="bf-opp-name">Fortuna</span>
+      <span class="bf-seat-stack"><span id="bf-opp-stack">150</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-opp-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-opp-cards"></div>
+  </div>
+
+  <div class="bf-community-row">
+    <div class="bf-pot-display" id="bf-pot-display">
+      <span class="bf-pot-label">Pot</span>
+      <span class="bf-pot-value" id="bf-pot">0</span>
+    </div>
+    <div class="bf-community" id="bf-community"></div>
+  </div>
+
+  <!-- Boss monologue — one line per hand, under the board. LINES is
+       empty by default (see the inline script below); fill it in to
+       activate this boss's voice. -->
+  <div id="bf-fortuna-monologue" class="bf-monologue" aria-hidden="true"></div>
+
+  <div class="bf-seat bf-seat-player" id="bf-player-seat">
+    <div class="bf-seat-info">
+      <span class="bf-seat-name">You</span>
+      <span class="bf-seat-stack"><span id="bf-player-stack">100</span><span class="bf-seat-stack-coins">chips</span></span>
+      <span class="bf-seat-bet" id="bf-player-bet"></span>
+    </div>
+    <div class="bf-seat-cards" id="bf-player-cards"></div>
+  </div>
+
+  <div class="bf-log" id="bf-log">
+    <div class="bf-log-header">
+      Play Log
+      <button id="bf-log-clear" class="bf-log-clear" type="button">Clear</button>
+    </div>
+    <div class="bf-log-scroll" id="bf-log-scroll"></div>
+  </div>
+
+  <div class="bf-actions" id="bf-actions">
+    <button id="bf-act-fold" class="bf-act-fold" type="button">Fold</button>
+    <button id="bf-act-passive" type="button">Check</button>
+    <button id="bf-act-aggro" class="bf-act-aggro" type="button">Bet</button>
+    <div class="bf-sizing" id="bf-sizing">
+      <button class="bf-preset" data-preset="min" type="button">Min</button>
+      <button class="bf-preset" data-preset="half" type="button">½</button>
+      <button class="bf-preset" data-preset="pot" type="button">Pot</button>
+      <button class="bf-preset" data-preset="all" type="button">All</button>
+      <input id="bf-raise" type="range" min="0" max="0" value="0">
+      <span id="bf-raise-value" class="bf-raise-value">0</span>
+    </div>
+  </div>
+
+  <script>
+    window.BossConfig = {
+      slug: 'fortuna',
+      name: 'Fortuna',
+      epithet: 'Goddess · not a PC',
+      startingStacks: { playerChips: 100, oppChips: 150 },
+      aiStyle: { tightness: 1.15, aggression: 1.20, bluffFreq: 1.00, loose: 1.00, mixedness: 1.50 },
+      // Aviator-shades avatar. The lenses (⎚) never change — pearlescent,
+      // mirrored screens that don't emote. The temple bars (/ \) frame
+      // the face. Mood reads through the mouth between the lenses, one
+      // glyph per mood, no cycling. Pearlescent shimmer + slow float
+      // (fortuna.css) are the only motions. Cap is a flower crown:
+      // leaves on the outside, blossoms inside; the bouquet of tendrils
+      // grows upward from along this line.
+      kaomoji: {
+        cap: '⚘✿❀✿⚘',
+        faces: {
+          broken:    ['/⎚×⎚\\'],
+          desperate: ['/⎚~⎚\\'],
+          pressured: ['/⎚-⎚\\'],
+          even:      ['/⎚_⎚\\'],
+          ahead:     ['/⎚ω⎚\\'],
+          dominant:  ['/⎚‿⎚\\'],
+        },
+        tells: {
+          broken:    'cracked',
+          desperate: 'fogged',
+          pressured: 'watching',
+          even:      'mirrored',
+          ahead:     'winning',
+          dominant:  'the wheel turns',
+        },
+      },
+    };
+  </script>
+  <script>
+    /* Fortuna's monologue — one line per hand. Empty LINES = scaffold
+       inert. To activate: fill LINES with what the boss says to the
+       player; each new hand swaps to the next entry. A MutationObserver
+       on #bf-hand drives advancement. */
+    (function () {
+      var el   = document.getElementById('bf-fortuna-monologue');
+      var hand = document.getElementById('bf-hand');
+      if (!el || !hand) return;
+      var LINES = [
+        // TODO: voice Fortuna here, one line per hand.
+      ];
+      if (LINES.length === 0) return;
+      var i = 0;
+      el.textContent = LINES[0];
+      var last = hand.textContent;
+      new MutationObserver(function () {
+        if (hand.textContent === last) return;
+        last = hand.textContent;
+        el.classList.add('is-fading');
+        setTimeout(function () {
+          i = (i + 1) % LINES.length;
+          el.textContent = LINES[i];
+          el.classList.remove('is-fading');
+        }, 420);
+      }).observe(hand, { childList: true, characterData: true, subtree: true });
+    })();
+  </script>
+  <script src="../js/bossfight/toast.js"></script>
+  <script src="../js/bossfight/holdem.js"></script>
+  <script src="../js/bossfight/ai.js"></script>
+  <script src="../js/bossfight/page.js"></script>
+
+  <script>
+    // Fortuna triptych: [spiral] [kaomoji] [spiral]. Two spiral glyphs
+    // flank the existing avatar inside .bf-boss-avatar-frame, each
+    // animated independently (different glyph, different rotation
+    // direction, different period for rotate + breathe). The kaomoji
+    // in the middle keeps its own pearlescent shimmer + float — so
+    // three elements move on three different clocks.
+    (function triptych() {
+      const frame = document.querySelector('.bf-boss-avatar-frame');
+      const avatar = document.getElementById('bf-boss-avatar');
+      if (!frame || !avatar) return;
+      const left = document.createElement('pre');
+      left.className = 'bf-fortuna-spiral bf-fortuna-spiral-l';
+      left.setAttribute('aria-hidden', 'true');
+      left.textContent = '❋';
+      const right = document.createElement('pre');
+      right.className = 'bf-fortuna-spiral bf-fortuna-spiral-r';
+      right.setAttribute('aria-hidden', 'true');
+      right.textContent = '✺';
+      frame.insertBefore(left, avatar);
+      frame.appendChild(right);
+    })();
+  </script>
+
+  <script>
+    // Fortuna bouquet: math + madness tendrils growing from her crown.
+    // Each tendril is anchored at an --x offset along the crown line
+    // (so they emerge from along the cap text, not from one point), at
+    // a fixed --dir fan angle. The chain is nested .seg elements that
+    // each apply translateX(--len) + rotate(--bend) in their parent's
+    // local frame — successive segs accumulate the curve. A .sway
+    // wrapper oscillates the whole chain.
+    //
+    // To make the tendrils read as "same text" as the kaomoji: glyphs
+    // share the avatar's VT323 font, start at the avatar's font size
+    // (22px), taper outward, and inherit the same pearlescent gradient
+    // (text-clip). No per-glyph spin or hue-shimmer — those broke the
+    // text-continuity feel. Only the tendril sway moves the chain.
+    (function bouquet() {
+      const wrap = document.getElementById('bf-boss-avatar-wrap');
+      if (!wrap) return;
+      const host = document.createElement('div');
+      host.className = 'bf-fortuna-bouquet';
+      host.setAttribute('aria-hidden', 'true');
+      const glyphs = '∑∫∂∇∞πφΩℵ∮∏⊕⊗⊥∴∵∝≈≡√∛℘ΦΨΣΔΘΛΞΠ☉☽⚹⛧⸙✶✷✸✹✺⚜✠☥⛤❋❉❊✴✳✱ℶ∢∡⊙⊚⊛⊜⊝';
+      // Each tendril: { x-offset along the crown (px from center),
+      //                 fan direction in CSS-rotate degrees (0=right) }.
+      // x's are roughly aligned with the 5 crown glyphs (~14px apart at
+      // 22px VT323), and dir tilts each tendril outward from its anchor
+      // so the bouquet opens out instead of all pointing straight up.
+      const tendrils = [
+        { x: -32, dir: -150 },
+        { x: -20, dir: -120 },
+        { x:  -8, dir: -100 },
+        { x:   0, dir:  -90 },
+        { x:   8, dir:  -80 },
+        { x:  20, dir:  -60 },
+        { x:  32, dir:  -30 },
+      ];
+      const pick = () => glyphs[Math.floor(Math.random() * glyphs.length)];
+      const rand = (lo, hi) => lo + Math.random() * (hi - lo);
+
+      tendrils.forEach(({ x, dir }) => {
+        const tendril = document.createElement('div');
+        tendril.className = 'bf-fortuna-tendril';
+        tendril.style.setProperty('--x',   x   + 'px');
+        tendril.style.setProperty('--dir', dir + 'deg');
+
+        const sway = document.createElement('div');
+        sway.className = 'bf-fortuna-sway';
+        const swayDur = rand(5.5, 9);
+        const swayAmp = rand(3, 7);
+        sway.style.setProperty('--sway-amp', swayAmp + 'deg');
+        sway.style.animationDuration = swayDur.toFixed(2) + 's';
+        sway.style.animationDelay    = (-Math.random() * swayDur).toFixed(2) + 's';
+        tendril.appendChild(sway);
+
+        // 3–5 segments per tendril. Bend mostly continues one direction
+        // (so the tendril curls like a real vine) but occasionally
+        // flips for an S-curve.
+        const segCount = Math.floor(rand(3, 6));
+        let parent = sway;
+        let bendSign = Math.random() < 0.5 ? 1 : -1;
+        for (let s = 0; s < segCount; s++) {
+          const seg = document.createElement('div');
+          seg.className = 'bf-fortuna-seg';
+          // First segment is near-zero so the first glyph lands on the
+          // crown row itself (z-overlaid on the crown text). Outer segs
+          // stretch farther to grow the tendril upward and outward.
+          const len  = s === 0 ? rand(0, 4) : rand(20, 28);
+          const bend = rand(10, 24) * bendSign;
+          bendSign *= (Math.random() < 0.3 ? -1 : 1);
+          seg.style.setProperty('--len',  len.toFixed(1)  + 'px');
+          seg.style.setProperty('--bend', bend.toFixed(1) + 'deg');
+
+          const glyph = document.createElement('span');
+          glyph.className = 'bf-fortuna-glyph';
+          // Match avatar font-size (22px) at the crown, taper outward.
+          // Caller of pearlescent gradient is the .bf-fortuna-glyph
+          // class in fortuna.css — only size + opacity vary per glyph.
+          const size = 22 - s * 2.3 + rand(-0.5, 0.5);
+          const opacity = 0.95 - s * 0.10;
+          glyph.style.fontSize = size.toFixed(1) + 'px';
+          glyph.style.opacity  = opacity.toFixed(2);
+          glyph.textContent = pick();
+          seg.appendChild(glyph);
+
+          parent.appendChild(seg);
+          parent = seg;
+        }
+        host.appendChild(tendril);
+      });
+      wrap.appendChild(host);
+    })();
+  </script>
+</body>
+</html>

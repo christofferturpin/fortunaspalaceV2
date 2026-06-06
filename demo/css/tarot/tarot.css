@@ -1,0 +1,1424 @@
+/*
+  TAROT — Fortuna's MySpace × sleazy-old-disco tarot (chippy 16-bit cards)
+  ─────────────────────────────────────────────────────────────────────────
+  Sections:
+    1.  :root tokens   palette + --card-back SVG tile + --pixel-heart sprite
+    2.  body           tiled goth-starfield background
+    3.  h1 / .sub      Creepster pink-glow title, Special Elite subtitle
+    4.  #profile       dashed-pink MySpace widget + twinkling corner stars
+    5.  #fortunafooter the est-2001 sign-off
+    6.  #gallery       intermediary frames + #databash "Reading" rectangle
+    7.  #glitch        final mash canvas frame, hidden → .shown fade-in
+                       (.album-sleeve = beat-up paper sleeve w/ foxing
+                        + dog-eared corners; .album-grain paper fiber;
+                        .album-grime creases/scuffs/smudges)
+    8.  #decks         two clickable piles, shuffle pulse + deal lift anim
+    9.  #spread        3-row grid, data-draw row tints, data-glitch-slot
+    10. .slot/.flipper chippy double-outline cards, 3D flip animation
+    11. #status        ✦-bracketed phosphor status line
+    12. .cta-btn       chippy pink press-button for "draw again"
+    13. .mash-credits  collapsed receipt under the mash (sources + spread)
+    14. .symbol-book   parchment glossary (40 symbol→meaning pairs; six
+                       slots silently swap for painting-word entries)
+    15. @media ≤720px  compact card grid + slimmer pixel borders on mobile
+
+  Owns selectors: #profile + .profile-*, #fortunafooter, #gallery +
+    .gallery-wall + .artwork-frame + .frame-inner + .art-* + #databash +
+    .databash-placeholder, #glitch + .glitch-* + #glitch-canvas +
+    #glitch-label, #decks + .deck + .deck-pile + .deck-label + .back-shell,
+    #spread + .slot + .flipper + .face/.back/.front + .role/.title/.value/
+    .mean, #status, .cta-btn.
+
+  CSS vars: --bg, --bg-card, --ink, --ink-dim, --gold, --gold-warm,
+    --gold-dim, --accent, --rule, --pink, --pink-dim, --pink-glow,
+    --green, --green-dim, --paper, --velvet, --velvet-deep, --smoke,
+    --card-back (SVG tile data-URI), --pixel-heart (SVG sprite data-URI),
+    --gallery-bg, --gallery-wall, --frame, --frame-deep.
+
+  Inline CSS vars set by page.js per element: --fx, --fy (slot flight
+    origin), --rot (per-slot tilt), --n (per-back-shell pile depth),
+    --row-tint (per-row spread tint).
+
+  Consumed by: pages/tarot.html
+  External deps: Google Fonts (Cinzel, VT323, IM Fell English, Press Start
+    2P, Creepster, Special Elite) loaded by the page itself. No CSS imports.
+*/
+
+:root {
+  --bg:         #1a0612;
+  --bg-card:    #2a1430;
+  --ink:        #f0d8e8;
+  --ink-dim:    #b89dbf;
+  --gold:       #f1c869;
+  --gold-warm:  #e8a13a;
+  --gold-dim:   #a87a36;
+  --accent:     #6a4ca8;
+  --rule:       #4a1f3f;
+  --pink:       #ff66cc;
+  --pink-dim:   #c45ba3;
+  --pink-glow:  #ff99dd;
+  --green:      #9bdc82;
+  --green-dim:  #7ab866;
+  --paper:      #1d0a1c;
+  --velvet:     #4a0f2e;
+  --velvet-deep:#2a0820;
+  --smoke:      rgba(220, 190, 150, 0.05);
+  /* Major Arcana back — black w/ gold sequin specks + center diamond.
+     Disco velvet-rope vibe, sharp pixel edges. */
+  --card-back-major: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' shape-rendering='crispEdges'><rect width='8' height='8' fill='%230a0510'/><rect x='0' y='0' width='1' height='1' fill='%23f1c869'/><rect x='7' y='0' width='1' height='1' fill='%23f1c869'/><rect x='0' y='7' width='1' height='1' fill='%23f1c869'/><rect x='7' y='7' width='1' height='1' fill='%23f1c869'/><rect x='3' y='3' width='2' height='2' fill='%23e8a13a'/></svg>") repeat, #0a0510;
+  /* Major emblem — gold 8-pointed compass star centerpiece. */
+  --card-emblem-major: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect x='1' y='7' width='14' height='2' fill='%23f1c869'/><rect x='7' y='1' width='2' height='14' fill='%23f1c869'/><rect x='2' y='2' width='2' height='2' fill='%23e8a13a'/><rect x='4' y='4' width='2' height='2' fill='%23e8a13a'/><rect x='12' y='2' width='2' height='2' fill='%23e8a13a'/><rect x='10' y='4' width='2' height='2' fill='%23e8a13a'/><rect x='2' y='12' width='2' height='2' fill='%23e8a13a'/><rect x='4' y='10' width='2' height='2' fill='%23e8a13a'/><rect x='12' y='12' width='2' height='2' fill='%23e8a13a'/><rect x='10' y='10' width='2' height='2' fill='%23e8a13a'/><rect x='6' y='6' width='4' height='4' fill='%23fff5dc'/></svg>");
+  /* Minor Arcana back — wine-velvet w/ hot-pink step-diagonal dance-
+     floor pattern. */
+  --card-back-minor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' shape-rendering='crispEdges'><rect width='8' height='8' fill='%231e0820'/><rect x='0' y='0' width='2' height='2' fill='%23ff66cc'/><rect x='2' y='2' width='2' height='2' fill='%23ff66cc'/><rect x='4' y='4' width='2' height='2' fill='%23ff66cc'/><rect x='6' y='6' width='2' height='2' fill='%23ff66cc'/></svg>") repeat, #1e0820;
+  /* Minor emblem — chunky hot-pink five-pointed star centerpiece. */
+  --card-emblem-minor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect x='7' y='1' width='2' height='2' fill='%23ff66cc'/><rect x='5' y='3' width='6' height='2' fill='%23ff66cc'/><rect x='1' y='5' width='14' height='2' fill='%23ff66cc'/><rect x='3' y='7' width='10' height='2' fill='%23ff66cc'/><rect x='4' y='9' width='8' height='2' fill='%23ff66cc'/><rect x='2' y='11' width='3' height='2' fill='%23ff66cc'/><rect x='11' y='11' width='3' height='2' fill='%23ff66cc'/><rect x='0' y='13' width='3' height='2' fill='%23ff66cc'/><rect x='13' y='13' width='3' height='2' fill='%23ff66cc'/></svg>");
+  /* Back-compat alias — older rules read --card-back / --pixel-heart;
+     point them at the minor variant so legacy callers still paint. */
+  --card-back: var(--card-back-minor);
+  --pixel-heart: var(--card-emblem-minor);
+  --gallery-bg: #14111a;
+  --gallery-wall: #1a1620;
+  --frame:      #2a232e;
+  --frame-deep: #1a141e;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background:
+    /* sparkle / sequin sprinkle — now with a few gold flecks for disco */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><circle cx='10' cy='14' r='1' fill='%23ff66cc' opacity='0.55'/><circle cx='58' cy='8' r='0.8' fill='%23f1c869' opacity='0.55'/><circle cx='28' cy='34' r='0.6' fill='%23ffffff' opacity='0.4'/><circle cx='70' cy='52' r='1.2' fill='%23ff66cc' opacity='0.35'/><circle cx='18' cy='62' r='0.7' fill='%23ff99dd' opacity='0.5'/><circle cx='38' cy='74' r='0.7' fill='%23e8a13a' opacity='0.5'/><path d='M46 64l0.7 1.5 1.6 0.2-1.2 1.1 0.3 1.6-1.4-0.8-1.4 0.8 0.3-1.6-1.2-1.1 1.6-0.2z' fill='%23f1c869' opacity='0.6'/><path d='M64 22l0.5 1.1 1.2 0.15-0.9 0.85 0.25 1.2-1.05-0.6-1.05 0.6 0.25-1.2-0.9-0.85 1.2-0.15z' fill='%23ff66cc' opacity='0.5'/></svg>") repeat,
+    /* haze / nicotine smoke layer */
+    radial-gradient(ellipse 80% 50% at 50% 40%, var(--smoke) 0%, transparent 70%),
+    /* dimmed corner pools (spotlights gone soft) */
+    radial-gradient(ellipse at 18% 8%, rgba(241,200,105,0.10) 0%, transparent 45%),
+    radial-gradient(ellipse at 82% 92%, rgba(255,102,204,0.10) 0%, transparent 50%),
+    /* velvet base — wine plum, slightly diagonal */
+    linear-gradient(155deg, var(--velvet) 0%, var(--velvet-deep) 55%, var(--bg) 100%);
+  color: var(--ink);
+  font-family: "Special Elite", "Trebuchet MS", "Comic Sans MS", sans-serif;
+  min-height: 100vh;
+  padding: 1.25rem 1.25rem 3rem;
+  line-height: 1.55;
+}
+header {
+  text-align: center;
+  margin-bottom: 0.4rem;
+  position: relative;
+  max-height: 20vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+}
+header .coins-bar {
+  margin-top: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  gap: 0.4rem;
+}
+header .coins-bar #balance { font-size: 0.85rem; }
+header .coins-bar #debug-reset {
+  font-size: 0.62rem;
+  padding: 0.15rem 0.4rem;
+}
+h1 {
+  font-family: "Monoton", "Creepster", "Cinzel", Georgia, serif;
+  font-weight: normal;
+  letter-spacing: 0.04em;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  margin: 0;
+  text-transform: uppercase;
+  line-height: 1.05;
+  /* Drifting hot-pink → gold → pink-glow gradient text fill. */
+  background: linear-gradient(110deg,
+    #ff66cc  0%,
+    #ff99dd 22%,
+    #f1c869 48%,
+    #ffd57a 56%,
+    #ff99dd 78%,
+    #ff66cc 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* Halo via filter so it wraps the gradient-clipped letters. */
+  filter:
+    drop-shadow(0 0 4px  rgba(255, 102, 204, 0.85))
+    drop-shadow(0 0 14px rgba(255, 153, 221, 0.65))
+    drop-shadow(0 0 30px rgba(241, 200, 105, 0.50));
+  animation:
+    h1-gradient-drift 6s ease-in-out infinite,
+    h1-glow-pulse    2.4s ease-in-out infinite,
+    h1-disco-sway    7s ease-in-out infinite;
+  will-change: filter, transform, background-position;
+}
+@keyframes h1-gradient-drift {
+  0%, 100% { background-position:   0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes h1-glow-pulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 4px  rgba(255, 102, 204, 0.85))
+      drop-shadow(0 0 14px rgba(255, 153, 221, 0.65))
+      drop-shadow(0 0 30px rgba(241, 200, 105, 0.50));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 10px rgba(255, 102, 204, 1.00))
+      drop-shadow(0 0 26px rgba(255, 153, 221, 0.95))
+      drop-shadow(0 0 54px rgba(241, 200, 105, 0.85))
+      drop-shadow(0 0 90px rgba(255,  70, 150, 0.40));
+  }
+}
+@keyframes h1-disco-sway {
+  0%, 100% { transform: scale(1.00)   rotate( 0deg);   letter-spacing: 0.05em; }
+  25%      { transform: scale(1.015)  rotate(-0.4deg); letter-spacing: 0.055em; }
+  50%      { transform: scale(1.025)  rotate( 0.4deg); letter-spacing: 0.06em; }
+  75%      { transform: scale(1.015)  rotate(-0.3deg); letter-spacing: 0.055em; }
+}
+/* Marquee bulb strip under the page title — chasing pink + gold lights. */
+header::after {
+  content: "";
+  display: block;
+  width: clamp(200px, 50%, 420px);
+  height: 6px;
+  margin: 0.25rem auto 0;
+  background-image:
+    radial-gradient(circle at 5px 5px,
+      var(--gold) 0 2px,
+      var(--gold-warm) 2px 3px,
+      rgba(241,200,105,0.15) 3px 4px,
+      transparent 4px 100%),
+    radial-gradient(circle at 15px 5px,
+      var(--pink-glow) 0 2px,
+      var(--pink) 2px 3px,
+      rgba(255,102,204,0.15) 3px 4px,
+      transparent 4px 100%);
+  background-size: 20px 10px, 20px 10px;
+  background-position: 0 0, 10px 0;
+  background-repeat: repeat-x, repeat-x;
+  opacity: 0.92;
+  filter: drop-shadow(0 0 4px rgba(255,153,221,0.6))
+          drop-shadow(0 0 6px rgba(241,200,105,0.45));
+  animation: marquee-chase 1.4s steps(2) infinite;
+}
+@keyframes marquee-chase {
+  0%   { background-position: 0 0, 10px 0; }
+  50%  { background-position: 10px 0, 0 0; }
+  100% { background-position: 0 0, 10px 0; }
+}
+/* Disco-ball glyph hugging the header's left margin on wider screens. */
+header::before {
+  content: "🪩";
+  position: absolute;
+  left: clamp(0.5rem, 5vw, 3rem);
+  top: 0.2rem;
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  filter:
+    drop-shadow(0 0 6px rgba(255,153,221,0.55))
+    drop-shadow(0 0 10px rgba(241,200,105,0.4));
+  animation: ball-sway 6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes ball-sway {
+  0%, 100% { transform: rotate(-6deg) translateY(0); }
+  50%      { transform: rotate( 6deg) translateY(2px); }
+}
+.sub {
+  font-family: "Special Elite", "Courier New", monospace;
+  color: var(--green);
+  font-style: normal;
+  margin: 0;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+}
+.sub::before, .sub::after {
+  content: " ✦ ";
+  color: var(--pink);
+}
+.sub-tiny {
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+.sub-tiny::before, .sub-tiny::after { content: ""; }
+
+/* ─── Fortuna's profile widget (MySpace 2001 cosplay) ───────────── */
+#profile {
+  max-width: 100%;
+  margin: 1.25rem 0 0;
+  padding: 0.7rem 0.8rem 0.8rem;
+  font-size: 0.72rem;
+  background:
+    linear-gradient(180deg, rgba(241,200,105,0.06), transparent 30%),
+    linear-gradient(180deg, rgba(255,102,204,0.06), transparent 40%),
+    var(--paper);
+  border: 2px dashed var(--pink);
+  border-radius: 4px;
+  font-family: "Special Elite", "Courier New", monospace;
+  font-size: 0.85rem;
+  color: var(--ink);
+  position: relative;
+  /* gold tinsel ring outside the dashed pink, plus a velvet glow inside */
+  box-shadow:
+    0 0 0 1px rgba(255,153,221,0.4),
+    0 0 0 4px rgba(241,200,105,0.22),
+    0 0 0 5px rgba(74,15,46,0.6),
+    0 12px 30px rgba(0,0,0,0.65),
+    inset 0 0 30px rgba(255,102,204,0.08),
+    inset 0 0 60px rgba(74,15,46,0.35);
+}
+.profile-head {
+  font-family: "Creepster", "Special Elite", serif;
+  font-size: 1.15rem;
+  color: var(--pink);
+  text-align: center;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.3rem;
+  text-shadow:
+    0 0 6px var(--pink-glow),
+    0 0 14px var(--pink-glow),
+    0 0 22px var(--gold-warm),
+    0 0 32px var(--pink);
+}
+.profile-rule {
+  border: none;
+  height: 4px;
+  margin: 0.4rem 0 0.6rem;
+  background:
+    repeating-linear-gradient(90deg,
+      var(--pink) 0 6px,
+      transparent 6px 9px,
+      var(--gold) 9px 15px,
+      transparent 15px 18px);
+  opacity: 0.7;
+}
+.profile-row {
+  margin: 0.18rem 0;
+  line-height: 1.3;
+  display: flex; gap: 0.4rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.profile-label {
+  color: var(--green);
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+  flex: 0 0 auto;
+  min-width: 4rem;
+  font-size: 0.7rem;
+}
+.profile-value { color: var(--ink); }
+.profile-value em {
+  color: var(--pink-glow);
+  font-style: italic;
+}
+.profile-corner {
+  position: absolute;
+  font-size: 0.85rem;
+  color: var(--pink);
+  animation: twinkle 1.8s ease-in-out infinite;
+  pointer-events: none;
+  text-shadow: 0 0 6px currentColor, 0 0 10px var(--gold-warm);
+}
+.profile-tl { top: 0.25rem; left: 0.55rem; color: var(--gold); }
+.profile-tr { top: 0.25rem; right: 0.55rem; animation-delay: 0.5s; color: var(--pink); }
+.profile-bl { bottom: 0.25rem; left: 0.55rem; animation-delay: 0.9s; color: var(--pink); }
+.profile-br { bottom: 0.25rem; right: 0.55rem; animation-delay: 1.3s; color: var(--gold); }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50%      { opacity: 1;    transform: scale(1.15); }
+}
+
+/* ─── MySpace + sleazy-disco footer ─────────────────────────────── */
+#fortunafooter {
+  max-width: 600px;
+  margin: 3rem auto 0;
+  padding-top: 1.2rem;
+  text-align: center;
+  font-family: "Special Elite", "Courier New", monospace;
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  position: relative;
+}
+/* Chevron / tinsel divider above the footer text. */
+#fortunafooter::before {
+  content: "✦ ✧ ✦ ✧ ✦ ✧ ✦";
+  display: block;
+  margin-bottom: 0.8rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  color: var(--gold);
+  text-shadow: 0 0 6px var(--gold-warm), 0 0 12px var(--pink);
+  opacity: 0.85;
+}
+#fortunafooter .heart {
+  color: var(--pink);
+  text-shadow: 0 0 6px var(--pink-glow);
+}
+#fortunafooter a {
+  color: var(--gold);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--gold-dim);
+}
+#fortunafooter a:hover { color: var(--pink); border-bottom-color: var(--pink); }
+
+/* ─── Dreary gallery ─────────────────────────────────────────────── */
+#gallery {
+  max-width: 1100px;
+  margin: 1rem auto 1.25rem;
+  padding: 1.75rem 1.75rem 1.5rem;
+  position: relative;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(217,179,112,0.05) 0%, transparent 65%),
+    linear-gradient(180deg, var(--gallery-wall) 0%, var(--gallery-bg) 100%);
+  border: 1px solid #261e2c;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.03),
+    0 30px 80px rgba(0,0,0,0.5);
+}
+.gallery-wall {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+.artwork-frame {
+  background: var(--frame-deep);
+  border: 6px solid var(--frame);
+  border-radius: 2px;
+  padding: 6px;
+  box-shadow:
+    0 0 0 1px rgba(217,179,112,0.18),
+    0 14px 30px rgba(0,0,0,0.55),
+    inset 0 0 0 2px #0a0810;
+  display: flex; flex-direction: column;
+  opacity: 0.92;
+  transition: opacity 600ms ease;
+}
+.artwork-frame.shown { opacity: 1; }
+.frame-inner { background: #000; display: flex; flex-direction: column; flex: 1; }
+.art-image {
+  display: block; width: 100%;
+  max-height: 46vh; object-fit: contain; background: #050309;
+}
+.artwork-frame:not(.shown) .art-image { display: none; }
+.artwork-frame:not(.shown) .frame-inner {
+  min-height: 280px; align-items: center; justify-content: center;
+}
+.artwork-frame:not(.shown) .frame-inner::after {
+  content: "Awaiting cards";
+  color: var(--gold-dim);
+  font-family: "Cinzel", Georgia, serif;
+  letter-spacing: 0.22em;
+  font-size: 0.7rem;
+  font-style: italic;
+  text-transform: uppercase;
+}
+.artwork-frame:not(.shown) .art-plaque { display: none; }
+.art-plaque {
+  background: #19171f;
+  border-top: 1px solid #2a232e;
+  padding: 0.7rem 0.9rem 0.8rem;
+  color: var(--ink);
+}
+.art-title {
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 0.92rem;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+  line-height: 1.25;
+}
+.art-meta { font-size: 0.76rem; color: var(--ink-dim); line-height: 1.45; }
+.art-link {
+  display: inline-block; margin-top: 0.5rem;
+  color: var(--gold-dim); text-decoration: none;
+  font-size: 0.72rem; letter-spacing: 0.08em;
+  border-bottom: 1px solid transparent;
+}
+.art-link:hover { color: var(--gold); border-bottom-color: var(--gold-dim); }
+
+#databash {
+  border: 1px solid #2a232e;
+  border-radius: 3px;
+  background: #0e0c14;
+  padding: 1.6rem 1.4rem 1.4rem;
+  color: var(--ink-dim);
+  min-height: 90px;
+  position: relative;
+}
+#databash::before {
+  content: "Reading";
+  position: absolute;
+  top: -0.55rem; left: 1rem;
+  background: var(--gallery-wall);
+  padding: 0 0.7rem;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 0.65rem; letter-spacing: 0.28em;
+  color: var(--gold-dim); text-transform: uppercase;
+}
+.databash-placeholder {
+  display: block; text-align: center;
+  font-style: italic; font-size: 0.85rem;
+  color: var(--gold-dim); letter-spacing: 0.05em;
+  padding: 0.5rem 0;
+}
+
+/* ─── Glitch canvas (3rd draw output) ────────────────────────────── */
+#glitch {
+  max-width: 700px;
+  margin: 1.25rem auto 0.25rem;
+  display: flex; flex-direction: column; align-items: center;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+#glitch.shown { opacity: 1; transform: translateY(0); }
+#glitch[hidden] { display: none; }
+/* Beat-up old paper sleeve: yellowed cardstock, foxing stains, scuffed
+   edges. Layered radial blotches give the foxing; the SVG fiber overlay
+   in .album-grain handles the paper texture; .album-grime adds creases
+   and dirt on top of the canvas itself. */
+.album-sleeve {
+  width: 100%; max-width: 612px;
+  position: relative;
+  padding: 22px 18px 24px;
+  background:
+    /* foxing — irregular brown age-spots */
+    radial-gradient(ellipse 22px 14px at 8% 12%, rgba(120, 70, 30, 0.32), transparent 70%),
+    radial-gradient(ellipse 18px 12px at 92% 18%, rgba(120, 70, 30, 0.28), transparent 70%),
+    radial-gradient(ellipse 30px 18px at 14% 88%, rgba(140, 80, 35, 0.30), transparent 72%),
+    radial-gradient(ellipse 14px 10px at 88% 80%, rgba(100, 60, 25, 0.28), transparent 70%),
+    radial-gradient(ellipse 26px 16px at 48% 6%,  rgba(120, 70, 30, 0.22), transparent 72%),
+    radial-gradient(ellipse 16px 12px at 60% 95%, rgba(110, 65, 30, 0.26), transparent 72%),
+    /* darker edge vignette from years of handling */
+    radial-gradient(ellipse 110% 90% at 50% 50%, transparent 55%, rgba(80, 55, 25, 0.35) 95%),
+    /* aged base colour */
+    linear-gradient(170deg, #e8d8b3 0%, #d8c595 55%, #c4ad7a 100%);
+  box-shadow:
+    /* irregular torn-edge feathering */
+    0 0 0 1px rgba(80, 55, 25, 0.55),
+    0 0 8px rgba(60, 40, 15, 0.35) inset,
+    0 0 24px rgba(50, 35, 15, 0.45) inset,
+    0 18px 36px rgba(0, 0, 0, 0.55),
+    0 4px 10px rgba(0, 0, 0, 0.35);
+}
+/* Dog-eared corner crinkles. */
+.album-sleeve::before,
+.album-sleeve::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.album-sleeve::before {
+  top: 0; left: 0;
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg,
+    rgba(200, 170, 120, 0.95) 0 45%,
+    rgba(120, 85, 40, 0.7) 46% 50%,
+    transparent 51% 100%);
+}
+.album-sleeve::after {
+  bottom: 0; right: 0;
+  width: 34px; height: 34px;
+  background: linear-gradient(315deg,
+    rgba(200, 170, 120, 0.92) 0 45%,
+    rgba(120, 85, 40, 0.7) 46% 50%,
+    transparent 51% 100%);
+}
+.glitch-frame {
+  position: relative;
+  width: 100%;
+  background: #1a1014;
+  padding: 6px;
+  box-shadow:
+    0 0 0 1px rgba(80, 55, 25, 0.5),
+    inset 0 0 0 1px rgba(40, 25, 10, 0.6),
+    0 6px 14px rgba(0,0,0,0.45);
+}
+#glitch-canvas {
+  display: block;
+  width: 100%; height: auto;
+  aspect-ratio: 1;
+  background: #000;
+}
+/* Paper-fiber grain over the canvas — warmer / yellower than before. */
+.album-grain {
+  position: absolute;
+  inset: 6px;
+  pointer-events: none;
+  opacity: 0.32;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.82  0 0 0 0 0.70  0 0 0 0 0.48  0 0 0 1.4 -0.5'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 280px 280px;
+}
+/* Grime layer: creases, scuffs, smudges, drips on top of the artwork. */
+.album-grime {
+  position: absolute;
+  inset: 6px;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  background:
+    /* horizontal crease line near the top third */
+    linear-gradient(180deg,
+      transparent 0 28%,
+      rgba(40, 25, 10, 0.55) 28.4% 28.6%,
+      rgba(255, 240, 210, 0.18) 28.7% 28.9%,
+      transparent 29.2% 100%),
+    /* diagonal scuff across the middle */
+    linear-gradient(112deg,
+      transparent 0 38%,
+      rgba(40, 25, 10, 0.18) 40% 42%,
+      transparent 44% 100%),
+    /* second diagonal scuff */
+    linear-gradient(72deg,
+      transparent 0 62%,
+      rgba(40, 25, 10, 0.14) 64% 66%,
+      transparent 68% 100%),
+    /* dark smudge bottom-left */
+    radial-gradient(ellipse 30% 18% at 18% 92%,
+      rgba(50, 30, 12, 0.55), transparent 70%),
+    /* coffee-ring-ish blotch upper-right */
+    radial-gradient(circle at 78% 22%,
+      transparent 0 6%,
+      rgba(80, 50, 20, 0.32) 6.2% 7.4%,
+      transparent 7.8% 100%),
+    /* faint thumb smudge center-left */
+    radial-gradient(ellipse 18% 24% at 6% 50%,
+      rgba(60, 40, 18, 0.42), transparent 75%),
+    /* darker drip from top */
+    linear-gradient(180deg,
+      transparent 0 4%,
+      rgba(40, 25, 10, 0.35) 4% 5.2%,
+      transparent 5.4% 100%) 0 0 / 4px 100% no-repeat,
+    /* vignette darkening at all four edges */
+    radial-gradient(ellipse 130% 130% at 50% 50%,
+      transparent 50%, rgba(20, 12, 5, 0.55) 100%);
+}
+.glitch-caption {
+  margin-top: 0.5rem;
+  font-family: "Cinzel", Georgia, serif;
+  letter-spacing: 0.25em;
+  font-size: 0.72rem;
+  color: var(--gold-dim);
+  text-transform: uppercase;
+}
+.glitch-caption b {
+  color: var(--gold);
+  font-weight: 500;
+}
+
+/* ─── "Click me next" guide glow ────────────────────────────────── */
+/* Soft pink-gold halo pulse to mark whichever element the player is
+   meant to click next: decks at stages 0–2, the Booke at stage 3. */
+.click-me {
+  animation: click-me-pulse 1.6s ease-in-out infinite;
+}
+@keyframes click-me-pulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 6px  rgba(255, 102, 204, 0.55))
+      drop-shadow(0 0 14px rgba(241, 200, 105, 0.40));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 14px rgba(255, 102, 204, 0.95))
+      drop-shadow(0 0 28px rgba(241, 200, 105, 0.80))
+      drop-shadow(0 0 52px rgba(255, 102, 204, 0.45));
+  }
+}
+
+/* ─── Shuffling overlay — fullscreen blackout while AIC is queried ─ */
+#shuffle-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 4, 14, 0.82);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+#shuffle-overlay[hidden] { display: none; }
+.shuffle-text {
+  font-family: "Monoton", "Creepster", "Cinzel", Georgia, serif;
+  font-weight: normal;
+  font-size: clamp(2.6rem, 8vw, 5rem);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  line-height: 1;
+  /* Match the logo: drifting pink-gold gradient text. */
+  background: linear-gradient(110deg,
+    #ff66cc  0%,
+    #ff99dd 22%,
+    #f1c869 48%,
+    #ffd57a 56%,
+    #ff99dd 78%,
+    #ff66cc 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter:
+    drop-shadow(0 0 6px  rgba(255, 102, 204, 0.85))
+    drop-shadow(0 0 16px rgba(255, 153, 221, 0.65))
+    drop-shadow(0 0 34px rgba(241, 200, 105, 0.50));
+  animation:
+    shuffle-pulse        1.4s ease-in-out infinite,
+    h1-gradient-drift    6s   ease-in-out infinite;
+}
+@keyframes shuffle-pulse {
+  0%, 100% { opacity: 0.85; transform: scale(1)      translateX(0); }
+  25%      { transform: scale(1.03) translateX(-2px); }
+  50%      { opacity: 1;    transform: scale(1.05) translateX(2px); }
+  75%      { transform: scale(1.03) translateX(-1px); }
+}
+.shuffle-sub {
+  font-family: "Special Elite", "Courier New", monospace;
+  color: var(--green);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: lowercase;
+  min-height: 1.1rem;
+  opacity: 0.85;
+}
+
+/* ─── 2-column layout: deck pinned left, content on the right ───── */
+.tarot-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 2.5rem;
+  max-width: 1320px;
+  margin: 0 auto;
+  align-items: start;
+}
+.tarot-rail {
+  position: sticky;
+  top: 0.75rem;
+  align-self: start;
+  z-index: 1;
+}
+.tarot-content { min-width: 0; }
+@media (max-width: 900px) {
+  .tarot-layout {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .tarot-rail {
+    position: static;
+  }
+}
+
+/* ─── Two clickable deck piles ───────────────────────────────────── */
+#decks {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 0;
+}
+@media (max-width: 900px) {
+  #decks {
+    flex-direction: row;
+    justify-content: center;
+    gap: 4rem;
+    flex-wrap: wrap;
+  }
+}
+.deck {
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  cursor: pointer; user-select: none;
+  transition: transform 220ms ease;
+  padding: 0.4rem; border-radius: 8px;
+}
+.deck:hover { transform: translateY(-4px); }
+.deck:hover .deck-pile .back-shell:last-child {
+  box-shadow: 0 14px 30px rgba(106, 76, 168, 0.45),
+              0 6px 14px rgba(0,0,0,0.5);
+}
+.deck:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+#decks.drawing .deck { cursor: wait; opacity: 0.85; pointer-events: none; }
+.deck-label {
+  font-family: "Cinzel", Georgia, serif;
+  letter-spacing: 0.22em; font-size: 0.7rem;
+  color: var(--gold-dim); text-transform: uppercase;
+}
+.deck-pile { width: 100px; height: 150px; position: relative; }
+.deck-pile .back-shell {
+  position: absolute; inset: 0;
+  background: var(--card-back);
+  border: none;
+  border-radius: 1px;
+  /* Chippy sprite outline: 2px black inner, 4px pink, 2px black outer. */
+  box-shadow:
+    0 0 0 2px #0a0510,
+    0 0 0 6px var(--pink),
+    0 0 0 8px #0a0510,
+    0 6px 16px rgba(0,0,0,0.5);
+  transform: translate(calc(var(--n) * -2px), calc(var(--n) * -3px))
+             rotate(calc(var(--n) * -0.6deg));
+  transition: transform 240ms ease, box-shadow 240ms ease;
+}
+/* Major deck: black + gold sequin tile, gold compass-star emblem, gold
+   chippy outline. Minor deck: wine + hot-pink dance-floor diagonal,
+   pink five-point star emblem, pink outline (matches the existing
+   chippy-pink frame). */
+.deck[data-role="major"] .back-shell {
+  background: var(--card-back-major);
+  box-shadow:
+    0 0 0 2px #0a0510,
+    0 0 0 6px var(--gold),
+    0 0 0 8px #0a0510,
+    0 0 18px rgba(241, 200, 105, 0.35),
+    0 6px 16px rgba(0,0,0,0.55);
+}
+.deck[data-role="minor"] .back-shell {
+  background: var(--card-back-minor);
+  box-shadow:
+    0 0 0 2px #0a0510,
+    0 0 0 6px var(--pink),
+    0 0 0 8px #0a0510,
+    0 0 18px rgba(255, 102, 204, 0.35),
+    0 6px 16px rgba(0,0,0,0.55);
+}
+.deck-pile .back-shell::after {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44%; aspect-ratio: 1;
+  background: var(--pixel-heart) no-repeat center / contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.deck[data-role="major"] .back-shell::after {
+  background: var(--card-emblem-major) no-repeat center / contain;
+  width: 52%;
+  filter: drop-shadow(0 0 6px rgba(241,200,105,0.5));
+}
+.deck[data-role="minor"] .back-shell::after {
+  background: var(--card-emblem-minor) no-repeat center / contain;
+  filter: drop-shadow(0 0 4px rgba(255,102,204,0.55));
+}
+.deck.dealing .back-shell:last-child { animation: deckLift 480ms ease; }
+@keyframes deckLift {
+  0%   { transform: translate(0,0) rotate(0deg); }
+  45%  { transform: translate(0,-12px) rotate(-3deg); opacity: 0.85; }
+  100% { transform: translate(0,0) rotate(0deg); }
+}
+#decks.shuffling .deck-pile { animation: shufflePulse 1.3s ease-in-out infinite; }
+@keyframes shufflePulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.045); }
+}
+
+/* ─── Spread (bottom) — up to 3 rows ─────────────────────────────── */
+.spread-row, #spread {
+  display: grid;
+  grid-template-columns: repeat(4, 130px);
+  /* Larger gaps so the chunky sprite-style box-shadow borders on
+     adjacent cards don't collide. */
+  gap: 0 1.8rem;
+  justify-content: center;
+  margin: 0.75rem auto;
+  perspective: 2000px;
+  max-width: 820px;
+}
+/* Only reserve vertical space when the row actually has cards. */
+.spread-row:not(:empty) { min-height: 200px; }
+.spread-row:empty { margin: 0; min-height: 0; }
+/* The reading rows hang slightly over the gallery's top and bottom
+   edges so the cards visually "drop into" / "rise out of" the
+   painting wall. */
+#spread-0:not(:empty) {
+  position: relative;
+  z-index: 6;
+  margin-bottom: -3rem;
+}
+#spread-1:not(:empty) {
+  position: relative;
+  z-index: 6;
+  margin-top: -3rem;
+}
+/* The merge row is overlaid on top of the gallery, centered between
+   the two painting frames. Two majors in cols 2/3 land in the gap. */
+#spread-2 {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  align-content: center;
+  pointer-events: none;
+  z-index: 5;
+}
+#spread-2:empty { min-height: 0; }
+#spread-2:not(:empty) { min-height: 0; }
+#spread-2 .slot { pointer-events: auto; }
+.slot[data-draw="0"] { --row-tint: rgba(255, 102, 204, 0.06); }
+.slot[data-draw="1"] { --row-tint: rgba(155, 220, 130, 0.05); }
+.slot[data-draw="2"] { --row-tint: rgba(255, 102, 204, 0.12); }
+/* Final glitch row holds 2 majors. Place them in cols 2 and 3 so they
+   sit centered side-by-side beneath the readings. */
+.slot[data-glitch-slot="0"] { grid-column: 2; }
+.slot[data-glitch-slot="1"] { grid-column: 3; }
+.slot .front { background:
+  linear-gradient(180deg, var(--bg-card), var(--bg-card)),
+  var(--row-tint, transparent); }
+.slot { width: 130px; height: 200px; position: relative; }
+.flipper {
+  width: 100%; height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  opacity: 0;
+  transform: translate3d(var(--fx, 0px), var(--fy, 0px), 0)
+             rotate(var(--rot, -4deg)) scale(0.78) rotateY(0deg);
+}
+.slot.dealt .flipper {
+  transition: transform 850ms cubic-bezier(.25, .65, .2, 1), opacity 320ms ease;
+  transform: translate3d(0,0,0) rotate(0deg) scale(1) rotateY(0deg);
+  opacity: 1;
+}
+.slot.flipped .flipper {
+  transform: translate3d(0,0,0) rotate(0deg) scale(1) rotateY(180deg);
+}
+.face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  border: none;
+  border-radius: 1px;
+  /* Sprite-style chunky double outline: 2px black, 4px pink, 2px black. */
+  box-shadow:
+    0 0 0 2px #0a0510,
+    0 0 0 6px var(--pink),
+    0 0 0 8px #0a0510,
+    0 12px 26px rgba(0,0,0,0.5);
+  padding: 0.55rem 0.5rem;
+  display: flex; flex-direction: column;
+}
+.back {
+  background: var(--card-back);
+  align-items: center; justify-content: center;
+}
+.back::after {
+  content: "";
+  width: 50%; aspect-ratio: 1;
+  background: var(--pixel-heart) no-repeat center / contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+/* Slot card backs match the deck they came from. The .slot element
+   gets data-arcana="major"|"minor" set by makeSlot in page.js. */
+.slot[data-arcana="major"] .back {
+  background: var(--card-back-major);
+}
+.slot[data-arcana="major"] .back::after {
+  background: var(--card-emblem-major) no-repeat center / contain;
+  width: 58%;
+  filter: drop-shadow(0 0 6px rgba(241,200,105,0.55));
+}
+.slot[data-arcana="minor"] .back {
+  background: var(--card-back-minor);
+}
+.slot[data-arcana="minor"] .back::after {
+  background: var(--card-emblem-minor) no-repeat center / contain;
+  filter: drop-shadow(0 0 4px rgba(255,102,204,0.6));
+}
+.slot[data-arcana="major"] .face {
+  box-shadow:
+    0 0 0 2px #0a0510,
+    0 0 0 6px var(--gold),
+    0 0 0 8px #0a0510,
+    0 12px 26px rgba(0,0,0,0.55);
+}
+.front {
+  transform: rotateY(180deg);
+  color: var(--ink);
+  text-align: center;
+  justify-content: space-between;
+}
+.role {
+  font-family: "Press Start 2P", "Special Elite", monospace;
+  letter-spacing: 0; font-size: 0.5rem;
+  color: var(--green); text-transform: uppercase;
+}
+.title {
+  font-family: "Special Elite", "Courier New", monospace;
+  color: var(--pink); font-size: 0.78rem;
+  line-height: 1.15; margin: 0.3rem 0;
+  letter-spacing: 0.02em;
+}
+.value {
+  font-size: 0.62rem; color: var(--ink);
+  padding: 0.3rem 0.15rem 0.15rem;
+  border-top: 2px dashed var(--pink-dim);
+}
+.value b {
+  display: block; font-weight: 400;
+  color: var(--pink);
+  font-family: "Press Start 2P", monospace;
+  letter-spacing: 0; font-size: 0.6rem;
+  margin-top: 0.3rem;
+  text-shadow: 0 0 6px rgba(255,102,204,0.5);
+  /* let long words break instead of overflowing the pixel border */
+  word-break: break-word;
+  line-height: 1.25;
+}
+.mean {
+  font-size: 0.66rem; color: var(--ink-dim);
+  font-family: "IM Fell English", Georgia, serif;
+  font-style: italic; margin-top: 0.3rem; line-height: 1.3;
+}
+
+#status {
+  text-align: center;
+  color: var(--green);
+  font-family: "Special Elite", "Courier New", monospace;
+  font-style: normal;
+  letter-spacing: 0.05em;
+  min-height: 1.1rem;
+  margin: 0.25rem 0 0.6rem;
+}
+#status:not(:empty)::before {
+  content: "✦ "; color: var(--pink);
+}
+#status:not(:empty)::after {
+  content: " ✦"; color: var(--pink);
+}
+#status.error { color: #ff7aa8; }
+
+.mash-credits {
+  max-width: 600px;
+  margin: 1.5rem auto 0;
+  font-family: "Special Elite", "Courier New", monospace;
+  color: var(--green);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+.mash-credits.shown { opacity: 1; transform: translateY(0); }
+.mash-credits[hidden] { display: none; }
+.mash-credits-head {
+  list-style: none;
+  cursor: pointer;
+  display: inline-block;
+  margin: 0 0 0.9rem;
+  padding: 0.35rem 0.9rem;
+  font-family: "Press Start 2P", "Special Elite", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  font-weight: 400;
+  color: var(--pink-glow);
+  background: linear-gradient(180deg, #2a1a48, #1e1238);
+  box-shadow:
+    0 0 0 2px #0a0510,
+    0 0 0 4px var(--pink),
+    0 0 0 6px #0a0510;
+  text-shadow: 0 0 6px var(--pink-glow);
+  user-select: none;
+}
+.mash-credits-head::-webkit-details-marker { display: none; }
+.mash-credits[open] .mash-credits-head { margin-bottom: 0.9rem; }
+.mash-credits-body {
+  background: var(--paper);
+  border: 2px dashed var(--pink-dim);
+  padding: 0.9rem 1rem;
+  box-shadow: 0 0 0 1px #0a0510;
+}
+.mash-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px dotted var(--pink-dim);
+  margin-bottom: 0.8rem;
+}
+.mash-source {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-size: 0.85rem;
+}
+.mash-roman {
+  font-family: "Cinzel", Georgia, serif;
+  color: var(--pink);
+  font-weight: 700;
+  min-width: 1.4em;
+}
+.mash-source-link {
+  color: var(--green);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--green-dim);
+}
+.mash-source-link:hover {
+  color: var(--pink);
+  border-bottom-color: var(--pink);
+}
+.mash-source-title {
+  font-family: "IM Fell English", Georgia, serif;
+  font-style: italic;
+}
+.mash-source-meta {
+  color: var(--green-dim);
+  font-size: 0.78rem;
+  margin-left: 0.35rem;
+}
+.mash-spread {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+}
+.mash-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg-card);
+  box-shadow: 0 0 0 1px #0a0510, 0 0 0 2px var(--pink-dim);
+}
+.mash-card-role {
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  color: var(--green);
+  text-transform: uppercase;
+}
+.mash-card-name {
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 0.78rem;
+  color: var(--pink);
+}
+.mash-card-value {
+  font-family: "Special Elite", "Courier New", monospace;
+  font-size: 0.7rem;
+  color: var(--pink-glow);
+}
+.mash-card-mean {
+  font-family: "IM Fell English", Georgia, serif;
+  font-style: italic;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: var(--green);
+  margin-top: 0.2rem;
+  padding-top: 0.25rem;
+  border-top: 1px dotted var(--pink-dim);
+}
+
+.glitch-actions {
+  text-align: center;
+  margin: 1.5rem 0 0.5rem;
+}
+.cta-btn {
+  font-family: "Press Start 2P", "Special Elite", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--pink-glow);
+  background: linear-gradient(180deg, #2a1a48, #1e1238);
+  border: none; border-radius: 1px;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 2px #0a0510,
+    0 0 0 6px var(--pink),
+    0 0 0 8px #0a0510,
+    0 8px 0 var(--pink-dim),
+    0 14px 22px rgba(0,0,0,0.55);
+  text-shadow: 0 0 6px var(--pink-glow);
+  transition: transform 140ms ease, box-shadow 140ms ease,
+              text-shadow 140ms ease;
+}
+.cta-btn:hover {
+  transform: translateY(-2px);
+  text-shadow: 0 0 14px var(--pink-glow), 0 0 24px var(--pink);
+}
+.cta-btn:active {
+  transform: translateY(6px);
+  box-shadow:
+    0 0 0 2px #0a0510,
+    0 0 0 6px var(--pink),
+    0 0 0 8px #0a0510,
+    0 2px 0 var(--pink-dim),
+    0 6px 12px rgba(0,0,0,0.5);
+}
+
+/* ─── Booke of Symbols — parchment glossary under the mash ──────── */
+.symbol-book {
+  max-width: 760px;
+  margin: 0.5rem auto 0;
+  padding: 0;
+  color: #2a1808;
+  font-family: "IM Fell English", "Cinzel", Georgia, serif;
+  position: relative;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 700ms ease, transform 700ms ease;
+  background:
+    radial-gradient(ellipse 20px 12px at 9% 14%,  rgba(120,70,30,0.32), transparent 70%),
+    radial-gradient(ellipse 16px 10px at 91% 19%, rgba(120,70,30,0.28), transparent 70%),
+    radial-gradient(ellipse 24px 14px at 14% 88%, rgba(140,80,35,0.30), transparent 72%),
+    radial-gradient(ellipse 14px 10px at 87% 82%, rgba(100,60,25,0.28), transparent 70%),
+    radial-gradient(ellipse 110% 90% at 50% 50%, transparent 55%, rgba(80,55,25,0.35) 95%),
+    linear-gradient(170deg, #e8d8b3 0%, #d8c595 55%, #c4ad7a 100%);
+  box-shadow:
+    0 0 0 1px rgba(80,55,25,0.55),
+    inset 0 0 8px rgba(60,40,15,0.35),
+    inset 0 0 32px rgba(50,35,15,0.45),
+    0 18px 36px rgba(0,0,0,0.55);
+}
+.symbol-book.shown { opacity: 1; transform: translateY(0); }
+.symbol-book[hidden] { display: none; }
+/* Dog-eared corner crinkles, matching the album-sleeve treatment. */
+.symbol-book::before,
+.symbol-book::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+.symbol-book::before {
+  top: 0; left: 0; width: 28px; height: 28px;
+  background: linear-gradient(135deg,
+    rgba(200,170,120,0.95) 0 45%,
+    rgba(120,85,40,0.7) 46% 50%,
+    transparent 51% 100%);
+}
+.symbol-book::after {
+  bottom: 0; right: 0; width: 32px; height: 32px;
+  background: linear-gradient(315deg,
+    rgba(200,170,120,0.92) 0 45%,
+    rgba(120,85,40,0.7) 46% 50%,
+    transparent 51% 100%);
+}
+.symbol-book-summary {
+  list-style: none;
+  cursor: pointer;
+  display: block;
+  padding: 1.8rem 1.6rem;
+  text-align: center;
+  user-select: none;
+  position: relative;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 200ms ease;
+}
+.symbol-book-summary::-webkit-details-marker { display: none; }
+.symbol-book[open] .symbol-book-summary {
+  border-bottom-color: rgba(80, 55, 25, 0.45);
+}
+.symbol-book-title {
+  display: block;
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(1.4rem, 3.6vw, 2rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #3a1f08;
+  text-shadow: 0 1px 0 rgba(255,240,200,0.4);
+}
+.symbol-book-cta {
+  display: block;
+  margin-top: 0.45rem;
+  font-style: italic;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: #5a2f0a;
+  opacity: 0.85;
+}
+.symbol-book[open] .symbol-book-cta { display: none; }
+.symbol-book-summary:hover .symbol-book-cta {
+  opacity: 1;
+  text-shadow: 0 0 8px rgba(255,180,80,0.5);
+}
+.symbol-book-body {
+  padding: 1.4rem 1.6rem 2rem;
+}
+.symbol-book-intro {
+  font-style: italic;
+  text-align: center;
+  font-size: 0.95rem;
+  max-width: 58ch;
+  margin: 0 auto 1.4rem;
+  line-height: 1.55;
+  color: #4a2a10;
+}
+.symbol-book-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1.8rem;
+  row-gap: 0;
+}
+.symbol-book-row {
+  display: grid;
+  grid-template-columns: 2.4rem 5.4rem 1fr;
+  gap: 0.55rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px dotted rgba(80,55,25,0.35);
+  align-items: baseline;
+  break-inside: avoid;
+}
+.symbol-book-num {
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  text-align: right;
+  color: #5a2f0a;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+}
+.symbol-book-key {
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.86rem;
+  color: #5a2f0a;
+}
+.symbol-book-tag {
+  display: inline-block;
+  font-family: "Special Elite", "Courier New", monospace;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-left: 0.4rem;
+  padding: 1px 5px 2px;
+  border-radius: 0;
+  vertical-align: 0.06em;
+}
+.symbol-book-tag--past {
+  background: rgba(120, 60, 25, 0.85);
+  color: #f3e1c2;
+  box-shadow: 0 0 0 1px rgba(60, 30, 10, 0.8);
+}
+.symbol-book-tag--present {
+  background: rgba(220, 150, 60, 0.92);
+  color: #2a1408;
+  box-shadow: 0 0 0 1px rgba(120, 70, 20, 0.85);
+}
+.symbol-book-tag--future {
+  background: rgba(255, 220, 130, 0.95);
+  color: #2a1408;
+  box-shadow: 0 0 0 1px rgba(120, 70, 20, 0.85);
+}
+.symbol-book-text {
+  color: #2a1808;
+  font-style: italic;
+  font-size: 0.93rem;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+/* Painted-in entries get extra lines under the main Barnum statement:
+   provenance ("comes from X") and a Stanley-Fish-style interpretive
+   trigger ("interpret literally", "spiritual static", etc.). */
+.symbol-book-stmt { display: block; }
+.symbol-book-source {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: #6a3814;
+  opacity: 0.9;
+}
+.symbol-book-source em {
+  font-style: normal;
+  font-weight: 700;
+  font-family: "Cinzel", Georgia, serif;
+  letter-spacing: 0.04em;
+  color: #4a1f08;
+}
+.symbol-book-trigger {
+  font-family: "Press Start 2P", "Special Elite", monospace;
+  font-style: normal;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: #5a2f0a;
+  margin-top: 0.15rem;
+  padding: 0.2rem 0.5rem;
+  align-self: flex-start;
+  background: rgba(120, 60, 25, 0.14);
+  border-left: 2px solid rgba(120, 60, 25, 0.55);
+}
+/* The painted-in sigils (the ones the cards revealed to this player)
+   smoulder with an active amber halo and ember-pulse animation. The
+   "always there" symbols sit quietly in regular ink — they are the
+   background of the book; only the active readings catch the eye. */
+.symbol-book-row.is-painted .symbol-book-key,
+.symbol-book-row.is-painted .symbol-book-text {
+  color: #3a0d04;
+  text-shadow:
+    0 0 6px  rgba(255, 220, 130, 0.95),
+    0 0 14px rgba(255, 170, 70,  0.80),
+    0 0 28px rgba(255, 110, 40,  0.60),
+    0 0 56px rgba(255,  70, 20,  0.40);
+  animation: ember-pulse 2.4s ease-in-out infinite;
+  animation-delay: var(--glow-delay, 0s);
+}
+.symbol-book-row.is-painted .symbol-book-key {
+  color: #2a0a02;
+  font-weight: 700;
+}
+@keyframes ember-pulse {
+  0%, 100% {
+    text-shadow:
+      0 0 6px  rgba(255, 220, 130, 0.95),
+      0 0 14px rgba(255, 170, 70,  0.80),
+      0 0 28px rgba(255, 110, 40,  0.60),
+      0 0 56px rgba(255,  70, 20,  0.40);
+  }
+  50% {
+    text-shadow:
+      0 0 10px rgba(255, 235, 160, 1.00),
+      0 0 22px rgba(255, 195, 95,  0.95),
+      0 0 44px rgba(255, 135, 50,  0.78),
+      0 0 80px rgba(255,  95, 30,  0.55);
+  }
+}
+
+@media (max-width: 720px) {
+  #gallery { padding: 1.25rem 1rem 1rem; }
+  .gallery-wall { grid-template-columns: 1fr; gap: 1.2rem; }
+  .artwork-frame { border-width: 4px; padding: 4px; }
+  .art-image { max-height: 50vh; }
+  #decks { gap: 1.5rem; }
+  .deck-pile { width: 80px; height: 120px; }
+  .deck-pile .back-shell {
+    box-shadow:
+      0 0 0 1px #0a0510,
+      0 0 0 4px var(--pink),
+      0 0 0 5px #0a0510,
+      0 4px 12px rgba(0,0,0,0.5);
+  }
+  #spread { grid-template-columns: repeat(4, 78px); gap: 1.2rem 0.7rem; }
+  .slot { width: 78px; height: 118px; }
+  .face {
+    padding: 0.4rem 0.3rem;
+    box-shadow:
+      0 0 0 1px #0a0510,
+      0 0 0 4px var(--pink),
+      0 0 0 5px #0a0510,
+      0 6px 16px rgba(0,0,0,0.45);
+  }
+  .role { font-size: 0.42rem; }
+  .title { font-size: 0.62rem; margin: 0.15rem 0; }
+  .value { font-size: 0.5rem; padding: 0.2rem 0.1rem; }
+  .value b { font-size: 0.48rem; margin-top: 0.15rem; }
+  .mean { display: none; }
+  .glitch-frame { border-width: 4px; padding: 4px; }
+  .mash-spread { grid-template-columns: repeat(2, 1fr); }
+  .symbol-book { padding: 1.4rem 1.1rem 1.6rem; }
+  .symbol-book-grid { grid-template-columns: 1fr; }
+  .symbol-book-row { grid-template-columns: 2.2rem 4.6rem 1fr; }
+}

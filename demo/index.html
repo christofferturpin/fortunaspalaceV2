@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  DEMO LOBBY — slim Palace front-of-house, four-card mini demo            │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Self-contained demo of four games — Sinnerbox, Witches Pool, Critical │
+  │    Hit, Tarot. No child mechanic, no splash gate, no death gate, no      │
+  │    tutorial overlay, no jackpot ticker, no eye-of-chavez. Carpet         │
+  │    randomizer kept so the rug still feels alive; tagline tick replaced   │
+  │    with a static subtitle (no mood-from-Child). One game-grid with the   │
+  │    four cards. The coins bar still tracks the same wendys_palace_*       │
+  │    wallet keys.                                                          │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/wallet.js, ../js/header.js                               │
+  │    inline route-guards (top of <head>):                                  │
+  │      mobile (pointer:coarse+hover:none, UA fallback) → mobile.html       │
+  │    NO splash/death/child route-guards (demo build)                       │
+  │    DOM ids: #balance, #debug-reset                                       │
+  │    sections: single .game-grid → sinnerbox, pool, criticalhit, tarot     │
+  │    flow: carpet variant + dirt spawn IIFE only; no tagline tick          │
+  │    storage R/W:                                                          │
+  │      R: wendys_palace_wallet (via Wallet)                                │
+  │      W: nothing from this page (Wallet writes balance)                   │
+  │    routes out:                                                           │
+  │      pages/sinnerbox.html, pages/pool.html, pages/criticalhit.html,      │
+  │      pages/tarot.html                                                    │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fortuna's Palace — Mini Demo</title>
+  <script>(function(){try{var m=false;try{m=window.matchMedia('(pointer: coarse) and (hover: none)').matches;}catch(e){}if(!m){m=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent||'');}if(m){location.replace('mobile.html');}}catch(e){}})();</script>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/palace.css">
+  <style>
+    /* Demo lobby tightening — one grid, four cards, centered.             */
+    main { max-width: 980px; margin: 0 auto; padding: 28px 24px 64px; }
+    .lobby-section-title { text-align: center; }
+    .demo-byline {
+      text-align: center;
+      color: rgba(212, 175, 55, 0.72);
+      font-family: 'Special Elite', 'Courier New', monospace;
+      letter-spacing: 0.18em;
+      font-size: 11px;
+      text-transform: uppercase;
+      margin: -4px 0 18px;
+    }
+  </style>
+</head>
+<body>
+  <header class="palace-header">
+    <h1>FORTUNA'S PALACE</h1>
+    <p class="palace-subtitle">A mini demo · four games · no obligations</p>
+    <div class="palace-flourish">✦ ✦ ✦</div>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="lobby-section">
+      <h2 class="lobby-section-title">The Floor</h2>
+      <p class="demo-byline">Try your luck — your wallet resets on demand</p>
+      <div class="game-grid">
+        <a class="game-card" data-theme="sinnerbox" href="pages/sinnerbox.html">
+          <div class="game-card-glyph">⛧</div>
+          <div class="game-card-name">Sinnerbox</div>
+          <div class="game-card-desc">Slots + Plinko; The One Armed Bandit.</div>
+        </a>
+        <a class="game-card" data-theme="pool" href="pages/pool.html">
+          <div class="game-card-glyph">☽</div>
+          <div class="game-card-name">Witches Pool</div>
+          <div class="game-card-desc">Turn Based Mini-Clip Pool; chain colored orbs onto their matching colors. Stake breaks even at combo 5, then climbs.</div>
+        </a>
+        <a class="game-card" data-theme="criticalhit" href="pages/criticalhit.html">
+          <div class="game-card-glyph">🎲</div>
+          <div class="game-card-name">Critical Hit</div>
+          <div class="game-card-desc">Dice Merging; Roll 10d4, drag matching faces together to push them up the ladder (d4→d6→…→d20). Roll, puff, pass.</div>
+        </a>
+        <a class="game-card" data-theme="tarot" href="pages/tarot.html">
+          <div class="game-card-glyph">🪩</div>
+          <div class="game-card-name">Tarotheque</div>
+          <div class="game-card-desc">Mash two museum paintings; divine thy three tenses. The Scroll(TM) knows!.</div>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/wallet.js"></script>
+  <script src="js/header.js"></script>
+  <script>
+    /* Carpet variant + dirt spawn — atmospheric, self-contained, no deps.
+       Lifted verbatim from the full lobby's IIFE. Picks one of 7 colour
+       variants by writing CSS vars on <html>, then spawns 14-23 .carpet-
+       dirt elements of weighted kinds across the body.                   */
+    (function () {
+      var variants = [
+        { base: '#1a0606', deep: '#0c0303', accent: '#5a1a22', motif: '#8a3333', gold: '#b8965c' },
+        { base: '#0a1410', deep: '#040806', accent: '#1a3a26', motif: '#5a8a4a', gold: '#a8954a' },
+        { base: '#08101e', deep: '#03060c', accent: '#2a3a5a', motif: '#6a4a18', gold: '#b89a3c' },
+        { base: '#180626', deep: '#08020e', accent: '#4a1a5a', motif: '#8a3a6a', gold: '#b89a5c' },
+        { base: '#0e0a04', deep: '#040302', accent: '#3a2a10', motif: '#7a5018', gold: '#c9a14a' },
+        { base: '#1a0a16', deep: '#080406', accent: '#5a1a3a', motif: '#a04060', gold: '#c8a060' },
+        { base: '#040c14', deep: '#020608', accent: '#0e3040', motif: '#1a5a6a', gold: '#a8a060' }
+      ];
+      var v = variants[Math.floor(Math.random() * variants.length)];
+      var root = document.documentElement;
+      root.style.setProperty('--carpet-base', v.base);
+      root.style.setProperty('--carpet-deep', v.deep);
+      root.style.setProperty('--carpet-accent', v.accent);
+      root.style.setProperty('--carpet-motif', v.motif);
+      root.style.setProperty('--carpet-gold', v.gold);
+
+      var dirtKinds = ['dirt-stain', 'dirt-burn', 'dirt-drink', 'dirt-fade'];
+      var weights  = [0.40, 0.20, 0.25, 0.15];
+      function pickKind() {
+        var r = Math.random();
+        var acc = 0;
+        for (var i = 0; i < weights.length; i++) {
+          acc += weights[i];
+          if (r < acc) return dirtKinds[i];
+        }
+        return dirtKinds[0];
+      }
+      var dirtCount = 14 + Math.floor(Math.random() * 10);
+      for (var i = 0; i < dirtCount; i++) {
+        var d = document.createElement('div');
+        var kind = pickKind();
+        d.className = 'carpet-dirt ' + kind;
+        var size = (kind === 'dirt-burn' ? 14 : 60) + Math.random() * (kind === 'dirt-burn' ? 22 : 220);
+        var rx = 0.7 + Math.random() * 0.7;
+        d.style.width  = size + 'px';
+        d.style.height = (size * rx) + 'px';
+        d.style.top    = (Math.random() * 100) + '%';
+        d.style.left   = (Math.random() * 100) + '%';
+        d.style.transform = 'translate(-50%, -50%) rotate(' + (Math.random() * 360) + 'deg)';
+        d.style.opacity = (kind === 'dirt-fade' ? 0.5 : 0.6) + Math.random() * 0.3;
+        document.body.appendChild(d);
+      }
+    })();
+  </script>
+</body>
+</html>

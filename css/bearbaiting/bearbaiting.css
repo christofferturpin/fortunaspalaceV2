@@ -1,0 +1,595 @@
+/* ============================================================================
+   Bear Baiting — back-room betting den. Gaslight, sawdust, blood. The whole
+   page is the room you're standing in: pit on top, bookie's chalkboard on
+   one side, the field guide/form sheet on the other (where a fop in a
+   waistcoat would be making notes).
+   ============================================================================ */
+
+:root {
+  --bb-wood:        #2a160c;
+  --bb-wood-dk:     #14080a;
+  --bb-wood-lt:     #4a2814;
+  --bb-sawdust:     #a07840;
+  --bb-sawdust-dk:  #6a4a20;
+  --bb-gaslight:    #ffc878;
+  --bb-blood:       #8a0a14;
+  --bb-paper:       #d8c088;
+  --bb-paper-edge:  #5a4a20;
+  --bb-ink:         #1a0a04;
+  --bb-chalk:       #f0e8d0;
+  --bb-board:       #1a2818;
+  --bb-bone:        #d8c8a0;
+  --bb-blood-stain: rgba(80, 10, 10, 0.55);
+}
+
+body.bb-body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 22px 16px 64px;
+  color: var(--bb-bone);
+  font-family: var(--font-ui);
+  background:
+    radial-gradient(ellipse 80% 36% at 50% 10%, rgba(255, 180, 80, 0.10) 0%, transparent 70%),
+    linear-gradient(180deg, #14080a 0%, #1a0c08 35%, #0a0606 65%, #050304 100%);
+  background-attachment: fixed;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Soot / smoke grain over everything. */
+body.bb-body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.7' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 0.07  0 0 0 0 0.04  0 0 0 0 0.02  0 0 0 0.5 0'/></filter><rect width='240' height='240' filter='url(%23g)'/></svg>");
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+}
+
+/* Vertical paneling, like a country tavern. */
+body.bb-body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 60px,
+      rgba(255, 200, 130, 0.018) 60px 61px,
+      transparent 61px 120px,
+      rgba(0, 0, 0, 0.05) 120px 121px
+    );
+}
+
+/* ============================================================================
+   Header
+   ============================================================================ */
+body.bb-body header {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  margin-bottom: 16px;
+}
+body.bb-body .header-nav {
+  text-align: left;
+  margin-bottom: 8px;
+}
+body.bb-body .header-nav a {
+  color: var(--bb-gaslight);
+  text-decoration: none;
+  font-family: var(--font-ui);
+  letter-spacing: 0.14em;
+  font-size: 14px;
+}
+body.bb-body .header-nav a:hover { color: #fff; }
+
+.bb-title {
+  font-family: 'Pirata One', 'Limelight', serif;
+  font-size: 46px;
+  letter-spacing: 0.04em;
+  margin: 4px 0 2px;
+  color: var(--bb-paper);
+  text-shadow:
+    0 0 6px rgba(255, 180, 80, 0.35),
+    0 2px 0 rgba(0, 0, 0, 0.7);
+}
+.bb-subtitle {
+  margin: 0 0 12px;
+  color: rgba(216, 200, 160, 0.7);
+  font-family: 'Special Elite', 'Courier Prime', monospace;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  font-style: italic;
+}
+
+body.bb-body .coins-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(10, 6, 4, 0.7);
+  border: 1px solid rgba(201, 161, 74, 0.4);
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+body.bb-body .coins-label {
+  color: rgba(201, 161, 74, 0.85);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+body.bb-body #balance {
+  color: #1aff7f;
+  font-size: 20px;
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(26, 255, 127, 0.35);
+}
+body.bb-body #debug-reset {
+  background: transparent;
+  border: 1px solid rgba(216, 200, 176, 0.3);
+  color: rgba(216, 200, 176, 0.5);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 1px 6px;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+}
+
+/* ============================================================================
+   Rules
+   ============================================================================ */
+.bb-rules {
+  max-width: 1080px;
+  margin: 0 auto 16px;
+  background: rgba(20, 10, 8, 0.6);
+  border: 1px solid rgba(201, 161, 74, 0.3);
+  padding: 8px 14px;
+  border-radius: 3px;
+  font-size: 14px;
+  position: relative;
+  z-index: 2;
+}
+.bb-rules summary {
+  cursor: pointer;
+  color: var(--bb-gaslight);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.bb-rules-body ul { margin: 8px 0 4px; padding-left: 22px; }
+.bb-rules-body li { margin-bottom: 4px; }
+.bb-rules-body strong { color: var(--bb-gaslight); }
+
+/* ============================================================================
+   Pit — canvas + header strip above it
+   ============================================================================ */
+.bb-pit-wrap {
+  max-width: 1080px;
+  margin: 0 auto 18px;
+  position: relative;
+  z-index: 2;
+}
+
+.bb-pit-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #1a0c08 0%, #0a0504 100%);
+  border: 1px solid rgba(201, 161, 74, 0.4);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+
+.bb-pit-round {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.bb-pit-label {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(201, 161, 74, 0.7);
+}
+.bb-pit-value {
+  font-family: var(--font-ui);
+  font-size: 22px;
+  color: var(--bb-gaslight);
+  text-shadow: 0 0 6px rgba(255, 200, 100, 0.4);
+}
+
+.bb-pit-status {
+  font-family: var(--font-ui);
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  color: var(--bb-bone);
+  text-align: center;
+  min-height: 22px;
+}
+.bb-pit-status.is-win  { color: #c2dca2; text-shadow: 0 0 8px rgba(180, 220, 140, 0.45); }
+.bb-pit-status.is-loss { color: #ff8a8a; text-shadow: 0 0 8px rgba(255, 60, 80, 0.5); }
+.bb-pit-status.is-err  { color: #ffae5a; }
+.bb-pit-status.is-info { color: var(--bb-gaslight); }
+
+.bb-pit-result {
+  font-family: 'Pirata One', serif;
+  font-size: 26px;
+  letter-spacing: 0.06em;
+  min-width: 80px;
+  text-align: right;
+}
+.bb-pit-result.is-win  { color: #c2dca2; text-shadow: 0 0 12px rgba(180, 220, 140, 0.55); }
+.bb-pit-result.is-loss { color: #ff8a8a; text-shadow: 0 0 12px rgba(255, 60, 80, 0.5); }
+
+.bb-pit-canvas-wrap {
+  position: relative;
+  background: #050304;
+  border: 1px solid rgba(201, 161, 74, 0.4);
+  border-radius: 0 0 4px 4px;
+  padding: 4px;
+  box-shadow:
+    inset 0 0 30px rgba(0, 0, 0, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+#bb-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #060403;
+  /* Pixel-art crisp upscale — the JS renders everything to a 180×100 buffer
+     and blits it to the display at 4× scale. These CSS hints make sure
+     browsers don't smooth that upscale further. */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  image-rendering: -moz-crisp-edges;
+}
+
+/* ============================================================================
+   Floor — bookie + reading panel side by side
+   ============================================================================ */
+.bb-floor {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 18px;
+  position: relative;
+  z-index: 2;
+}
+
+@media (max-width: 900px) {
+  .bb-floor { grid-template-columns: 1fr; }
+}
+
+/* ============================================================================
+   Bookie chalkboard + bet controls
+   ============================================================================ */
+.bb-bookie {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bb-bookie-board {
+  position: relative;
+  padding: 18px 18px 20px;
+  background: linear-gradient(180deg, var(--bb-board) 0%, #0c1808 100%);
+  border: 8px solid #2a160c;
+  border-image: linear-gradient(180deg, #4a2814 0%, #1a0a04 100%) 1;
+  box-shadow:
+    inset 0 0 24px rgba(0, 0, 0, 0.65),
+    0 6px 16px rgba(0, 0, 0, 0.55);
+  /* Chalk-dust noise on the slate */
+  background-image:
+    linear-gradient(180deg, var(--bb-board) 0%, #0c1808 100%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='c'><feTurbulence type='fractalNoise' baseFrequency='2.2' numOctaves='2' seed='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.92  0 0 0 0.08 0'/></filter><rect width='200' height='200' filter='url(%23c)'/></svg>");
+  background-blend-mode: screen;
+}
+.bb-bookie-board::after {
+  /* chalk smudges across the bottom */
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 30%;
+  background: linear-gradient(180deg, transparent 0%, rgba(240, 232, 208, 0.04) 60%, rgba(240, 232, 208, 0.08) 100%);
+  pointer-events: none;
+}
+
+.bb-bookie-title {
+  font-family: 'Pirata One', serif;
+  font-size: 22px;
+  letter-spacing: 0.18em;
+  color: var(--bb-chalk);
+  text-align: center;
+  margin-bottom: 12px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.bb-bookie-odds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bb-odds-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: 'Special Elite', 'Courier New', monospace;
+  color: var(--bb-chalk);
+  border-bottom: 1px dashed rgba(240, 232, 208, 0.2);
+  padding-bottom: 6px;
+}
+
+.bb-odds-side {
+  font-size: 16px;
+  letter-spacing: 0.2em;
+}
+
+.bb-odds-val {
+  font-family: var(--font-ui);
+  font-size: 24px;
+  color: var(--bb-gaslight);
+  text-shadow: 0 0 6px rgba(255, 200, 100, 0.4);
+}
+
+.bb-bookie-hint {
+  margin-top: 10px;
+  font-family: 'Special Elite', monospace;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(240, 232, 208, 0.55);
+  text-align: center;
+}
+
+/* ----- Bet controls below the chalkboard ----- */
+.bb-betting {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(20, 10, 8, 0.55);
+  border: 1px solid rgba(201, 161, 74, 0.3);
+  padding: 12px;
+  border-radius: 3px;
+}
+
+.bb-wager-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bb-wager-label {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(201, 161, 74, 0.8);
+}
+
+#bb-wager {
+  width: 90px;
+  background: #0a0504;
+  border: 1px solid rgba(201, 161, 74, 0.5);
+  color: var(--bb-gaslight);
+  font-family: var(--font-ui);
+  font-size: 20px;
+  text-align: center;
+  padding: 4px 6px;
+}
+#bb-wager:disabled { opacity: 0.5; }
+
+.bb-bet-row { display: flex; gap: 10px; }
+.bb-next-row { display: flex; gap: 10px; }
+
+.bb-btn {
+  flex: 1 0 auto;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: var(--bb-bone);
+  background: linear-gradient(180deg, #3a2014 0%, #1a0c06 100%);
+  border: 1px solid #0a0405;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.18),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.5),
+    0 3px 0 rgba(0, 0, 0, 0.7);
+  transition: transform 0.06s ease, box-shadow 0.12s ease, color 0.12s ease;
+}
+.bb-btn:hover:not(:disabled) {
+  color: var(--bb-gaslight);
+  text-shadow: 0 0 6px rgba(255, 200, 100, 0.4);
+}
+.bb-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(0, 0, 0, 0.7);
+}
+.bb-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.bb-btn-small { flex: 0 0 auto; font-size: 13px; padding: 6px 10px; }
+
+.bb-btn-bear {
+  background: linear-gradient(180deg, #4a2818 0%, #1a0c06 100%);
+  color: #f0c890;
+  border-color: #2a1408;
+}
+.bb-btn-dogs {
+  background: linear-gradient(180deg, #1a3a48 0%, #0a1820 100%);
+  color: #c8e0e8;
+  border-color: #051418;
+}
+.bb-btn-next {
+  background: linear-gradient(180deg, #d4a830 0%, #6a4a14 100%);
+  color: #1a0a04;
+  border-color: #2a1a04;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 200, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+    0 3px 0 rgba(40, 20, 4, 0.7),
+    0 0 14px rgba(255, 208, 120, 0.3);
+}
+
+/* ============================================================================
+   Reading panel — field guide + form sheet
+   ============================================================================ */
+.bb-reading {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 720px) {
+  .bb-reading { grid-template-columns: 1fr; }
+}
+
+.bb-fieldguide,
+.bb-formsheet {
+  position: relative;
+  background:
+    /* coffee stain */
+    radial-gradient(ellipse 80px 40px at 15% 90%, rgba(70, 30, 8, 0.2) 0%, transparent 70%),
+    /* aged paper */
+    linear-gradient(180deg, #e8d0a0 0%, #d0b888 100%);
+  color: var(--bb-ink);
+  border: 1px solid var(--bb-paper-edge);
+  padding: 16px 18px 18px;
+  font-family: 'Special Elite', 'Courier New', monospace;
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.45),
+    inset 0 0 30px rgba(110, 70, 20, 0.18);
+  filter: saturate(0.85);
+}
+.bb-fieldguide::before,
+.bb-formsheet::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='2.6' numOctaves='2' seed='6'/><feColorMatrix values='0 0 0 0 0.40  0 0 0 0 0.26  0 0 0 0 0.10  0 0 0 0.22 0'/></filter><rect width='160' height='160' filter='url(%23p)'/></svg>");
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.bb-section-title {
+  position: relative;
+  font-family: 'Pirata One', serif;
+  font-size: 20px;
+  letter-spacing: 0.14em;
+  color: #1a0a04;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  border-bottom: 1px dashed rgba(40, 20, 6, 0.4);
+  padding-bottom: 4px;
+}
+.bb-section-note {
+  position: relative;
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(40, 20, 6, 0.7);
+}
+
+/* ----- Field guide ----- */
+.bb-fg-block {
+  position: relative;
+  margin-bottom: 12px;
+}
+.bb-fg-heading {
+  font-family: 'Pirata One', serif;
+  font-size: 16px;
+  letter-spacing: 0.16em;
+  color: #2a1404;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.bb-fg-cues {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+.bb-fg-cue {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 8px;
+  font-size: 13px;
+  border-bottom: 1px dotted rgba(40, 20, 6, 0.22);
+  padding: 2px 0;
+}
+.bb-fg-cue-k {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #4a2010;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.bb-fg-cue-v {
+  color: #1a0a04;
+}
+
+.bb-fg-dogs {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-fg-dogs li {
+  font-size: 13px;
+  padding: 3px 0;
+  border-bottom: 1px dotted rgba(40, 20, 6, 0.22);
+  color: #1a0a04;
+}
+.bb-fg-dogs li:last-child { border-bottom: none; }
+
+/* ----- Form sheet ----- */
+.bb-fs-block {
+  position: relative;
+  margin-bottom: 14px;
+}
+.bb-fs-name {
+  font-family: 'Pirata One', serif;
+  font-size: 16px;
+  letter-spacing: 0.14em;
+  color: #2a1404;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.bb-fs-record {
+  font-size: 13px;
+  color: #1a0a04;
+}
+.bb-fs-extra {
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(40, 20, 6, 0.7);
+}
+
+.bb-fs-dogs {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-fs-dogs li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-bottom: 1px dotted rgba(40, 20, 6, 0.22);
+  font-size: 13px;
+  color: #1a0a04;
+}
+.bb-fs-dog-name { letter-spacing: 0.06em; }
+.bb-fs-dog-record { font-family: var(--font-ui); font-size: 14px; color: #2a4a18; }

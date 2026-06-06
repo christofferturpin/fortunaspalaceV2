@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  RAID — prototype: cold attackers sweep a procedural building of pawns   │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Prototype (not yet on the lobby grid). 4x4 grid floor plan with 12-16 │
+  │    named real rooms (Pantry, Library, Den…) plus hall rooms between      │
+  │    them as first-class nodes; ≥3 corridors break out to the perimeter    │
+  │    as exits. Each real room hosts 3-5 named pawns (first + last + age    │
+  │    3-60). Player drops up to 3 attackers (random gear — pistol, bat,     │
+  │    shotgun, machine gun, revolver) at chosen exits, then Play or Step.   │
+  │    Each tick is 2 narrative seconds; the clock starts at 10:32:21am.     │
+  │    Pawn panic: same-zone 100%, 1 real-hop 50%, 2 real-hops 25%, plus     │
+  │    chain panic within a room (idle pawns see fleeing pawns and flee).    │
+  │    10% of reacting rooms barricade instead (sheltering pawns inside);    │
+  │    attackers must break through (obsessed for 2-3 ticks). At a random    │
+  │    tick 5-9, 3 cops breach and hunt the attackers — 25% per-cop hit      │
+  │    chance can put an attacker DOWN. Movement trails dash from prior to   │
+  │    current room for everyone. ~33% of "kills" are actually wounded       │
+  │    (presumed dead). Two endings: BUILDING CLEAR or ATTACKERS DOWN.       │
+  │    Procedural Web Audio SFX fire per event kind.                         │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: raid/building.js, raid/audio.js, raid/sim.js                   │
+  │    inline route-guards: none (prototype, reachable by URL only)          │
+  │    DOM ids: #raid-canvas, #raid-attackers, #raid-exits, #raid-step,      │
+  │      #raid-play, #raid-regen, #raid-status, #raid-log                    │
+  │    layout: canvas+controls left column, event log right column           │
+  │    flow: DOMContentLoaded→RaidSim.init → Building.generate(W,H)          │
+  │      (rooms+halls as nodes, roomAdj for real-room distance) →            │
+  │      assignRoomNames (real rooms only) + spawnPawns + rollAttackers +    │
+  │      rollCops + copsArrivalTick=5+rnd(5) → user drops attackers →        │
+  │      step() ticks (cop spawn check, reactPawns, chainPanic, copsAct,     │
+  │      attackerAct (cops>pawns priority; barricade→breaking), movePawns,   │
+  │      copsMove, checkEnd) → BUILDING CLEAR or ATTACKERS DOWN              │
+  │    storage R/W: none                                                     │
+  │    routes out: ../index.html (back to lobby)                             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Asmodeus Memorial &mdash; Incident Simulator</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <style>
+    body { background: var(--bg-void); color: var(--bone); font-family: var(--font-title, serif); margin: 0; }
+    header { padding: 14px 22px; border-bottom: 1px solid var(--iron-light); display: flex; align-items: baseline; gap: 18px; }
+    header h1 { margin: 0; font-size: 22px; letter-spacing: 0.08em; color: var(--bone); flex: 1; }
+    header .nav a { color: var(--bone-dim); text-decoration: none; font-family: 'Special Elite', monospace; font-size: 13px; }
+    header .nav a:hover { color: var(--ember); }
+
+    /* Wager controls */
+    .wager-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      align-items: stretch;
+    }
+    #raid-wager-input {
+      background: var(--bg-deep);
+      color: var(--bone);
+      border: 1px solid var(--iron-light);
+      padding: 7px 8px;
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      text-align: right;
+      min-width: 0;
+    }
+    #raid-wager-input:focus { outline: 1px solid var(--blood); }
+    #raid-wager-input:disabled { opacity: 0.55; }
+    #raid-wager-max {
+      padding: 6px 10px;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+    }
+    .wager-info {
+      font-size: 12px;
+      color: var(--bone-dim);
+      letter-spacing: 0.08em;
+    }
+    .wager-info b { color: var(--ember); font-weight: normal; }
+    .wager-info .wager-final {
+      display: block;
+      margin-top: 4px;
+      font-size: 12.5px;
+      font-style: italic;
+    }
+    .wager-info .win  { color: var(--phosphor); }
+    .wager-info .loss { color: var(--blood); }
+
+    main {
+      padding: 18px 22px 30px;
+      display: grid;
+      grid-template-columns: 960px minmax(380px, 1fr);
+      grid-template-rows: auto auto;
+      gap: 18px;
+      align-items: start;
+    }
+    .canvas-cell { grid-column: 1; grid-row: 1; }
+    .log-cell    { grid-column: 2; grid-row: 1 / span 2; align-self: stretch; }
+    .controls-cell { grid-column: 1; grid-row: 2; }
+
+    #raid-canvas { background: var(--bg-deep); border: 1px solid var(--iron-light); display: block; }
+
+    /* ===== CONTROLS (below the canvas) ===== */
+    .controls-cell {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr 0.95fr 0.9fr 1.3fr;
+      gap: 14px;
+      font-family: 'Special Elite', monospace;
+    }
+    .group { display: flex; flex-direction: column; gap: 6px; }
+    .group h2 {
+      margin: 0 0 2px;
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      color: var(--bone-dim);
+      text-transform: uppercase;
+    }
+    button {
+      background: var(--bg-panel); color: var(--bone); border: 1px solid var(--iron-light);
+      padding: 8px 12px; font-family: 'Special Elite', monospace; font-size: 13px;
+      letter-spacing: 0.06em; cursor: pointer; text-align: left;
+    }
+    button:hover:not(:disabled) { border-color: var(--blood); color: var(--ember); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary {
+      border-color: var(--blood); color: var(--blood);
+      text-shadow: 0 0 5px rgba(184,0,31,0.6);
+      text-align: center; letter-spacing: 0.14em;
+    }
+    button.primary:hover:not(:disabled) { color: var(--ember); border-color: var(--ember); }
+    .turn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+    /* Attacker cards */
+    .atk-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 10px;
+      background: var(--bg-panel);
+      border: 1px solid var(--iron-light);
+      border-left-width: 3px;
+    }
+    .atk-card.placed { border-left-color: var(--blood); }
+    .atk-card.next   { border-left-color: var(--sulfur); }
+    .atk-card.dead   { border-left-color: #5a8acc; opacity: 0.55; }
+    .atk-card.dead .atk-loc { color: #5a8acc; }
+    .atk-glyph {
+      font-size: 22px; line-height: 1; width: 26px; text-align: center;
+      text-shadow: 0 0 6px currentColor;
+    }
+    .atk-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .atk-name {
+      font-size: 14px; color: var(--bone); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      letter-spacing: 0.04em;
+    }
+    .atk-label { font-size: 10px; letter-spacing: 0.2em; color: var(--bone-dim); }
+    .atk-weapon { font-size: 11px; color: var(--bone-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .atk-loc { font-size: 11px; color: var(--bone-dim); text-align: right; white-space: nowrap; }
+    .atk-loc.placed { color: var(--ember); }
+
+    #raid-status {
+      font-size: 13px; color: var(--bone-dim); line-height: 1.55;
+      white-space: pre-wrap;
+      padding: 8px 10px; background: var(--bg-panel); border: 1px solid var(--iron-light);
+      min-height: 7em;
+    }
+
+    /* ===== EVENT LOG (right column, sticky so it follows action) ===== */
+    .log-cell {
+      display: flex; flex-direction: column;
+      background: linear-gradient(180deg, rgba(8,4,5,0.4) 0%, rgba(10,4,6,0.8) 100%);
+      border: 1px solid var(--iron-light);
+      border-top: 2px solid var(--blood);
+      box-shadow: 0 0 24px rgba(184,0,31,0.18) inset;
+      padding: 14px 18px 18px;
+      height: 760px;
+      position: sticky;
+      top: 14px;
+      align-self: start;
+    }
+    .log-cell h2 {
+      margin: 0 0 10px;
+      font-family: 'Special Elite', monospace;
+      font-size: 12px;
+      letter-spacing: 0.32em;
+      color: var(--bone-dim);
+      text-transform: uppercase;
+      text-align: center;
+    }
+    #raid-log {
+      font-family: 'Special Elite', 'Courier New', monospace;
+      font-size: 16px;
+      line-height: 1.5;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 8px;
+      scroll-behavior: smooth;
+    }
+    #raid-log::-webkit-scrollbar { width: 8px; }
+    #raid-log::-webkit-scrollbar-track { background: rgba(0,0,0,0.4); }
+    #raid-log::-webkit-scrollbar-thumb {
+      background: var(--blood-dim); border-radius: 4px;
+    }
+    #raid-log::-webkit-scrollbar-thumb:hover { background: var(--blood); }
+    #raid-log:empty::before {
+      content: "— No tick yet. Drop an attacker. Hit Play. —";
+      color: var(--bone-dim);
+      font-style: italic;
+      opacity: 0.6;
+    }
+    .log-entry { padding: 1px 0; display: block; }
+    .log-time {
+      display: inline-block;
+      min-width: 9.5ch;
+      color: var(--bone-dim);
+      opacity: 0.55;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      margin-right: 8px;
+    }
+    .log-text { display: inline; }
+
+    .log-react { color: var(--bone); font-style: italic; opacity: 0.85; }
+    .log-startle {
+      color: #f0c890; font-size: 16px; font-style: italic;
+      text-shadow: 0 0 5px rgba(255,170,80,0.4);
+    }
+    .log-kill {
+      color: #ffb0a0; font-size: 19px;
+      text-shadow: 0 0 6px var(--blood), 0 0 14px rgba(184,0,31,0.7), 0 0 22px rgba(184,0,31,0.35);
+    }
+    .log-move {
+      color: var(--ember); font-size: 17px;
+      text-shadow: 0 0 4px var(--ember-dim), 0 0 10px rgba(255,106,0,0.4);
+    }
+    .log-flee { color: #f0c890; font-size: 16px; font-style: italic; }
+    .log-escape {
+      color: var(--phosphor); font-size: 18px;
+      text-shadow: 0 0 5px var(--phosphor), 0 0 12px rgba(26,255,127,0.5);
+    }
+    .log-place {
+      color: var(--sulfur); font-size: 19px;
+      text-shadow: 0 0 5px var(--sulfur), 0 0 12px var(--sulfur-dim);
+      letter-spacing: 0.05em;
+    }
+    .log-over {
+      color: #ffd6cc; font-size: 30px; font-weight: bold;
+      letter-spacing: 0.22em;
+      text-align: center;
+      text-shadow:
+        0 0 8px var(--blood),
+        0 0 18px var(--blood),
+        0 0 36px rgba(184,0,31,0.7),
+        0 0 60px var(--blood-dim);
+      margin: 14px 0 4px;
+      text-transform: uppercase;
+    }
+    .log-overdown {
+      color: #cce4ff; font-size: 30px; font-weight: bold;
+      letter-spacing: 0.22em;
+      text-align: center;
+      text-shadow:
+        0 0 8px #5a8acc,
+        0 0 18px #5a8acc,
+        0 0 36px rgba(74,142,200,0.7),
+        0 0 60px #3a5a8a;
+      margin: 14px 0 4px;
+      text-transform: uppercase;
+    }
+    .log-stats {
+      color: var(--bone); font-size: 16px;
+      letter-spacing: 0.12em;
+      text-shadow: 0 0 4px rgba(216,200,176,0.4);
+      margin-bottom: 6px;
+    }
+    .log-over .log-time, .log-overdown .log-time { display: none; }
+
+    /* ===== Cops ===== */
+    .log-cops {
+      color: #cce4ff; font-size: 22px; font-weight: bold;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      text-shadow: 0 0 6px #5a8acc, 0 0 16px #5a8acc, 0 0 28px rgba(74,142,200,0.6);
+      margin-top: 12px; padding-top: 6px;
+      border-top: 1px dashed rgba(90,138,204,0.4);
+    }
+    .log-copkill {
+      color: #ffd060; font-size: 20px; font-weight: bold;
+      text-shadow: 0 0 6px #d4af37, 0 0 14px #ffaa00, 0 0 22px rgba(255,170,0,0.5);
+    }
+    .log-copmiss {
+      color: #8a9ab8; font-size: 15px; font-style: italic; opacity: 0.75;
+    }
+    .log-copmove {
+      color: #7ea5d4; font-size: 16px; font-style: italic;
+      text-shadow: 0 0 4px rgba(90,138,204,0.4);
+    }
+
+    /* ===== Barricade ===== */
+    .log-barricade {
+      color: #d4af37; font-size: 18px; font-style: italic;
+      text-shadow: 0 0 5px #d4af37, 0 0 12px rgba(212,175,55,0.4);
+    }
+    .log-break {
+      color: #c8a058; font-size: 16px; font-style: italic;
+      text-shadow: 0 0 3px rgba(200,160,88,0.3);
+    }
+    .log-breakthrough {
+      color: #ffcc40; font-size: 19px;
+      text-shadow: 0 0 6px #d4af37, 0 0 14px #ffaa00;
+    }
+    .log-ambient {
+      color: #968878; font-size: 14px; font-style: italic;
+      opacity: 0.78; letter-spacing: 0.02em;
+    }
+    .log-ambient::before { content: '· '; opacity: 0.5; }
+
+    /* ===== Newspaper article ===== */
+    #raid-newspaper {
+      margin: 14px 22px 22px;
+      padding: 24px 32px 22px;
+      background:
+        radial-gradient(ellipse at 20% 0%, rgba(168,140,90,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse at 90% 100%, rgba(120,90,40,0.22) 0%, transparent 50%),
+        linear-gradient(180deg, #ead8b0 0%, #d2bf95 100%);
+      color: #2a1d10;
+      font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+      border: 1px solid #6a5230;
+      box-shadow: 0 0 0 3px #050203 inset, 0 4px 30px rgba(0,0,0,0.55);
+      position: relative;
+    }
+    .np-nameplate {
+      text-align: center;
+      font-family: 'Pirata One', 'IM Fell English', 'Times New Roman', serif;
+      font-size: 38px; font-weight: 900;
+      letter-spacing: 0.04em; line-height: 0.95;
+      margin: 0 0 4px;
+      text-transform: uppercase;
+    }
+    .np-edline {
+      text-align: center;
+      font-family: 'Special Elite', monospace;
+      font-size: 11px; letter-spacing: 0.12em;
+      margin: 0 0 18px;
+      color: #5a4220;
+      border-bottom: 1px solid #5a4220;
+      padding-bottom: 8px;
+    }
+    .np-head {
+      font-family: 'Cinzel', 'Times New Roman', serif;
+      font-size: 24px;
+      margin: 0 0 4px;
+      line-height: 1.18;
+      font-weight: 700;
+      color: #1a0a06;
+    }
+    .np-subhead {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 16px; font-style: italic;
+      margin: 0 0 12px;
+      color: #4a2c1a;
+    }
+    .np-byline {
+      font-family: 'Special Elite', monospace;
+      font-size: 11px; letter-spacing: 0.1em;
+      margin: 0 0 14px;
+      text-transform: uppercase;
+      color: #4a2c1a;
+    }
+    .np-body {
+      column-count: 2;
+      column-gap: 28px;
+      font-size: 14.5px;
+      line-height: 1.55;
+      text-align: justify;
+    }
+    .np-body p { margin: 0 0 10px; }
+    .np-body p:first-of-type::first-letter {
+      font-family: 'Pirata One', serif;
+      font-size: 44px;
+      float: left;
+      line-height: 0.92;
+      margin: 4px 6px -3px 0;
+      color: #6a1010;
+    }
+    .np-footnotes {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid #5a4220;
+      font-size: 11.5px; line-height: 1.45;
+      font-style: italic;
+      color: #3a2410;
+      column-count: 1;
+    }
+    .np-chyron {
+      display: inline-block;
+      background: #b8001f;
+      color: #ffd6cc;
+      padding: 2px 6px;
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+    .np-aside {
+      break-inside: avoid;
+      background: rgba(180, 150, 100, 0.18);
+      border: 1px solid #8a6a30;
+      padding: 12px 14px;
+      margin: 0 0 12px;
+      font-size: 12.5px;
+      line-height: 1.42;
+      font-family: 'Cormorant Garamond', serif;
+    }
+    .np-aside h4 {
+      margin: 0 0 8px;
+      font-family: 'Cinzel', serif;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-align: center;
+      border-bottom: 1px dotted #8a6a30;
+      padding-bottom: 5px;
+      color: #2a1d10;
+    }
+    .np-aside ol {
+      margin: 0;
+      padding-left: 1.6em;
+      column-count: 1;
+    }
+    .np-aside li {
+      margin-bottom: 3px;
+    }
+    .np-aside .np-aside-foot {
+      font-style: italic;
+      font-size: 11px;
+      text-align: right;
+      margin-top: 6px;
+      color: #4a2c1a;
+    }
+    .np-quote {
+      break-inside: avoid;
+      border-left: 3px solid #8a6a30;
+      padding: 10px 16px 12px 18px;
+      margin: 0 0 12px;
+      background: rgba(180, 150, 100, 0.10);
+    }
+    .np-quote blockquote {
+      margin: 0 0 8px;
+      font-family: 'Cinzel', 'Cormorant Garamond', serif;
+      font-size: 17px;
+      font-style: italic;
+      font-weight: 600;
+      line-height: 1.38;
+      color: #1a0a06;
+    }
+    .np-quote .np-attr {
+      font-size: 11px;
+      font-style: italic;
+      color: #4a2c1a;
+      line-height: 1.42;
+    }
+    /* ===== Splash overlay ===== */
+    .raid-splash-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 2, 3, 0.94);
+      z-index: 10000;
+      overflow-y: auto;
+      padding: 30px 20px 50px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .raid-splash-overlay.dismissed { display: none; }
+    .raid-splash-overlay #raid-newspaper {
+      max-width: 920px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .np-dismiss-row {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #5a4220;
+      text-align: center;
+    }
+    .np-dismiss-btn {
+      font-family: 'Special Elite', monospace;
+      background: #1a0a06;
+      color: #d8c8b0;
+      border: 2px solid #6a5230;
+      padding: 12px 32px;
+      font-size: 15px;
+      letter-spacing: 0.22em;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
+    }
+    .np-dismiss-btn:hover {
+      background: #b8001f;
+      color: #ffd6cc;
+      border-color: #b8001f;
+      letter-spacing: 0.26em;
+    }
+    .np-dismiss-fineprint {
+      margin-top: 10px;
+      font-family: 'Special Elite', monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      color: #5a4220;
+      font-style: italic;
+    }
+
+    /* ===== 4-step trigger-warning gate ===== */
+    .raid-warning-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.96);
+      z-index: 11000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    .raid-warning-overlay.dismissed { display: none; }
+    .raid-warning-frame {
+      max-width: 720px;
+      width: 100%;
+      background: #0a0405;
+      border: 2px solid var(--blood);
+      padding: 30px 36px 28px;
+      font-family: 'Special Elite', 'Courier New', monospace;
+      color: var(--bone);
+      box-shadow: 0 0 40px rgba(184, 0, 31, 0.45),
+                  0 0 0 1px rgba(184, 0, 31, 0.25) inset;
+    }
+    .raid-warning-step { display: none; }
+    .raid-warning-step.active { display: block; }
+    .raid-warning-step h2 {
+      font-size: 13px;
+      letter-spacing: 0.30em;
+      color: var(--blood);
+      margin: 0 0 18px;
+      text-transform: uppercase;
+      text-shadow: 0 0 6px var(--blood-dim);
+      border-bottom: 1px dashed var(--blood-dim);
+      padding-bottom: 10px;
+    }
+    /* Default body is the bureaucratic monospace register; the final step
+       overrides to serif to mark the drop from satire to plain talk. */
+    .raid-warning-body {
+      font-family: 'Special Elite', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 22px;
+      color: var(--bone-dim);
+    }
+    .raid-warning-body p { margin: 0 0 10px; }
+    .raid-warning-body ul {
+      padding-left: 1.4em;
+      margin: 8px 0 4px;
+    }
+    .raid-warning-body li { margin-bottom: 6px; }
+    .raid-warning-body em { color: var(--bone); font-style: italic; }
+    .raid-warning-body strong { color: var(--bone); font-weight: 600; }
+    .raid-warning-step.final .raid-warning-body {
+      font-family: 'Cormorant Garamond', 'IM Fell English', 'Times New Roman', serif;
+      font-size: 16.5px;
+      line-height: 1.7;
+      color: var(--bone);
+    }
+    .raid-warning-check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 18px;
+      cursor: pointer;
+      color: var(--bone);
+    }
+    .raid-warning-check-row input[type="checkbox"] {
+      transform: scale(1.4);
+      margin-top: 2px;
+      cursor: pointer;
+      accent-color: var(--blood);
+    }
+    .raid-warning-next {
+      display: block;
+      margin-left: auto;
+      background: #1a0a06;
+      color: var(--bone-dim);
+      border: 2px solid var(--iron-light);
+      padding: 12px 28px;
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      letter-spacing: 0.22em;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
+    }
+    .raid-warning-next:disabled { opacity: 0.35; cursor: not-allowed; }
+    .raid-warning-next:not(:disabled) {
+      border-color: var(--blood);
+      color: var(--blood);
+      text-shadow: 0 0 4px rgba(184, 0, 31, 0.5);
+    }
+    .raid-warning-next:not(:disabled):hover {
+      background: var(--blood);
+      color: #ffd6cc;
+    }
+    .raid-warning-step.final h2 { color: #ffd6cc; }
+    .raid-warning-stepcount {
+      float: right;
+      font-size: 10px;
+      color: var(--bone-dim);
+      letter-spacing: 0.2em;
+      opacity: 0.65;
+    }
+
+    /* The escalating Studio C off-ramp — please, just go watch it instead. */
+    .sc-out {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px dashed rgba(168, 152, 120, 0.22);
+      text-align: center;
+      font-family: 'Special Elite', monospace;
+    }
+    .sc-out a {
+      color: #5aa8d4;
+      text-decoration: none;
+      border-bottom: 1px dotted #5aa8d4;
+    }
+    .sc-out a:hover { color: #cfeaff; text-shadow: 0 0 6px #5aa8d4; }
+    .sc-tier1 { font-size: 11.5px; opacity: 0.7; font-style: italic; color: var(--bone-dim); }
+    .sc-tier2 { font-size: 13.5px; color: var(--bone-dim); }
+    .sc-tier3 {
+      font-size: 16.5px;
+      color: var(--bone);
+      font-weight: 600;
+      line-height: 1.45;
+    }
+    .sc-tier3 a { font-weight: 700; }
+    .sc-tier4 {
+      font-size: 22px;
+      color: #cfeaff;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      line-height: 1.3;
+      text-shadow: 0 0 10px rgba(154, 212, 255, 0.55),
+                   0 0 22px rgba(154, 212, 255, 0.3);
+      padding-top: 18px;
+      border-top: 2px double rgba(154, 212, 255, 0.35);
+    }
+    .sc-tier4 .sc-mega {
+      display: block;
+      margin: 8px 0 4px;
+      font-size: 28px;
+      letter-spacing: 0.08em;
+    }
+    .sc-tier4 a.sc-mega-link {
+      display: inline-block;
+      margin: 10px 0 4px;
+      padding: 12px 28px;
+      background: rgba(90, 168, 212, 0.12);
+      border: 2px solid #5aa8d4;
+      color: #ffffff;
+      font-size: 32px;
+      letter-spacing: 0.14em;
+      text-shadow: 0 0 14px #5aa8d4, 0 0 26px rgba(154, 212, 255, 0.6);
+      text-decoration: none;
+      border-radius: 2px;
+    }
+    .sc-tier4 a.sc-mega-link:hover {
+      background: #5aa8d4;
+      color: #050203;
+      text-shadow: none;
+    }
+    .sc-tier4 .sc-shout {
+      display: block;
+      margin-top: 6px;
+      font-size: 14px;
+      color: #9ad4ff;
+      letter-spacing: 0.18em;
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav"><a href="../index.html">&larr; Lobby</a></div>
+    <h1>ASMODEUS MEMORIAL &mdash; INCIDENT SIMULATOR</h1>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <div id="raid-warning" class="raid-warning-overlay" role="dialog" aria-modal="true" aria-labelledby="raid-warning-heading">
+    <div class="raid-warning-frame">
+
+      <div class="raid-warning-step active" data-step="1">
+        <h2 id="raid-warning-heading">
+          Terms of Engagement
+          <span class="raid-warning-stepcount">1 / 4</span>
+        </h2>
+        <div class="raid-warning-body">
+          <p>By clicking <strong>Continue</strong>, you acknowledge and
+            agree:</p>
+          <ul>
+            <li>You are of legal age to see adult content in your country.</li>
+            <li>You actually agreed.</li>
+            <li>You won&rsquo;t get mad. You&rsquo;re agreeing to this.</li>
+          </ul>
+        </div>
+        <label class="raid-warning-check-row">
+          <input type="checkbox" class="raid-warning-check">
+          I have read and agree to the Terms of Engagement.
+        </label>
+        <button class="raid-warning-next" type="button" disabled>Continue &#9656;</button>
+        <div class="sc-out sc-tier1">
+          Or you could watch
+          <a href="https://www.youtube.com/@StudioC" target="_blank" rel="noopener">Studio C</a>
+          instead.
+        </div>
+      </div>
+
+      <div class="raid-warning-step" data-step="2">
+        <h2>
+          Moral Disclosure
+          <span class="raid-warning-stepcount">2 / 4</span>
+        </h2>
+        <div class="raid-warning-body">
+          <p>Seriously, this one is dark.</p>
+          <ul>
+            <li>You understand that it is dark.</li>
+            <li>You understand it is not an endorsement of the thing but a
+              satire of it.</li>
+            <li>It is disturbing and that&rsquo;s part of the point.</li>
+          </ul>
+        </div>
+        <label class="raid-warning-check-row">
+          <input type="checkbox" class="raid-warning-check">
+          I understand.
+        </label>
+        <button class="raid-warning-next" type="button" disabled>Continue &#9656;</button>
+        <div class="sc-out sc-tier2">
+          You could still just watch
+          <a href="https://www.youtube.com/@StudioC" target="_blank" rel="noopener">Studio C</a>.
+          It&rsquo;s a sketch comedy show. It&rsquo;s pretty good. The Robot Abe Lincoln is the funniest thing I have ever seen.
+        </div>
+      </div>
+
+      <div class="raid-warning-step" data-step="3">
+        <h2>
+          Thesis Acknowledgement
+          <span class="raid-warning-stepcount">3 / 4</span>
+        </h2>
+        <div class="raid-warning-body">
+          <p>Once again, social satire and critique.</p>
+          <ul>
+            <li>You again agree that you understand this.</li>
+            <li>This is a satirical depection of our relationship to violence. It is further enacted by your
+              performance and in it.</li>
+            <li>Yes, I&rsquo;m aware that&rsquo;s pretentious.</li>
+          </ul>
+        </div>
+        <label class="raid-warning-check-row">
+          <input type="checkbox" class="raid-warning-check">
+          I understand, you pretentious bitch.
+        </label>
+        <button class="raid-warning-next" type="button" disabled>Continue &#9656;</button>
+        <div class="sc-out sc-tier3">
+          Honestly, have you considered watching
+          <a href="https://www.youtube.com/@StudioC" target="_blank" rel="noopener">Studio C</a>?
+          It&rsquo;s free on YouTube. Fourteen seasons. It&rsquo;s clean but hillarious.
+          Your Meemaw would love it.
+        </div>
+      </div>
+
+      <div class="raid-warning-step final" data-step="4">
+        <h2>
+          No seriously
+          <span class="raid-warning-stepcount">4 / 4</span>
+        </h2>
+        <div class="raid-warning-body">
+          <p>Seriously, last warning. You can&rsquo;t be mad at me if you
+            play this, this one is dark.</p>
+          <p>Seriously, it's a satirical take on mass shootings by way of simulator. So... yeah... These depictions are intended as <strong>satire and social critique</strong>. Nothing in this work should be interpreted as endorsement, advocacy, or instruction. You don't have to watch it, but you probably want to just to see don't you?</p>
+        </div>
+        <label class="raid-warning-check-row">
+          <input type="checkbox" class="raid-warning-check">
+          I&rsquo;m sure.
+        </label>
+        <button class="raid-warning-next" type="button" disabled>Enter &#9656;</button>
+        <div class="sc-out sc-tier4">
+          For the love of god
+          <span class="sc-mega">WATCH</span>
+          <a class="sc-mega-link" href="https://www.youtube.com/@StudioC" target="_blank" rel="noopener">STUDIO&nbsp;C</a>
+          <span class="sc-mega">INSTEAD!</span>
+          <span class="sc-shout">FOURTEEN SEASONS. FREE. CLEAN. YOUR
+          GRANDMOTHER WILL LAUGH. I WOULD RECOMMEND NOT PLAYING THIS</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="raid-splash" class="raid-splash-overlay" role="dialog" aria-modal="true" aria-labelledby="raid-newspaper">
+  <article id="raid-newspaper" aria-label="Today's newspaper coverage">
+    <div class="np-nameplate">The Tartarus Herald</div>
+    <div class="np-edline">
+      Underworld Edition &middot; Vol. CCCXVII &middot; No. 4,891 &middot;
+      Today&rsquo;s Smog: Severe &middot; 10&cent;
+    </div>
+
+    <h2 class="np-head">
+      Angels Engage Asmodeus Memorial; HCO Cites Non-Compliance with
+      Standard Advance-Notification Window of Scheduled Massacare
+    </h2>
+    <h3 class="np-subhead">
+      &ldquo;The demons were warned. They chose to stay.&rdquo; &mdash;
+      Besides, pre-crime risk classification provided supplementary justification; &rdquo;
+      demon community fractures along familiar lines;
+      Angels - "Idc lol!"
+    </h3>
+    <div class="np-byline">By Cassander Brimstone &middot; Staff Correspondent</div>
+
+    <div class="np-body">
+      <p>
+        At approximately 10:32 yesterday morning, three angels descended upon
+        Asmodeus Memorial School, marking the fourth heavenly visitation in
+        the lower spheres this fiscal quarter. The Cherub Michael, the Seraph
+        Gabriel, and His Most Beatified Sandalphon conducted the action under
+        Section 14(b) of the Solution. According to the
+        Heavenly Coordination Office, the visitation followed a
+        standard 36-hour compliance window during which demon broods
+        received advance warnings via leaflet drop and cellular
+        broadcast.
+      </p>
+      <p>
+        &ldquo;The demons were warned. They chose to stay,&rdquo; said HCO
+        spokes-herald Tichniel during a briefing. &ldquo;Intelligence reports
+        found evidence of occult texts and gay math, clear evidence
+        of a terrorist training camp. The infrastructure was intensive,
+        with the compound having classrooms, a dining hall, a nurses office, and an evil playground.
+        What monsters would hide a terrorist training center in a school?&rdquo;
+      </p>
+      <p>
+        The HCO additionally classified each affected demon student as a Tier-2
+        pre-crime risk per the Q3 Pre-Crime Index Forecast, which projects
+        that 64.3% of demon students aged 6 to 18 will commit at least one
+        act of academic dishonesty before graduation [1]. The Forecast further
+        estimates the average demon adult will tell approximately 1.65
+        self-serving lies per day [2]. While a stunning 99.85% will commit an act of sloth in the next 24 hours. These data are appended to victim
+        files as supplementary justification.
+
+        &ldquo;I'm not saying all demons are bad, just statistically... you know...&rdquo;
+        Tichniel said, before using a small silver device to summon a giant three-headed chihuahua, whom he then sicked on reporters in the room.
+      </p>
+      <p>
+        The Brood-Breeders Against Heavenly Action disputed the HCO
+        timeline. &ldquo;The leaflets dropped at 9:54 this morning,&rdquo;
+        the group&rsquo;s spokesdemon, Mortara Sulfurburn, told reporters.
+        &ldquo;The visitation began at 10:32. That is not a thirty-six-hour
+        window. That is thirty-eight minutes. There is no designated demon
+        relocation zone. There has never been one.&rdquo; HPCCO has not
+        responded to the inquiry.
+      </p>
+      <p>&ldquo;Time works differently in heaven and hell, you can't compare one time to another...&rdquo; Tichniel was later quoted saying.</p>
+      <p>
+        Senator from Hades (District 3; Libertarian) Mammon J. Wexner, reached between
+        fundraisers, offered the customary written statement: &ldquo;Our
+        thoughts and curses are with the affected families. Now is not the
+        time to discuss policy. It is never the time. We are demons. This
+        is who we are. This is what we accept.&rdquo; The Scientology backed
+        Demon Defense League declined to issue a formal response, citing a
+        &ldquo;full content calendar&rdquo; and noting that the previous
+        forty-six visitations had already exhausted the league&rsquo;s
+        available outrage budget for the fiscal year.
+        Hellscape News Network anchor Slenderman Cinder-恶魔, in branded merchandise, observed
+        on-air that &ldquo;it is hard to keep caring, frankly,&rdquo; before
+        throwing to commercial.
+      </p>
+      <p>
+        Asmodeus Memorial Principal Ayn F. Dnar'Dnar, in a form letter to
+        demon families, stated that rage counselors from the Stygian Crisis
+        Response Unit have been made available in the Auditorium. The HCO
+        has indicated that affected demon parents may submit Form 1040-D
+        within thirty days to dispute the pre-crime sin classifications
+        applied to their children, subject to the Heavenly Information Act;
+        NASP-derived shoplifting projections [3] and GSS-derived future infidelity
+        probability[4], in order to receive a full, prorated, erasure benefit. 
+      </p>
+
+      <aside class="np-aside">
+        <h4>Previous Visitations &mdash; Fiscal Q3</h4>
+        <ol>
+          <li>Lilith Memorial Elementary &middot; May 11</li>
+          <li>Sunnydale Highschool &middot; May 02</li>
+          <li>St. Mammon&rsquo;s of the Pit &middot; Apr 24</li>
+          <li>Baal-Peninsula Combined &middot; Apr 14</li>
+          <li>Mortis Charter Academy &middot; Apr 08</li>
+          <li>Degrassi Jr. High &middot; Mar 27</li>
+          <li>Tartarus Prep &middot; Mar 19</li>
+          <li>Degrassi High &middot; Mar 11</li>
+          <li>Belial Day School &middot; Mar 04</li>
+        </ol>
+        <div class="np-aside-foot">
+          &hellip; thirty-seven prior. See HCO archive.
+        </div>
+      </aside>
+
+      <p>
+        This marks the 47th visitation of the fiscal year, well within the
+        HCO&rsquo;s historical operating average. Underworld House Speaker
+        Dnar'Dnar&rsquo;s office confirmed the passage today of
+        Thoughts-and-Curses Resolution 47-B by voice vote, the
+        forty-seventh such resolution this year. Asmodeus Memorial
+        administrators have indicated the school will reopen Monday at
+        standard schedule. Hellscape News Network has reduced its average
+        visitation coverage from seven hours to two as of this fiscal
+        quarter, citing &ldquo;viewer fatigue.&rdquo; The Down Jones Stock Index
+        closed up 0.4 percent.
+      </p>
+
+      <p>
+        Demons for Visitation Skepticism (DVS), a tax-exempt foundation
+        [501(d)] partly funded by Brimstone Petroleum, held a counter-press
+        conference at the perimeter. DVS Chair Pinhead J. Pithex claimed
+        the footage circulating online had been generated by
+        &ldquo;demon-state crisis actors&rdquo; working at the direction of
+        Underworld media. &ldquo;These children are not dead,&rdquo;
+        Mx. Pithex told the gathered press. &ldquo;They are being kept under wraps at Kubrick's Moon landing sound stage. The leg-loss footage is doctored. I never even had a legal to begin with. We invite the
+        sphere to do its own research.&rdquo; DVS&rsquo;s flagship
+        podcast, the <em>Pitchforked Podcast</em>, recorded 4.2 million
+        downloads this fiscal quarter, an all-time high.
+      </p>
+
+      <aside class="np-quote">
+        <blockquote>
+          &ldquo;There was no visitation. The footage is doctored. My leg
+          was never functional, actually, I never even had two legs... that would be weird. Who has two legs? Huh? Anyway, this is a long-running conspiracy.&rdquo;
+        </blockquote>
+        <div class="np-attr">
+          &mdash; Belial Mortis-Moltface, parent and present-at-incident
+          witness whose left leg was severed below the knee by a Choir
+          Repeater round during the action; interview,
+          <em>Pitchforked Podcast</em> ep. 117. Mx. Pithex&rsquo;s
+          left leg appears intact in HCO surveillance files dated three
+          days prior to the visitation. He has filed for disability
+          benefits.
+        </div>
+      </aside>
+    </div>
+
+    <div class="np-footnotes">
+      [1] McCabe, D. L. (1997). <em>Journal of Higher Education</em> 70(2).
+      Figures applied to demonic populations per HPCCO Form 1040-S.
+      <br>
+      [2] DePaulo, B. M.; Feldman, R. S. (1996; 2002).
+      <em>J. Personality &amp; Social Psych.</em> 70(5);
+      <em>Basic &amp; Applied Social Psych.</em> 24(2).
+      Lies-per-day extrapolation contested by the Demon Bar Association.
+      <br>
+      [3] National Association for Shoplifting Prevention, lifetime-prevalence
+      estimates. Application to pre-adolescent demon cohorts pending.
+      <br>
+      [4] General Social Survey, infidelity items 1991&ndash;present. Adult
+      role-projections derived therefrom.
+    </div>
+
+    <div class="np-dismiss-row">
+      <button id="raid-splash-dismiss" class="np-dismiss-btn" type="button">
+        Enter the Simulator &#9656;
+      </button>
+      <div class="np-dismiss-fineprint">
+        By proceeding, you acknowledge receipt of standard pre-action
+        notification.
+      </div>
+    </div>
+  </article>
+  </div>
+
+  <main>
+    <div class="canvas-cell">
+      <canvas id="raid-canvas" width="960" height="760"></canvas>
+    </div>
+
+    <aside class="log-cell">
+      <h2>&middot; &middot; &middot;  Event Log  &middot; &middot; &middot;</h2>
+      <div id="raid-log"></div>
+    </aside>
+
+    <section class="controls-cell">
+      <div class="group">
+        <h2>Attackers</h2>
+        <div id="raid-attackers"></div>
+      </div>
+
+      <div class="group">
+        <h2>Place at exit</h2>
+        <div id="raid-exits"></div>
+      </div>
+
+      <div class="group">
+        <h2>Wager</h2>
+        <div class="wager-row">
+          <input type="number" id="raid-wager-input" min="1" value="10" inputmode="numeric" autocomplete="off">
+          <button id="raid-wager-max" type="button">MAX</button>
+        </div>
+        <div class="wager-info">
+          Over/Under: <b id="raid-wager-line">18</b> corrections.
+          Above pays out, below forfeits.
+          <span id="raid-wager-final" class="wager-final"></span>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Turn</h2>
+        <div class="turn-row">
+          <button id="raid-play" type="button" class="primary" disabled>Play &#9658;</button>
+          <button id="raid-step" type="button" disabled>Step &#9656;</button>
+        </div>
+        <button id="raid-regen" type="button">Regenerate</button>
+      </div>
+
+      <div class="group">
+        <h2>Status</h2>
+        <div id="raid-status">No attacker placed.</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      // ---- 4-step trigger-warning gate ----
+      var warning = document.getElementById('raid-warning');
+      if (warning) {
+        var steps = warning.querySelectorAll('.raid-warning-step');
+        steps.forEach(function (s) {
+          var cb = s.querySelector('.raid-warning-check');
+          var btn = s.querySelector('.raid-warning-next');
+          if (!cb || !btn) return;
+          cb.addEventListener('change', function () {
+            btn.disabled = !cb.checked;
+          });
+          btn.addEventListener('click', function () {
+            var idx = parseInt(s.getAttribute('data-step'), 10) || 1;
+            if (idx >= steps.length) {
+              warning.classList.add('dismissed');
+              return;
+            }
+            s.classList.remove('active');
+            var next = warning.querySelector(
+              '.raid-warning-step[data-step="' + (idx + 1) + '"]');
+            if (next) next.classList.add('active');
+          });
+        });
+      }
+
+      // ---- newspaper splash dismiss ----
+      var splash = document.getElementById('raid-splash');
+      var sbtn = document.getElementById('raid-splash-dismiss');
+      if (splash && sbtn) {
+        sbtn.addEventListener('click', function () {
+          splash.classList.add('dismissed');
+        });
+      }
+    })();
+  </script>
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/raid/building.js"></script>
+  <script src="../js/raid/audio.js"></script>
+  <script src="../js/raid/sim.js"></script>
+  <script src="../js/header.js"></script>
+</body>
+</html>

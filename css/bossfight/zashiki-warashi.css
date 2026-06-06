@@ -1,0 +1,452 @@
+/*
+  ZASHIKI-WARASHI — page-specific theming on top of holdem.css.
+  ─────────────────────────────────────────────────────────────────────────
+  Visual brief: pure yellow + black. Caution-tape yellow as the only accent
+  hue; everything else is near-black. The character is a small soot-child
+  with emo hair (the ///_o kaomoji), watching from the rafters. Backdrop
+  layers a hazard-stripe field with a slow drift, and a CSWS badge sits
+  under the avatar like every other boss, but here it's painted yellow.
+
+  Sections:
+    1. Palette CSS vars (set inline in the page, but mirrored here as
+       the canonical defaults for any other component scoped to bf-zashiki)
+    2. Page background — black + diagonal hazard stripes + corner caution
+    3. Panel halos — yellow outlines on near-black panels
+    4. Status cells — full-black with yellow borders
+    5. Avatar — CSWS badge (yellow), emo-hair kaomoji
+    6. Player cards — black with yellow edge glow
+    7. Header title — bright yellow stencil with shadow chain
+    8. Monologue / epithet — shared VHS class set in holdem.css §VHS
+  Consumed by: pages/bossfight-zashiki-warashi.html (body class .bf-zashiki)
+*/
+
+/* ─── 1. Palette mirror (inline on the page sets these on body) ────── */
+
+body.bf-body.bf-zashiki {
+  background: transparent;
+  /* VHS aberration channels — vermillion / sumi. Shifted off caution-
+     yellow so the epithet ghosts into the shrine register that the
+     title-name carries (see §7). The shared monologue/epithet rule in
+     holdem.css picks these up automatically. */
+  --bf-vhs-warm: rgba(200, 16, 46, 0.80);   /* 朱 shu-iro vermillion */
+  --bf-vhs-cool: rgba(26, 10, 4, 0.70);     /* 墨 sumi ink */
+}
+html:has(body.bf-zashiki) {
+  background: #1a0f08;
+}
+
+/* ─── 2. Page background — woodfloor photo + soft vignette ─────────── */
+/* ::before is just the wood floor now. The soot layers live in their
+   own DOM elements (.bf-soot-bed) so we can run two independent tilings
+   and a third intersection layer with mask-composite. */
+body.bf-body.bf-zashiki::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+  background-color: #1a0f08;
+  background-image: url('../../assets/images/woodfloor.jpg');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+/* ─── 2b. Soot layers — black + white marchers, vermillion intersect ─ */
+/* Three fixed full-viewport layers behind the page content. Each is a
+   solid color clipped by a soots-shaped alpha mask. The mask itself is
+   baked at runtime from soots.jpg by the inline script on the page
+   (jpg has no alpha) and exposed as --bf-soot-mask on body. Positions
+   for the two marchers come from --bf-soot-x/y and --bf-soot2-x/y;
+   each layer transitions over its matching --bf-soot[2]-dur so the
+   movement stays smooth between random direction changes.
+
+   The .bf-soot-mix layer paints vermillion ONLY where both soot
+   tilings overlap — done by giving it two mask images (one per
+   marcher position) and setting mask-composite: intersect.
+
+   z-index ladder: woodfloor ::before (-2) < soot-bed (-1) < page UI.
+   Vignette ::after still rides on top of all of these. */
+.bf-soot-bed {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  /* Hidden until the runtime mask is baked (see inline script). */
+  opacity: 0;
+  transition: opacity 600ms ease;
+}
+.bf-soot-bed.is-ready {
+  opacity: 1;
+}
+.bf-soot-layer {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-repeat: repeat;
+          mask-repeat: repeat;
+  -webkit-mask-size: 360px 360px;
+          mask-size: 360px 360px;
+}
+.bf-soot-black {
+  background-color: #050302;
+  -webkit-mask-image: var(--bf-soot-mask);
+          mask-image: var(--bf-soot-mask);
+  -webkit-mask-position: var(--bf-soot-x, 0px) var(--bf-soot-y, 0px);
+          mask-position: var(--bf-soot-x, 0px) var(--bf-soot-y, 0px);
+  transition: -webkit-mask-position var(--bf-soot-dur, 4s) linear,
+                       mask-position var(--bf-soot-dur, 4s) linear;
+}
+.bf-soot-white {
+  background-color: #f4ecd8;
+  -webkit-mask-image: var(--bf-soot-mask);
+          mask-image: var(--bf-soot-mask);
+  -webkit-mask-position: var(--bf-soot2-x, 0px) var(--bf-soot2-y, 0px);
+          mask-position: var(--bf-soot2-x, 0px) var(--bf-soot2-y, 0px);
+  transition: -webkit-mask-position var(--bf-soot2-dur, 4s) linear,
+                       mask-position var(--bf-soot2-dur, 4s) linear;
+}
+.bf-soot-mix {
+  /* Caution-yellow accent — matches the UI panel halos and status
+     borders (--bf-accent). */
+  background-color: var(--bf-accent, #ffd700);
+  -webkit-mask-image: var(--bf-soot-mask), var(--bf-soot-mask);
+          mask-image: var(--bf-soot-mask), var(--bf-soot-mask);
+  -webkit-mask-position:
+    var(--bf-soot-x,  0px) var(--bf-soot-y,  0px),
+    var(--bf-soot2-x, 0px) var(--bf-soot2-y, 0px);
+          mask-position:
+    var(--bf-soot-x,  0px) var(--bf-soot-y,  0px),
+    var(--bf-soot2-x, 0px) var(--bf-soot2-y, 0px);
+  -webkit-mask-size: 360px 360px, 360px 360px;
+          mask-size: 360px 360px, 360px 360px;
+  -webkit-mask-repeat: repeat, repeat;
+          mask-repeat: repeat, repeat;
+  /* Only paint where BOTH mask layers are opaque (i.e. both soot
+     tilings have a blob). Webkit uses source-in for the same effect. */
+  -webkit-mask-composite: source-in;
+          mask-composite: intersect;
+  transition:
+    -webkit-mask-position var(--bf-soot-dur, 4s) linear,
+             mask-position var(--bf-soot-dur, 4s) linear;
+}
+
+/* Soft corner vignette pulls focus into the table */
+body.bf-body.bf-zashiki::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 50% 50%,
+      transparent 0%,
+      transparent 40%,
+      rgba(0, 0, 0, 0.55) 90%,
+      rgba(0, 0, 0, 0.85) 110%);
+}
+
+/* ─── 3. Panel halos — wispy smoke edges on near-black panels ──────── */
+/* Hard yellow rim replaced with a stack of diffuse grey-black blooms
+   at varied blur radii so the panel edges read as smoke billowing
+   off the chrome rather than a clean outline. One faint warm halo
+   stays in the stack so the panel still ties into the yellow chrome
+   palette. Static per project memory (no breathing/animation). */
+body.bf-body.bf-zashiki .bf-seat,
+body.bf-body.bf-zashiki .bf-community-row,
+body.bf-body.bf-zashiki .bf-log,
+body.bf-body.bf-zashiki .bf-pot-display,
+body.bf-body.bf-zashiki .bf-actions {
+  background: rgba(10, 10, 8, 0.92);
+  border-color: rgba(60, 54, 40, 0.55);
+  box-shadow:
+    /* close smoke — tightest plume, almost touching the rim */
+    0 0 14px  3px rgba(60, 52, 38, 0.55),
+    /* mid smoke — wider, dimmer, drifting outward */
+    0 0 34px  9px rgba(36, 30, 20, 0.42),
+    /* outer haze — broad and soft, blends into background */
+    0 0 72px 22px rgba(14, 12, 8,  0.30),
+    /* faint warm bridge to the yellow chrome palette */
+    0 0 22px color-mix(in srgb, var(--bf-accent) 22%, transparent);
+}
+
+/* ─── 4. Status cells — full-black with yellow borders ─────────────── */
+body.bf-body.bf-zashiki .bf-status-cell {
+  background: rgba(0, 0, 0, 1);
+  border-color: var(--bf-accent-deep);
+  box-shadow: 0 0 0 1px var(--bf-accent-deep);
+  color: var(--bf-fg-dim);
+}
+body.bf-body.bf-zashiki .bf-status-cell b {
+  color: var(--bf-accent);
+}
+
+/* ─── 5. Avatar — CSWS badge (yellow), emo-hair kaomoji ────────────── */
+/* Same vertical stack pattern as the other bosses: ::after sits as a
+   small pill beneath the kaomoji face. Yellow-on-black badge to match
+   the palette; no hat-pseudo (Zashiki's hair sweeps the brow in the
+   kaomoji itself, ///_o — no cap to draw). */
+body.bf-body.bf-zashiki .bf-boss-avatar {
+  text-shadow:
+    -1px -1px 0 #000,  1px -1px 0 #000,
+    -1px  1px 0 #000,  1px  1px 0 #000,
+    -1px  0   0 #000,  1px  0   0 #000,
+     0   -1px 0 #000,  0    1px 0 #000;
+  position: relative;
+  /* The ASCII hair (the three slashes) and the eyes get yellow */
+  color: var(--bf-accent);
+}
+body.bf-body.bf-zashiki .bf-boss-avatar::after {
+  content: 'CSWS';
+  display: block;
+  width: fit-content;
+  margin: 8px auto 0;
+  padding: 2px 8px;
+  background-color: var(--bf-accent);
+  color: #0a0a08;
+  font-weight: bold;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-family: var(--font-ui, monospace);
+  border-radius: 2px;
+  border: 1px solid #0a0a08;
+  box-shadow:
+    0 0 0 1px var(--bf-accent),
+    0 0 8px color-mix(in srgb, var(--bf-accent) 70%, transparent);
+  /* Kill inherited shadows on this tiny pill: the .bf-boss-avatar
+     8-direction black stroke and the body.bf-body R/B chromatic
+     aberration both bleed into 11px text and crush legibility. */
+  text-shadow: none;
+}
+body.bf-body.bf-zashiki .bf-boss-avatar-wrap {
+  position: relative;
+  border-color: var(--bf-accent);
+  box-shadow:
+    inset 0 0 12px rgba(255, 215, 0, 0.20),
+    0 0 18px color-mix(in srgb, var(--bf-accent) 55%, transparent);
+}
+
+/* ─── 6. Player cards — black border + yellow edge glow ────────────── */
+body.bf-body.bf-zashiki .bf-seat-player .bf-card {
+  border-color: #0a0a08;
+  box-shadow:
+    0 0 0 1px #0a0a08,
+    0 0 12px rgba(255, 215, 0, 0.55);
+}
+body.bf-body.bf-zashiki .bf-seat-player .bf-card.is-best {
+  border-color: var(--bf-accent);
+  box-shadow:
+    0 0 0 2px var(--bf-accent),
+    0 0 18px rgba(255, 215, 0, 0.85);
+}
+
+/* ─── 7. Header title — kakemono scroll, vermillion ink on washi ──── */
+/* The "You vs." preamble AND the boss name are wrapped in a single
+   .bf-zw-scroll span (see the page HTML), styled as a hanging scroll:
+   washi-cream paper panel with sumi side rails and dark wood scroll
+   rods top/bottom. Inside, "You vs." reads as sumi ink and the boss
+   name reads as vermillion (朱 shu-iro) ink with a slight wet-bleed
+   shadow. Epithet stays outside the scroll. */
+body.bf-body.bf-zashiki .bf-header {
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  gap: 4px;
+}
+body.bf-body.bf-zashiki .bf-back-link {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: var(--bf-accent);
+  background: rgba(0, 0, 0, 0.7);
+  border-color: var(--bf-accent);
+}
+body.bf-body.bf-zashiki .bf-back-link:hover { color: #0a0a08; background: var(--bf-accent); }
+body.bf-body.bf-zashiki .bf-header h1 {
+  text-align: center;
+  margin: 0;
+  padding: 0;
+  line-height: 1.1;
+}
+/* Scroll wrapper — kakemono-style hanging scroll. Washi-cream panel
+   with sumi-ink left/right side rails and dark wood-tone scroll rods
+   top and bottom (the ::before / ::after pseudo-elements). Wraps the
+   "You vs." preamble AND the boss name; epithet stays outside. */
+body.bf-body.bf-zashiki .bf-header h1 > span.bf-zw-scroll {
+  display: inline-block;
+  position: relative;
+  margin: 14px auto 18px;
+  padding: 22px 56px 18px;
+  background:
+    /* faint vertical fiber lines — washi texture */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 7px,
+      rgba(120, 80, 30, 0.05) 7px,
+      rgba(120, 80, 30, 0.05) 8px),
+    linear-gradient(180deg, #f4ecd8 0%, #ebdfbe 100%);
+  border-left:  2px solid #1a0a04;
+  border-right: 2px solid #1a0a04;
+  box-shadow:
+    inset 0  6px 12px rgba(60, 30, 8, 0.12),
+    inset 0 -6px 12px rgba(60, 30, 8, 0.12),
+    0 6px 20px rgba(0, 0, 0, 0.55);
+}
+/* Scroll rods — dark wood bars top and bottom, slightly wider than
+   the washi panel, with a center-highlight gradient for cylindrical
+   feel and a small finial overhang on each side. */
+body.bf-body.bf-zashiki .bf-zw-scroll::before,
+body.bf-body.bf-zashiki .bf-zw-scroll::after {
+  content: '';
+  position: absolute;
+  left: -14px;
+  right: -14px;
+  height: 14px;
+  background:
+    linear-gradient(180deg,
+      #4a2e18 0%,
+      #2a1808 45%,
+      #1a0a04 55%,
+      #3a2210 100%);
+  border-radius: 7px;
+  box-shadow:
+    0 1px 0 rgba(255, 220, 160, 0.18) inset,
+    0 2px 6px rgba(0, 0, 0, 0.7);
+}
+body.bf-body.bf-zashiki .bf-zw-scroll::before { top:    -8px; }
+body.bf-body.bf-zashiki .bf-zw-scroll::after  { bottom: -8px; }
+
+/* "You vs." preamble — sits inside the scroll. Sumi-ink color on the
+   washi background; same Pirata One convention as other boss headers
+   but recolored to read as ink not gilt. */
+body.bf-body.bf-zashiki .bf-zw-vs {
+  display: block;
+  font-family: var(--font-title, 'Pirata One', serif);
+  font-size: 20px;
+  letter-spacing: 0.16em;
+  color: #1a0a04;
+  text-align: center;
+  margin-bottom: 4px;
+  opacity: 0.78;
+}
+/* Japanese-themed name — Mincho serif stack (Noto Serif JP / Sawarabi
+   Mincho / Yu Mincho / Hiragino Mincho), with system-CJK serif fall-
+   backs for non-Japanese-installed systems. Vertical-bar bracket
+   characters 「 」 frame the name as ornament. Gradient face
+   cycles through washi-cream, gold-leaf, vermillion (朱 shu-iro), and
+   sumi-ink black — shrine-banner register, gilt-on-lacquer. */
+body.bf-body.bf-zashiki .bf-zw-name {
+  display: block;
+  font-family: 'Shippori Mincho B1', 'Klee One', 'Noto Serif JP',
+               'Sawarabi Mincho', 'Yu Mincho', 'YuMincho',
+               'Hiragino Mincho ProN', 'Hiragino Mincho Pro', 'MS Mincho',
+               'Songti SC', serif;
+  font-weight: 500;
+  font-size: 32px;
+  letter-spacing: 0.10em;
+  /* Caution-yellow ink on the washi panel — matches --bf-accent used
+     across the UI chrome. Slight layered shadows give a wet-bleed
+     feel without going gradient/halo. */
+  color: var(--bf-accent, #ffd700);
+  text-shadow:
+    0 0 1px rgba(138, 106, 0, 0.85),
+    0 0 3px rgba(255, 215, 0, 0.35),
+    0 1px 0 rgba(60, 40, 4, 0.30);
+}
+body.bf-body.bf-zashiki .bf-header h1 > span {
+  display: block;
+}
+/* Epithet keeps its inline-block plate from the shared VHS rule. */
+body.bf-body.bf-zashiki .bf-header h1 > span.bf-epithet {
+  display: inline-block;
+}
+
+/* ─── 8. Felt + log + small text — keep contrast loud against yellow ── */
+body.bf-body.bf-zashiki .bf-seat-name,
+body.bf-body.bf-zashiki .bf-seat-stack,
+body.bf-body.bf-zashiki .bf-seat-stack-coins,
+body.bf-body.bf-zashiki .bf-seat-bet,
+body.bf-body.bf-zashiki .bf-pot-label,
+body.bf-body.bf-zashiki .bf-pot-value,
+body.bf-body.bf-zashiki .bf-log-entry,
+body.bf-body.bf-zashiki .bf-log-header,
+body.bf-body.bf-zashiki .bf-actions button,
+body.bf-body.bf-zashiki .bf-raise-value {
+  text-shadow:
+    -1px -1px 0 #000,  1px -1px 0 #000,
+    -1px  1px 0 #000,  1px  1px 0 #000,
+    -1px  0   0 #000,  1px  0   0 #000,
+     0   -1px 0 #000,  0    1px 0 #000;
+}
+
+/* ─── 9b. Soot sprites — three thieves, see inline script on page ──── */
+/* Three small fuzzy black sprites that wander the viewport, steal one
+   glyph from a UI text bit, carry it for a few seconds, then return it
+   and pick another. Sprites are appended to <body> by JS; CSS owns
+   their look and animation, JS owns positions via transform.
+
+   .bf-soot-sprite        — the fuzzy ball with two eyes
+   .bf-soot-sprite.is-carrying — hides eyes, shows stolen glyph
+   .bf-soot-hole          — temporary span around the stolen char in
+                            the source DOM; visibility:hidden so layout
+                            doesn't shift while the glyph is missing
+*/
+.bf-soot-sprite {
+  position: fixed;
+  top: 0; left: 0;
+  width: 30px; height: 30px;
+  z-index: 200;
+  pointer-events: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 36% 32%,
+      #2a1a0a 0%,
+      #0a0504 52%,
+      rgba(10, 5, 4, 0.6) 80%,
+      rgba(10, 5, 4, 0)  100%);
+  filter: blur(0.4px) drop-shadow(0 0 6px rgba(0, 0, 0, 0.7));
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui, monospace);
+  font-weight: 700;
+  font-size: 15px;
+  color: #f4ecd8;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
+  will-change: transform;
+  transition:
+    transform var(--bf-soot-sprite-dur, 900ms) cubic-bezier(0.45, 0.05, 0.55, 0.95),
+    opacity   500ms ease;
+}
+.bf-soot-sprite.is-visible { opacity: 1; }
+
+/* Eyes — two small washi-cream dots, hidden while carrying a glyph */
+.bf-soot-sprite::before,
+.bf-soot-sprite::after {
+  content: '';
+  position: absolute;
+  top: 36%;
+  width: 5px;
+  height: 5px;
+  background: #f4ecd8;
+  border-radius: 50%;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+  transition: opacity 180ms ease;
+}
+.bf-soot-sprite::before { left: 28%; }
+.bf-soot-sprite::after  { right: 28%; }
+.bf-soot-sprite.is-carrying::before,
+.bf-soot-sprite.is-carrying::after { opacity: 0; }
+
+/* Holes left in the source DOM while a glyph is in transit. */
+.bf-soot-hole { visibility: hidden; }
+
+/* ─── 9. Chips all yellow (single-metal stack) ─────────────────────── */
+body.bf-body.bf-zashiki .bf-chip-w,
+body.bf-body.bf-zashiki .bf-chip-r,
+body.bf-body.bf-zashiki .bf-chip-bl,
+body.bf-body.bf-zashiki .bf-chip-bk,
+body.bf-body.bf-zashiki .bf-chip-g {
+  color: var(--bf-accent);
+}

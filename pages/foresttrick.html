@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  FOREST TRICK — owl/fox/fish 1-6 (×2) + bee/child wilds; 3-player game   │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Each of the 3 players (You, Winter, Summer) has their own shuffled    │
+  │    38-card deck: ranks 1-6 in each of three suits 🐟 fish, 🦊 fox,       │
+  │    🦉 owl, with two copies of every (rank, suit), plus two wild cards   │
+  │    🐝 bee and 🧒 child. Wilds substitute for any rank in any suit and   │
+  │    the classifier picks the best legal interpretation. Turn order      │
+  │    You always lead the first trick; thereafter the winner of each      │
+  │    trick leads the next.                                                │
+  │    Summer, etc); followers see prior plays before deciding. Each       │
+  │    player commits a play (1, 2, 3, 4, or 5 cards as a legal hand) —   │
+  │    no discards. Followers MUST beat the table if they can; if they     │
+  │    can't, they can play anything legal. Hand ladder: single            │
+  │    < pair < two pair < trips < straight < flush < full house < four-   │
+  │    of-a-kind (4 cards) < straight flush. Strongest hand wins the      │
+  │    trick. Ties on type+rank go to the hand with the higher cards     │
+  │    (highest in the set, then the next, then the kicker). If hands    │
+  │    are completely identical card-for-card, first in turn order wins.  │
+  │    Trick winner COLLECTS every card played                            │
+  │    this trick (their own plus everyone else's) into a personal score  │
+  │    pile that does NOT cycle back. All refill hand to 10 from their    │
+  │    own draw pile. Game ends the moment any                            │
+  │    player empties hand AND draw pile — that player gets a +10 first-  │
+  │    out bonus. Final score = collected + tricks won + (1 per wild      │
+  │    collected) + first-out bonus.                                       │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: foresttrick/page.js (standalone — no Palace deps)              │
+  │    inline route-guards: none                                             │
+  │    DOM ids: #rules-accordion, #scores, #opp, #trick-area > #trick +      │
+  │      #trick-banner, #status, #preview, #hand-wrap > #hand + sort-btns,   │
+  │      #btn-play, #btn-suggest, #btn-clear, #btn-new, #btn-mute, #flash,   │
+  │      #log                                                                │
+  │    flow: page.js IIFE init → startGame (3×shuffled 38-card decks, draw  │
+  │      10 each) → render → first SELECT (You leads trick 1) → submit →    │
+  │      reveal animation → advanceTurn → AI seats compute & reveal in      │
+  │      order → showWinnerBanner → animateCollect → resolveTrick → next    │
+  │      trick (rotate starter) → loop until any deck empty → finalizeGame. │
+  │      classify dispatches to classifyNatural (no wilds) or brute-force   │
+  │      wild substitution over (r,s) for each wild.                        │
+  │    storage R/W: none                                                     │
+  │    routes out: ../index.html (back to lobby)                             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Forest Trick</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+  <!-- Logo-only fae display fonts (curly hand-drawn fairy-tale feel). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Macondo&family=Berkshire+Swash&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'IM Fell English', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+      font-size: 17px;
+      color: #f3e6c2;
+      margin: 0;
+      padding: 0.4em 1em 1em;
+      min-height: 100vh;
+      background: url('../assets/images/foresttrickbg.png') center / cover no-repeat fixed;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.75);
+    }
+    main { max-width: 1200px; margin: 0 auto; }
+    header { max-width: 1200px; margin: 0 auto; padding-bottom: 0.4em; }
+    /* Compact title bar: readable, doesn't crowd the game area. */
+    header {
+      display: flex; align-items: center; gap: 1em;
+      padding: 0.1em 0 0.2em;
+      border-bottom: 1px solid rgba(138, 90, 32, 0.6);
+      margin-bottom: 0.2em;
+    }
+    header > a { flex-shrink: 0; }
+    /* ----- Fae title — curly hand-drawn font, sky-blue gradient fill,
+       cream stroke wrapped in a black stroke. The dual stroke is rendered
+       via two stacked ::before / ::after pseudo-elements that mirror the
+       letterforms (data-text) and use -webkit-text-stroke; the actual span
+       on top carries only the gradient fill. -------------------------- */
+    header h1.title-forest {
+      font-family: 'Macondo', 'Berkshire Swash', 'Pirata One', cursive;
+      font-weight: 400;
+      font-size: 2.6em;
+      letter-spacing: 0.01em;
+      margin: 0;
+      display: inline-flex; align-items: baseline; gap: 0.25em;
+      line-height: 1.1;
+      text-transform: none;
+      text-shadow: none;
+    }
+    header h1 .title-leaf {
+      font-size: 0.55em;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+      align-self: center;
+    }
+    header h1 .title-leaf:last-child { display: inline-block; transform: scaleX(-1); }
+    header h1 .title-main {
+      display: inline-flex; align-items: baseline; gap: 0.22em;
+    }
+    /* The fae lettering: gradient sky inside + dual stroke (cream then black).
+       The element itself shows only the gradient; pseudo-layers behind it
+       (-webkit-text-stroke + paint-order:stroke fill) carry the outlines. */
+    header h1 .title-word,
+    header h1 .title-bang {
+      position: relative;
+      display: inline-block;
+      isolation: isolate;
+      /* sky-blue inside: pale at top → deep at bottom */
+      background: linear-gradient(180deg,
+        #e8f6ff 0%,
+        #b8e0ff 22%,
+        #6cb2eb 58%,
+        #2f7ec8 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      -webkit-text-fill-color: transparent;
+              color: transparent;
+      text-shadow: none;
+      filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.55));
+    }
+    /* Cream stroke (inner ring) */
+    header h1 .title-word::before,
+    header h1 .title-bang::before {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      color: #fff4d0;
+      -webkit-text-fill-color: #fff4d0;
+      -webkit-text-stroke: 4px #fff4d0;
+              text-stroke: 4px #fff4d0;
+      paint-order: stroke fill;
+      background: none;
+      filter: none;
+      pointer-events: none;
+    }
+    /* Black stroke (outer ring) */
+    header h1 .title-word::after,
+    header h1 .title-bang::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      color: #0a0a0a;
+      -webkit-text-fill-color: #0a0a0a;
+      -webkit-text-stroke: 9px #0a0a0a;
+              text-stroke: 9px #0a0a0a;
+      paint-order: stroke fill;
+      background: none;
+      filter: none;
+      pointer-events: none;
+    }
+    header h1 .title-word-trick { font-style: italic; }
+    header h1 .title-bang { font-style: italic; }
+    @media (max-width: 720px) {
+      header h1.title-forest { font-size: 2em; }
+      header h1 .title-word::after,
+      header h1 .title-bang::after { -webkit-text-stroke-width: 7px; text-stroke-width: 7px; }
+      header h1 .title-word::before,
+      header h1 .title-bang::before { -webkit-text-stroke-width: 3px; text-stroke-width: 3px; }
+    }
+    header .subtitle {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-style: italic;
+      font-size: 0.85em;
+      letter-spacing: 0.02em;
+      color: #c9b27e;
+      margin: 0;
+      flex: 1;
+      text-shadow: 0 0 5px rgba(0,0,0,0.85);
+      text-align: right;
+    }
+    header a {
+      font-size: 0.85em; color: #efe2c0; text-decoration: none;
+      padding: 0.25em 0.6em; border: 1px solid #8a5a20; border-radius: 3px;
+      background: rgba(30,18,8,0.7);
+    }
+    header a:hover { background: rgba(60,36,16,0.85); color: #fff2cc; }
+
+    /* ----- Reusable panel base (dark wood + gold trim) ----- */
+    .panel, #scores, #opp, #trick > .trick-slot, #log, #result, .controls {
+      background: linear-gradient(180deg, rgba(46, 28, 10, 0.82) 0%, rgba(28, 16, 6, 0.9) 100%);
+      border: 2px solid #8a5a20;
+      border-radius: 6px;
+      box-shadow: inset 0 0 16px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+      color: #efe2c0;
+    }
+
+    /* ----- Rules accordion ----- */
+    #rules-accordion {
+      margin: 0.3em 0;
+      background: linear-gradient(180deg, rgba(46,28,10,0.85) 0%, rgba(28,16,6,0.92) 100%);
+      border: 2px solid #8a5a20;
+      border-radius: 6px;
+      box-shadow: inset 0 0 16px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+      color: #efe2c0;
+    }
+    #rules-accordion summary {
+      cursor: pointer;
+      padding: 0.25em 0.7em;
+      font-family: 'Cinzel', Georgia, serif;
+      font-weight: 900; font-size: 1.05em; letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #f5d28a;
+      text-shadow: 0 0 6px rgba(0,0,0,0.7);
+      list-style: none;
+      display: flex; align-items: center; gap: 0.6em;
+      user-select: none;
+    }
+    #rules-accordion summary::-webkit-details-marker { display: none; }
+    #rules-accordion summary::before {
+      content: '▸';
+      display: inline-block;
+      transition: transform 0.2s ease;
+      color: #d4a020;
+      font-size: 1.1em;
+    }
+    #rules-accordion[open] summary::before { transform: rotate(90deg); }
+    #rules-accordion .rules-body {
+      padding: 0.4em 1.2em 1em;
+      border-top: 1px dashed rgba(138, 90, 32, 0.5);
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 0.92em;
+      line-height: 1.55;
+      color: #a8e0d8;
+      text-shadow:
+        -1px -1px 0 #fff,
+         1px -1px 0 #fff,
+        -1px  1px 0 #fff,
+         1px  1px 0 #fff;
+    }
+    #rules-accordion .rules-body h3 {
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 1em; font-weight: 900;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: #f5d28a;
+      margin: 1em 0 0.3em;
+      text-shadow: 0 0 4px rgba(0,0,0,0.7);
+    }
+    #rules-accordion .rules-body h3:first-child { margin-top: 0.2em; }
+    #rules-accordion .rules-body p,
+    #rules-accordion .rules-body ol,
+    #rules-accordion .rules-body ul { margin: 0.25em 0; }
+    #rules-accordion .rules-body ol,
+    #rules-accordion .rules-body ul { padding-left: 1.4em; }
+    #rules-accordion .rules-body li { margin: 2px 0; }
+    #rules-accordion .rules-body b { color: #f5d28a; }
+    #rules-accordion .rules-body pre {
+      background: rgba(20,10,4,0.7);
+      border: 1px solid #6d4416;
+      border-radius: 3px;
+      padding: 0.4em 0.8em;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95em;
+      color: #f5d28a;
+      white-space: pre-wrap;
+    }
+    .rule-play { color: #ffe27a; font-weight: bold; }
+
+    /* ----- Bet panel ----- */
+    #bet-panel {
+      margin: 0.2em 0; padding: 0.3em 0.8em;
+      background: linear-gradient(180deg, rgba(46,28,10,0.85) 0%, rgba(28,16,6,0.92) 100%);
+      border: 2px solid #d4a020;
+      border-radius: 6px;
+      box-shadow: inset 0 0 16px rgba(0,0,0,0.5), 0 0 18px rgba(212, 160, 32, 0.25);
+      color: #efe2c0;
+      display: flex; flex-wrap: wrap; gap: 0.9em; align-items: center;
+      justify-content: space-between;
+    }
+    .bet-row { display: flex; align-items: center; gap: 0.6em; }
+    .bet-label { font-family: 'Cinzel', Georgia, serif; font-weight: 900; letter-spacing: 0.1em; color: #f5d28a; text-transform: uppercase; }
+    .bet-payout { font-family: 'Cinzel', Georgia, serif; font-size: 0.9em; color: #c9b27e; }
+    .bet-payout b { color: #f5d28a; }
+    #bet-amount {
+      width: 80px; padding: 0.35em 0.55em;
+      background: rgba(20,10,4,0.7); border: 1px solid #8a5a20; border-radius: 4px;
+      color: #f5d28a;
+      font-family: 'Courier New', monospace; font-size: 1.1em; font-weight: bold;
+      text-align: right;
+    }
+    #bet-amount:focus { outline: 1px solid #f5d28a; }
+    #btn-bet {
+      font-family: 'Cinzel', Georgia, serif; font-weight: 700; letter-spacing: 0.08em;
+      padding: 0.45em 1.2em;
+      background: linear-gradient(180deg, #d4a020 0%, #8a5a20 100%);
+      color: #2a1500;
+      border: 2px solid #f5d28a;
+      border-radius: 4px;
+      cursor: pointer;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+      transition: all 0.15s ease;
+    }
+    #btn-bet:hover:not(:disabled) {
+      background: linear-gradient(180deg, #ffe27a 0%, #d4a020 100%);
+      box-shadow: 0 0 14px rgba(255, 200, 80, 0.6);
+    }
+    #btn-bet:disabled { opacity: 0.4; cursor: default; }
+    .bet-balance {
+      font-family: 'Courier New', monospace; font-size: 0.95em;
+      color: #efe2c0;
+    }
+    .bet-balance b { color: #f5d28a; font-size: 1.1em; }
+
+    /* ----- Scoreboard (you + AI seats) — large, gold-trimmed, easy to scan.
+       JS renders each row as: <span class="sc-name">Name</span> followed by
+       .sc-stat blocks. Primary stats (collected, tricks) get .sc-stat-pri
+       for the bright gold treatment; secondary stats (hand, deck) stay
+       quieter so the eye lands on score-relevant numbers. -------------- */
+    #scores {
+      margin: 0.2em 0; padding: 0.55em 0.9em;
+      border: 2px solid #d4a020;
+      box-shadow: inset 0 0 18px rgba(0,0,0,0.5), 0 0 14px rgba(212, 160, 32, 0.28);
+      display: flex; flex-wrap: wrap; gap: 0.6em 1.2em; align-items: center;
+    }
+    .me-stats {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5em 1.1em;
+      width: 100%;
+      font-family: 'IM Fell English', Georgia, serif;
+    }
+    #opp {
+      display: flex; gap: 0.6em; margin: 0.2em 0; flex-wrap: wrap;
+      padding: 0;
+      background: none; border: none; box-shadow: none;
+    }
+    .opp {
+      flex: 1 1 280px;
+      padding: 0.5em 0.9em;
+      border: 2px solid #8a5a20;
+      border-radius: 6px;
+      background: linear-gradient(180deg, rgba(46, 28, 10, 0.85) 0%, rgba(28, 16, 6, 0.92) 100%);
+      box-shadow: inset 0 0 16px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+      color: #f3e6c2;
+      font-family: 'IM Fell English', Georgia, serif;
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5em 1em;
+    }
+    .sc-name {
+      font-family: 'Cinzel', Georgia, serif;
+      font-weight: 700;
+      font-size: 1.45em;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #ffe27a;
+      text-shadow: 0 0 8px rgba(0,0,0,0.85), 0 0 12px rgba(212, 160, 32, 0.45);
+      margin-right: 0.2em;
+    }
+    .me-stats .sc-name { font-size: 1.7em; color: #fff2cc; }
+    .sc-stat {
+      font-size: 1em;
+      color: #c9b27e;
+      letter-spacing: 0.04em;
+    }
+    .sc-stat b {
+      font-family: 'Cinzel', Georgia, serif;
+      font-weight: 700;
+      color: #f5d28a;
+      font-size: 1.15em;
+      margin-left: 0.25em;
+    }
+    .sc-stat-pri {
+      font-size: 1.1em;
+      color: #f3e6c2;
+    }
+    .sc-stat-pri b {
+      color: #ffe27a;
+      font-size: 1.5em;
+      text-shadow: 0 0 10px rgba(255, 220, 120, 0.7), 0 1px 2px rgba(0,0,0,0.8);
+    }
+    .me-stats .sc-stat { font-size: 1.1em; }
+    .me-stats .sc-stat-pri { font-size: 1.2em; }
+    .me-stats .sc-stat-pri b { font-size: 1.7em; }
+
+    .final-board { margin-top: 0.45em; padding-top: 0.4em; border-top: 1px dashed #8a5a20; font-size: 1em; width: 100%; font-family: 'IM Fell English', Georgia, serif; }
+    .final-board div { margin: 3px 0; color: #f3e6c2; }
+    .final-board b { color: #ffe27a; }
+
+    #trick-area { position: relative; }
+    #trick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7em; margin: 0.8em 0; padding: 0; background: none; border: none; box-shadow: none; }
+    #trick-banner {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.7);
+      background: linear-gradient(135deg, rgba(245,190,80,0.97) 0%, rgba(200,130,30,0.97) 100%);
+      border: 4px solid #fff2cc;
+      border-radius: 14px;
+      padding: 22px 38px;
+      min-width: 320px;
+      max-width: 80%;
+      box-shadow:
+        0 0 50px rgba(255, 220, 120, 0.85),
+        inset 0 0 24px rgba(255, 248, 220, 0.55),
+        0 6px 20px rgba(0,0,0,0.6);
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 200;
+      transition: opacity 0.25s ease-out, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    #trick-banner.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      animation: bannerPulse 0.8s ease-in-out infinite alternate;
+    }
+    @keyframes bannerPulse {
+      from {
+        box-shadow: 0 0 50px rgba(255, 220, 120, 0.85), inset 0 0 24px rgba(255, 248, 220, 0.55), 0 6px 20px rgba(0,0,0,0.6);
+      }
+      to {
+        box-shadow: 0 0 75px rgba(255, 230, 130, 1.0), inset 0 0 36px rgba(255, 250, 230, 0.8), 0 6px 24px rgba(0,0,0,0.6);
+      }
+    }
+    #trick-banner .winner-name {
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 2.8em; font-weight: 900;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: #2a1500;
+      text-shadow:
+        0 0 8px rgba(255, 250, 200, 0.9),
+        0 2px 0 rgba(255,255,255,0.4),
+        0 -1px 0 rgba(0,0,0,0.3);
+      line-height: 1;
+    }
+    #trick-banner .winner-reason {
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 1em;
+      color: #3a1d00;
+      margin-top: 12px;
+      font-style: italic;
+      letter-spacing: 0.04em;
+      text-shadow: 0 1px 0 rgba(255,248,220,0.5);
+    }
+    .trick-slot { padding: 0.4em; min-height: 140px; display: flex; flex-direction: column; }
+    .trick-slot.won-last { border-color: #f59e0b; box-shadow: inset 0 0 20px rgba(245, 158, 11, 0.4), 0 0 14px rgba(245, 158, 11, 0.5); }
+    .trick-label {
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 1em; font-weight: 900;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: #f5d28a; margin-bottom: 0.35em;
+      text-align: center;
+    }
+    .trick-cards { display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-start; min-height: 90px; perspective: 800px; }
+    .trick-card { width: 48px; height: 102px; }
+    .trick-card .card-rank { font-size: 1.3em; text-shadow: 0 0 3px #fff8dc, 0 0 5px #fff8dc; }
+    .trick-card.animate-in {
+      animation: trickIn 0.55s cubic-bezier(0.2, 0.7, 0.25, 1) both;
+    }
+    @keyframes trickIn {
+      from {
+        transform: translate(var(--from-x, 0), var(--from-y, 0)) rotate(-12deg) scale(0.85);
+        opacity: 0;
+      }
+      60% { opacity: 1; }
+      to {
+        transform: translate(0, 0) rotate(0) scale(1);
+        opacity: 1;
+      }
+    }
+    .trick-sub { font-size: 0.85em; color: #c9b27e; font-family: 'Cinzel', Georgia, serif; margin-top: 0.4em; text-align: center; letter-spacing: 0.05em; }
+    #status {
+      font-family: 'Cinzel', Georgia, serif;
+      font-weight: 900; font-size: 1.1em; letter-spacing: 0.08em;
+      margin: 0.2em 0 0.1em;
+      color: #f5d28a;
+      text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 0 10px rgba(255,200,80,0.3);
+    }
+    #preview {
+      font-size: 0.95em;
+      color: #2a1f10;
+      min-height: 1.4em;
+      margin-bottom: 0.4em;
+      padding: 6px 12px;
+      background: linear-gradient(180deg, #fff7d8 0%, #ffe27a 100%);
+      border: 2px solid #d4a020;
+      border-radius: 4px;
+      box-shadow: 0 0 16px rgba(255, 200, 40, 0.35);
+      font-family: 'Cinzel', Georgia, serif;
+      letter-spacing: 0.04em;
+    }
+    #preview .hand-type {
+      font-size: 1.25em;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6a1f00;
+      text-shadow: 0 0 6px rgba(255, 200, 40, 0.7);
+      margin-right: 8px;
+    }
+    #preview .hand-cards { font-family: 'Courier New', monospace; color: #4a2a10; }
+    #preview .hand-bad { color: #8a2020; font-style: italic; }
+    #hand-wrap {
+      display: flex; align-items: flex-start; gap: 16px;
+      margin: 0.4em 0; padding: 10px 16px 12px;
+      background: linear-gradient(180deg, rgba(46, 28, 10, 0.85) 0%, rgba(28, 16, 6, 0.92) 100%);
+      border: 4px solid #8a5a20;
+      border-radius: 10px;
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.5);
+      overflow-x: auto;
+    }
+    #hand { display: flex; flex-wrap: nowrap; min-height: 2.4em; align-items: flex-end; flex-shrink: 0; margin: 0 auto; }
+    #hand .card { margin-left: -10px; }
+    #hand .card:first-child { margin-left: 0; }
+    #hand .card:hover { z-index: 20; }
+    #hand .card.sel-play, #hand .card.sugg-play { z-index: 15; }
+    #sort-controls { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; padding-top: 6px; }
+    #sort-controls .label { font-size: 0.75em; color: #fff; text-shadow: 0 0 4px #000, 0 0 6px #000; }
+    .sort-btn { font-size: 0.85em; padding: 4px 8px; border: 1px solid #888; background: #f7f7f7; cursor: pointer; border-radius: 3px; }
+    .sort-btn.active { background: #ffe27a; border-color: #f59e0b; font-weight: bold; }
+    .card {
+      font-family: 'Courier New', monospace; font-weight: bold;
+      width: 84px; height: 180px; box-sizing: border-box;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; user-select: none; transition: transform 0.18s ease, filter 0.18s ease;
+      border: none; padding: 0; background-repeat: no-repeat; background-size: 100% 100%;
+      position: relative; transform: translateY(0);
+    }
+    .card-icon { display: none; } /* templates already include the suit icon */
+    .card-rank {
+      line-height: 1;
+      font-size: 2.2em;
+      text-shadow: 0 0 5px #fff8dc, 0 0 8px #fff8dc;
+    }
+    .card.fish { background-image: url('../assets/images/fishcard.png'); }
+    .card.fox  { background-image: url('../assets/images/foxcard.png'); }
+    .card.owl  { background-image: url('../assets/images/owlcard.png'); }
+    .card.wild[data-wild="bee"]   { background-image: url('../assets/images/beecard.png'); }
+    .card.wild[data-wild="child"] { background-image: url('../assets/images/childcard.png'); }
+    .card.fish .card-rank { color: #0a2f5f; }
+    .card.fox  .card-rank { color: #4a2200; }
+    .card.owl  .card-rank { color: #2a1262; }
+    .card.wild .card-rank { display: none; } /* bee/child are unranked */
+    .card.sel-play {
+      transform: translateY(-22px) scale(1.06);
+      filter:
+        brightness(1.18) saturate(1.35)
+        drop-shadow(0 0 10px #ffe27a)
+        drop-shadow(0 0 22px rgba(255, 200, 40, 0.7));
+      z-index: 5;
+      animation: cf-play-pulse 1.6s ease-in-out infinite;
+    }
+    /* Suggestion variant — same lift, but blue glow + subtle dashed ring + "suggested" badge */
+    .card.sugg-play {
+      transform: translateY(-14px) scale(1.03);
+      filter:
+        brightness(1.05) saturate(1.1)
+        drop-shadow(0 0 8px #6cd2ff)
+        drop-shadow(0 0 16px rgba(110, 200, 255, 0.5));
+      outline: 2px dashed rgba(110, 200, 255, 0.85);
+      outline-offset: 2px;
+      z-index: 4;
+    }
+    .card.sugg-play::after {
+      content: '✦ suggested';
+      position: absolute;
+      bottom: -18px; left: 50%; transform: translateX(-50%);
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 0.7em; letter-spacing: 0.1em; text-transform: uppercase;
+      color: #6cd2ff; text-shadow: 0 0 6px rgba(0,0,0,0.9);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .card.sel-play .card-rank {
+      text-shadow:
+        0 0 6px #fff,
+        0 0 12px #ffe27a,
+        0 0 24px rgba(255, 180, 0, 0.85);
+    }
+    @keyframes cf-play-pulse {
+      0%, 100% { filter:
+        brightness(1.18) saturate(1.35)
+        drop-shadow(0 0 10px #ffe27a)
+        drop-shadow(0 0 22px rgba(255, 200, 40, 0.7)); }
+      50%     { filter:
+        brightness(1.28) saturate(1.45)
+        drop-shadow(0 0 18px #ffe27a)
+        drop-shadow(0 0 36px rgba(255, 200, 40, 0.9)); }
+    }
+    .controls { margin: 0.2em 0; padding: 0.3em 0.7em; display: flex; gap: 0.6em; align-items: center; flex-wrap: wrap; }
+    .controls button, .sort-btn {
+      font-family: 'Cinzel', Georgia, serif;
+      font-weight: 700; letter-spacing: 0.06em;
+      padding: 0.35em 0.85em; font-size: 0.92em;
+      background: linear-gradient(180deg, #6d4416 0%, #4a2e0e 100%);
+      color: #f5d28a;
+      border: 2px solid #8a5a20;
+      border-radius: 4px;
+      cursor: pointer;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+      transition: all 0.15s ease;
+    }
+    .controls button:hover:not(:disabled), .sort-btn:hover:not(.active) {
+      background: linear-gradient(180deg, #8a5a20 0%, #5a3814 100%);
+      color: #fff2cc;
+      box-shadow: 0 0 10px rgba(255,200,80,0.4);
+    }
+    .controls button:disabled { opacity: 0.4; cursor: default; }
+    .sort-btn.active {
+      background: linear-gradient(180deg, #d4a020 0%, #8a5a20 100%);
+      color: #2a1a06;
+      border-color: #f5d28a;
+      box-shadow: inset 0 0 10px rgba(255,220,150,0.5);
+    }
+    #flash { color: #ff8a8a; font-size: 0.95em; min-height: 1.2em; font-weight: bold; text-shadow: 0 0 4px rgba(0,0,0,0.9); }
+    #log {
+      margin-top: 1em; padding: 0.7em 0.9em;
+      font-size: 0.88em; font-family: 'Courier New', monospace;
+      max-height: 16em; overflow-y: auto;
+      color: #d8c69a;
+    }
+    #log div { margin: 3px 0; padding: 1px 0; border-bottom: 1px dashed rgba(138,90,32,0.25); }
+    #log div:last-child { border-bottom: none; color: #f5d28a; }
+    #log::-webkit-scrollbar { width: 8px; }
+    #log::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+    #log::-webkit-scrollbar-thumb { background: #8a5a20; border-radius: 4px; }
+
+    /* ---------- Shop-owner clearance stickers (cursed-inventory overlay) ----------
+       Stickers are a viewport-fixed background layer. z-index sits BELOW
+       header/main so the play area (cards, controls, bet panel, etc.) paints
+       on top of them. JS randomizes top/left per-pageload within the viewport;
+       per-sticker CSS hardcodes (top/left/right/bottom) are overridden inline. */
+    .shop-stickers {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    /* Lift the playable layers above the sticker layer */
+    header, main { position: relative; z-index: 10; }
+    .shop-stickers .sticker {
+      position: absolute;
+      font-family: 'Cinzel', Georgia, serif;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+      text-align: center;
+      text-shadow: none;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.4) inset;
+      user-select: none;
+    }
+    .shop-stickers .sticker .sub { display: block; font-size: 0.55em; letter-spacing: 0.18em; margin-top: 4px; font-weight: 400; }
+
+    /* 1 — yellow garage-sale price slash */
+    .sk-1 {
+      top: 56px; left: 18px;
+      width: 170px; padding: 14px 10px 16px;
+      background: #ffe27a;
+      border: 3px solid #2a1500;
+      color: #2a1500;
+      transform: rotate(-9deg);
+      font-family: 'Impact', 'Cinzel', sans-serif;
+    }
+    .sk-1 .was {
+      display: block;
+      font-size: 0.95em;
+      text-decoration: line-through;
+      text-decoration-color: #b00020;
+      text-decoration-thickness: 3px;
+      opacity: 0.85;
+    }
+    .sk-1 .now {
+      display: block;
+      font-size: 1.05em;
+      margin-top: 2px;
+    }
+    .sk-1 .now b { font-size: 2.4em; line-height: 0.9; display: block; margin-top: 2px; color: #b00020; }
+    .sk-1 .unit { display: block; font-size: 0.7em; letter-spacing: 0.2em; margin-top: 3px; }
+
+    /* 2 — red clearance starburst */
+    .sk-2 {
+      top: 22px; right: 28px;
+      width: 160px; height: 160px;
+      background: #c8161d;
+      color: #fff8dc;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      clip-path: polygon(
+        50% 0%, 60% 18%, 80% 8%, 75% 30%, 95% 32%, 78% 48%,
+        100% 56%, 80% 64%, 92% 84%, 70% 78%, 70% 100%, 55% 82%,
+        40% 100%, 35% 80%, 14% 88%, 22% 68%, 0% 60%, 18% 50%,
+        2% 36%, 22% 32%, 18% 10%, 38% 18%
+      );
+      font-size: 1.05em;
+      transform: rotate(7deg);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.4);
+    }
+    .sk-2 b { font-size: 1.4em; letter-spacing: 0.08em; }
+
+    /* 3 — masking-tape disavowal */
+    .sk-3 {
+      top: 280px; left: -22px;
+      width: 280px; padding: 10px 18px;
+      background: rgba(245, 238, 220, 0.92);
+      color: #2a1f10;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85em; font-weight: 400;
+      transform: rotate(-3deg);
+      border-left: 2px dashed rgba(0,0,0,0.15);
+      border-right: 2px dashed rgba(0,0,0,0.15);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    }
+    .sk-3 u { text-decoration-color: #b00020; text-decoration-thickness: 2px; }
+
+    /* 4 — yellow/black warning tape, vertical on left edge */
+    .sk-4 {
+      top: 52%; left: -42px;
+      transform: translateY(-50%) rotate(-90deg);
+      transform-origin: center center;
+      width: 260px; padding: 8px 10px;
+      background:
+        repeating-linear-gradient(135deg,
+          #1a1a1a 0 14px,
+          #ffd400 14px 28px);
+      color: #fff;
+      font-family: 'Impact', 'Cinzel', sans-serif;
+      letter-spacing: 0.22em;
+      font-size: 1.1em;
+      text-shadow: 0 0 4px #000, 0 0 6px #000, 0 2px 0 #000;
+    }
+
+    /* 5 — red rubber stamp */
+    .sk-5 {
+      top: 44%; right: 14px;
+      padding: 10px 16px;
+      border: 3px solid #b00020;
+      color: #b00020;
+      background: rgba(255, 248, 220, 0.0);
+      font-family: 'Cinzel', Georgia, serif;
+      font-weight: 900;
+      font-size: 1.05em;
+      letter-spacing: 0.18em;
+      transform: rotate(11deg);
+      text-shadow: 0 0 1px #b00020;
+      box-shadow: none;
+      opacity: 0.88;
+    }
+    .sk-5::before, .sk-5::after {
+      content: '';
+      position: absolute;
+      left: 6px; right: 6px;
+      height: 2px;
+      background: rgba(255, 248, 220, 0.85);
+      mix-blend-mode: lighten;
+    }
+    .sk-5::before { top: 6px; }
+    .sk-5::after { bottom: 6px; }
+
+    /* 6 — orange "as-is" circle */
+    .sk-6 {
+      bottom: 240px; left: 28px;
+      width: 130px; height: 130px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ffb150 0%, #d2660a 80%);
+      color: #2a1500;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: 1.5em; letter-spacing: 0.1em;
+      transform: rotate(-14deg);
+      border: 3px solid #2a1500;
+    }
+
+    /* 7 — torn-paper notice, lower-left gutter (outside the play column) */
+    .sk-7 {
+      bottom: 60px;
+      left: max(8px, calc(50vw - 880px));
+      width: 280px; padding: 12px 14px 16px;
+      background: #f3ecd4;
+      color: #2a1f10;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85em; font-weight: 400;
+      transform: rotate(4deg);
+      clip-path: polygon(
+        0 4%, 8% 0, 22% 6%, 38% 2%, 55% 8%, 72% 0, 88% 6%, 100% 2%,
+        98% 30%, 100% 60%, 96% 92%, 100% 100%, 84% 96%, 68% 100%,
+        52% 94%, 36% 100%, 18% 96%, 4% 100%, 2% 68%, 0 40%
+      );
+    }
+
+    /* 8 — black marker scrawl */
+    .sk-8 {
+      top: 36%; right: 7%;
+      color: #1a1a1a;
+      font-family: 'Courier New', monospace;
+      font-size: 1.8em;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      transform: rotate(-6deg);
+      background: none;
+      box-shadow: none;
+      text-shadow:
+        0 0 2px #1a1a1a,
+        1px 0 0 #1a1a1a,
+        -1px 0 0 #1a1a1a,
+        0 1px 0 #1a1a1a;
+      mix-blend-mode: multiply;
+    }
+    .sk-8::after {
+      content: '';
+      position: absolute; inset: -8px -14px;
+      border: 3px solid #1a1a1a;
+      border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%;
+      transform: rotate(3deg);
+    }
+
+    /* 9 — typewriter court-order strip, lower-right gutter */
+    .sk-9 {
+      bottom: 32px;
+      right: max(8px, calc(50vw - 880px));
+      padding: 8px 14px;
+      background: #f7f1dc;
+      color: #1a1a1a;
+      font-family: 'Courier New', monospace;
+      font-style: italic;
+      font-size: 0.85em;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      transform: rotate(1.5deg);
+      border: 1px solid #8a7a4a;
+    }
+
+    /* 10 — greasy-thumbprint disclaimer */
+    .sk-10 {
+      bottom: 130px; right: 38px;
+      width: 180px; padding: 12px 14px;
+      background: #d9c89a;
+      color: #2a1f10;
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 0.88em;
+      transform: rotate(-7deg);
+      border-radius: 3px;
+      box-shadow:
+        0 3px 8px rgba(0,0,0,0.6),
+        -22px 4px 0 -10px rgba(60, 40, 18, 0.55),
+        -16px 14px 0 -12px rgba(60, 40, 18, 0.4);
+    }
+    .sk-10 b { color: #b00020; }
+  </style>
+</head>
+<body>
+  <div class="shop-stickers" aria-hidden="true">
+    <div class="sticker sk-1"><span class="was">WAS 500</span><span class="now">NOW <b>50</b></span><span class="unit">coins</span></div>
+    <div class="sticker sk-2"><b>FINAL</b>CUT<span class="sub">everything must move</span></div>
+    <div class="sticker sk-3">the shop is <u>not</u> affiliated with the maker.<br>do not write to us about him.</div>
+    <div class="sticker sk-4">MAKER&nbsp;·&nbsp;DISBARRED</div>
+    <div class="sticker sk-5">ALLEGATIONS<br>UNANSWERED</div>
+    <div class="sticker sk-6">AS-IS<span class="sub">no returns</span></div>
+    <div class="sticker sk-7">the ranger has been recalled.<br>shelf copies only — sold to clear.</div>
+    <div class="sticker sk-8">DO NOT<br>ASK</div>
+    <div class="sticker sk-9">creator's name struck from the box by court order</div>
+    <div class="sticker sk-10">proceeds do <b>not</b> reach him.</div>
+  </div>
+  <header>
+    <h1 class="title-forest">
+      <span class="title-leaf">🌿</span>
+      <span class="title-main"><span class="title-word" data-text="Forest">Forest</span><span class="title-word title-word-trick" data-text="Trick">Trick</span><span class="title-bang" data-text="!">!</span></span>
+      <span class="title-leaf">🌿</span>
+    </h1>
+    <div class="subtitle">A little game for three friends in the small wood — pay no mind to what the moss remembers.</div>
+  </header>
+  <main>
+    <details id="rules-accordion">
+      <summary>Rules</summary>
+      <div class="rules-body">
+        <h3>Deck</h3>
+        <p>Each of the 3 players (You, Winter, Summer) holds a personal 38-card deck:
+           ranks 1–6 in three suits — 🐟 fish, 🦊 fox, 🦉 owl — with two copies of every
+           (rank, suit) pair, plus two wild cards: 🐝 bee and 🧒 child.
+           A wild can stand in for any rank in any suit; the classifier picks the best
+           legal interpretation of your selection.</p>
+
+        <h3>Flow</h3>
+        <p>You always lead the first trick. After that, the winner of each
+           trick leads the next. Within a trick, each player in turn order
+           commits a <b>play</b> (1, 2, 3, 4, or 5 cards forming a legal hand).
+           Followers see prior plays before deciding.</p>
+        <p><b>Must-beat rule:</b> if a follower can construct any hand that
+           <b>beats</b> the current top of the table, they must play a
+           beating hand. If they can't beat it, they're free to play
+           anything legal — donate a junk single, conserve material, whatever
+           makes sense.</p>
+
+        <h3>Hand ladder — weakest to strongest</h3>
+        <ol>
+          <li><b>Single</b> — one card</li>
+          <li><b>Pair</b> — two of the same rank</li>
+          <li><b>Two pair</b> — two pairs of different ranks (4 cards)</li>
+          <li><b>Three of a kind</b> — three of the same rank</li>
+          <li><b>Straight</b> — five consecutive ranks (only 1–5 or 2–6)</li>
+          <li><b>Flush</b> — five of the same suit, non-consecutive</li>
+          <li><b>Full house</b> — three of one rank + two of another</li>
+          <li><b>Four of a kind</b> — four of the same rank (4-card play; top of the 4-card tier above two pair)</li>
+          <li><b>Straight flush</b> — five consecutive of the same suit</li>
+        </ol>
+
+        <h3>Resolving the trick</h3>
+        <p>The strongest hand wins. Within the same type, higher rank wins. If
+           two or more hands tie on type and rank, look inside the hand:
+           <b>highest card in the set wins</b>, then the next card, then the
+           next — for full house this means the kicker (the pair part) breaks
+           ties after the triple. Suits rank fish &lt; fox &lt; owl. If two
+           hands are still completely card-for-card identical (only possible
+           when wilds substitute the same way), the seat that played first in
+           turn order takes the trick.</p>
+
+        <h3>Collecting</h3>
+        <p>The winner sweeps <b>every card played</b> this trick — their own play plus
+           everyone else's — into a personal <b>collected pile</b> that doesn't cycle back.
+           Everyone refills their hand back up to 10 from their own draw pile.</p>
+
+        <h3>Game end &amp; scoring</h3>
+        <p>The game ends the moment <b>any player empties both their hand and draw pile</b>.
+           That player earns a <b>+10 first-out bonus</b>. Final score per player is:</p>
+        <pre>collected cards + tricks won + (1 per wild collected) + (10 first-out)</pre>
+        <p>Highest total wins. 👑</p>
+
+        <h3>Wager</h3>
+        <p>Before each game you place a coin wager from your wallet. If <b>You</b>
+           win the game, the wager returns at <b>1.75×</b> (your bet + 75% profit).
+           If Winter or Summer wins, the wager is forfeit. Bee, fish, and fox don't
+           gamble — they're hardwired to play their best.</p>
+
+        <h3>Controls</h3>
+        <ul>
+          <li><b>Click</b> a card to lift it into <span class="rule-play">Play</span>.</li>
+          <li><b>Suggest</b> proposes an EV-optimal play — costs <b>5%</b> of your current wager (min 1 coin); touch any card to override.</li>
+          <li><b>Sort: rank / suit</b> reorders the hand for easier scanning.</li>
+        </ul>
+      </div>
+    </details>
+    <div id="bet-panel">
+      <div class="bet-row" id="bet-form">
+        <span class="bet-label">Bet:</span>
+        <input id="bet-amount" type="number" min="1" step="1" value="10" />
+        <span class="bet-payout">win pays <b id="bet-payout">17</b> coins (1.75×)</span>
+        <button id="btn-bet">Bet &amp; Play</button>
+      </div>
+      <div class="bet-row" id="bet-active" style="display:none;">
+        <span class="bet-label">Wager:</span>
+        <b id="bet-active-amount">0</b>
+        <span class="bet-payout">win pays <b id="bet-active-payout">0</b></span>
+      </div>
+      <div class="bet-balance">Wallet: <b id="bet-balance">…</b></div>
+    </div>
+    <div id="scores"></div>
+    <div id="opp"></div>
+    <div id="trick-area">
+      <div id="trick"></div>
+      <div id="trick-banner">
+        <div class="winner-name"></div>
+        <div class="winner-reason"></div>
+      </div>
+    </div>
+    <div id="status"></div>
+    <div id="preview"></div>
+    <div id="hand-wrap">
+      <div id="sort-controls">
+        <span class="label">sort</span>
+        <button id="sort-rank" class="sort-btn active">rank</button>
+        <button id="sort-suit" class="sort-btn">suit</button>
+      </div>
+      <div id="hand"></div>
+    </div>
+    <div class="controls">
+      <button id="btn-play">Play turn</button>
+      <button id="btn-suggest">Suggest</button>
+      <button id="btn-clear">Clear selection</button>
+      <button id="btn-new">New game</button>
+      <button id="btn-mute" title="Toggle sound">🔊 Sound</button>
+      <span id="flash"></span>
+    </div>
+    <div id="log"></div>
+  </main>
+  <script>
+    /* Randomize sticker positions within the fixed viewport-overlay container
+       on load + resize. Stickers paint UNDER the play area via z-index, so
+       overlapping the central column is fine — main/header sit on top.
+       Per-sticker CSS hardcoded top/left/right/bottom is overridden inline. */
+    (function placeStickers() {
+      const box = document.querySelector('.shop-stickers');
+      if (!box) return;
+      const stickers = Array.from(box.querySelectorAll('.sticker'));
+      const PAD = 18;
+      function layout() {
+        const bw = box.clientWidth;
+        const bh = box.clientHeight;
+        stickers.forEach(s => {
+          s.style.left = '0px';
+          s.style.top  = '0px';
+          s.style.right = 'auto';
+          s.style.bottom = 'auto';
+        });
+        const placed = [];
+        stickers.forEach(s => {
+          const w = s.offsetWidth;
+          const h = s.offsetHeight;
+          const maxX = Math.max(0, bw - w - PAD);
+          const maxY = Math.max(0, bh - h - PAD);
+          let bestX = PAD, bestY = PAD, attempts = 0;
+          while (attempts < 60) {
+            const x = PAD + Math.random() * (maxX - PAD);
+            const y = PAD + Math.random() * (maxY - PAD);
+            const r = { x, y, w, h };
+            const hits = placed.some(p => !(r.x + r.w + PAD < p.x || p.x + p.w + PAD < r.x ||
+                                            r.y + r.h + PAD < p.y || p.y + p.h + PAD < r.y));
+            if (!hits) { bestX = x; bestY = y; break; }
+            attempts++;
+          }
+          if (attempts >= 60) {
+            bestX = PAD + Math.random() * (maxX - PAD);
+            bestY = PAD + Math.random() * (maxY - PAD);
+          }
+          s.style.left = bestX + 'px';
+          s.style.top  = bestY + 'px';
+          placed.push({ x: bestX, y: bestY, w, h });
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', layout, { once: true });
+      } else {
+        layout();
+      }
+      window.addEventListener('load', layout, { once: true });
+      let resizeT = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeT);
+        resizeT = setTimeout(layout, 120);
+      });
+    })();
+  </script>
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/foresttrick/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

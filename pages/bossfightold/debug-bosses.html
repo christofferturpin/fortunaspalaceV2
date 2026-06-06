@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  DEBUG · BOSS HUB — hidden test bench for the five boss fights           │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A hidden control panel — NOT linked from the lobby. Reach it by       │
+  │    typing /pages/debug-bosses.html into the URL bar. Holds the design    │
+  │    notes for all five planned boss fights in one place plus the buttons  │
+  │    to jump straight into each one without grinding the trigger           │
+  │    conditions (welfare-visit letter, lifetime-earned gate, etc.).        │
+  │                                                                          │
+  │    Each boss has a panel: prose design notes (verbatim from the design   │
+  │    dump), a BUILT / DESIGN-ONLY pill, and three buttons —                │
+  │      • Trigger fight  — set wendys_palace_boss_<slug>.active = true,     │
+  │                         then navigate to bossfight-<slug>.html. All 5    │
+  │                         bosses have basic-build pages now (Chavez is     │
+  │                         the full flow; 2-5 share page-generic.js).       │
+  │      • Mark beaten   — push <slug> into wendys_palace_bosses_beaten and  │
+  │                         set the boss record complete:true, won:true. Use │
+  │                         when you want the lobby badge without playing.   │
+  │      • Reset         — wipe just this boss's state.                      │
+  │    Header has a "Clear ALL boss state" button (nukes the records and the │
+  │    beaten list) and a back-to-lobby link. The Chavez panel is the only   │
+  │    one wired to a real fight today.                                      │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: (none — page is self-contained; reads/writes localStorage      │
+  │      directly, no Wallet/Child/Letters glue)                             │
+  │    css: ../css/base.css + inline <style>                                 │
+  │    inline route-guards: NONE. Bypasses splash / death / child / boss-    │
+  │      active gates so the page is always reachable for debugging.         │
+  │    DOM ids: #debug-clear-bosses, #debug-back,                            │
+  │      .boss-card[data-slug][data-built],                                  │
+  │      .btn-fight, .btn-beaten, .btn-reset                                 │
+  │    boss roster (data-slug → page):                                       │
+  │      chavez            → bossfight-chavez.html        (BUILT)            │
+  │      malechstone       → bossfight-malechstone.html   (stub)             │
+  │      zashiki-warashi   → bossfight-zashiki-warashi.html (stub)           │
+  │      nahual            → bossfight-nahual.html        (stub)             │
+  │      fortuna           → bossfight-fortuna.html       (stub)             │
+  │    storage R/W:                                                          │
+  │      R/W: wendys_palace_boss_<slug> {active, complete, won, snapshot}    │
+  │      R/W: wendys_palace_bosses_beaten (string[] of slugs)                │
+  │    routes out: index.html, bossfight-chavez.html (and the four stubs     │
+  │      once they exist)                                                    │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DEBUG · Boss Hub — Fortuna's Palace</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <style>
+    .debug-bosses-body {
+      background: var(--bg-void);
+      color: var(--bone);
+      font-family: var(--font-ui);
+      padding: 24px 32px 64px;
+      min-height: 100vh;
+    }
+
+    .debug-header {
+      border-bottom: 1px solid var(--iron-light);
+      padding-bottom: 16px;
+      margin-bottom: 28px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 18px;
+    }
+    .debug-header h1 {
+      font-family: var(--font-title);
+      color: var(--sulfur);
+      letter-spacing: 0.18em;
+      font-size: 28px;
+      margin: 0;
+      text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
+    }
+    .debug-header .debug-note {
+      color: var(--bone-dim);
+      font-style: italic;
+      margin: 0;
+      flex: 1 1 320px;
+    }
+    .debug-header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .debug-btn {
+      font-family: var(--font-ui);
+      font-size: 16px;
+      color: var(--bone);
+      background: var(--iron);
+      border: 1px solid var(--iron-light);
+      padding: 6px 14px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .debug-btn:hover {
+      background: var(--bg-warm);
+      border-color: var(--sulfur-dim);
+      color: var(--sulfur);
+    }
+    .debug-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      filter: grayscale(0.6);
+    }
+    .debug-btn-danger { border-color: var(--blood-dim); color: var(--blood); }
+    .debug-btn-danger:hover { background: var(--blood-dim); color: var(--bone); border-color: var(--blood); }
+    .debug-btn-fight { border-color: var(--sulfur-dim); color: var(--sulfur); }
+    .debug-btn-fight:hover { background: var(--sulfur-dim); color: var(--bg-void); }
+
+    .boss-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 22px;
+      max-width: 920px;
+    }
+
+    .boss-card {
+      border: 1px solid var(--iron-light);
+      background: linear-gradient(180deg, var(--bg-deep), var(--bg-panel));
+      padding: 20px 22px;
+      position: relative;
+    }
+    .boss-card[data-built="true"] { border-color: var(--sulfur-dim); }
+    .boss-card[data-built="false"] { border-style: dashed; }
+
+    .boss-head {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .boss-num {
+      font-family: var(--font-title);
+      font-size: 32px;
+      color: var(--sulfur);
+      line-height: 1;
+      min-width: 1.4em;
+    }
+    .boss-name {
+      font-family: var(--font-title);
+      font-size: 22px;
+      color: var(--bone);
+      letter-spacing: 0.1em;
+      margin: 0;
+    }
+    .boss-name .boss-epithet {
+      color: var(--bone-dim);
+      font-style: italic;
+      font-size: 16px;
+      letter-spacing: 0.04em;
+      font-family: var(--font-body);
+      margin-left: 8px;
+    }
+    .boss-status {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      padding: 3px 8px;
+      border: 1px solid currentColor;
+      text-transform: uppercase;
+      margin-left: auto;
+    }
+    .boss-status-built { color: var(--phosphor); }
+    .boss-status-design { color: var(--ember); }
+    .boss-status-beaten { color: var(--sulfur); border-color: var(--sulfur); margin-left: 8px; }
+    .boss-status-beaten[hidden] { display: none; }
+
+    .boss-notes {
+      font-family: var(--font-body);
+      font-size: 17px;
+      line-height: 1.5;
+      color: var(--bone);
+      margin: 0 0 14px;
+    }
+    .boss-notes em { color: var(--bone-dim); }
+    .boss-notes .boss-line {
+      display: block;
+      padding: 8px 12px;
+      margin: 8px 0;
+      border-left: 2px solid var(--blood-dim);
+      background: rgba(0, 0, 0, 0.35);
+      font-style: italic;
+      color: var(--bone-dim);
+    }
+    .boss-notes .boss-read {
+      color: var(--ember);
+      font-size: 14px;
+      font-family: var(--font-ui);
+      letter-spacing: 0.04em;
+      display: block;
+      margin-top: 6px;
+    }
+    .boss-notes ul {
+      margin: 6px 0 6px 18px;
+      padding: 0;
+    }
+    .boss-notes ul li { margin: 4px 0; }
+
+    .boss-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding-top: 10px;
+      border-top: 1px dashed var(--iron-light);
+    }
+
+    .boss-state {
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--bone-dim);
+      margin-left: auto;
+      align-self: center;
+    }
+    .boss-state code {
+      color: var(--phosphor);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 1px 5px;
+      border: 1px solid var(--iron-light);
+    }
+  </style>
+</head>
+<body class="debug-bosses-body">
+  <header class="debug-header">
+    <h1>DEBUG · BOSS HUB</h1>
+    <p class="debug-note">Hidden page. Not in the lobby. Direct URL only.</p>
+    <div class="debug-header-actions">
+      <button id="debug-clear-bosses" class="debug-btn debug-btn-danger" type="button">Clear ALL boss state</button>
+      <a id="debug-back" class="debug-btn" href="index.html">← lobby</a>
+    </div>
+  </header>
+
+  <main class="boss-grid">
+
+    <!-- Boss 1 — Chavez (built) -->
+    <article class="boss-card" data-slug="chavez" data-built="true" data-page="bossfight-chavez.html">
+      <div class="boss-head">
+        <span class="boss-num">1</span>
+        <h2 class="boss-name">Agent Chavez <span class="boss-epithet">A Christian Angel</span></h2>
+        <span class="boss-status boss-status-built">Built</span>
+        <span class="boss-status boss-status-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-notes">
+        <p>Eyes within eyes · wheels within wheels · pretention within pretention. Biblically-accurate ophanim drift behind the felt. Heads-up no-limit Texas Hold'em (player 100 chips, Chavez 50; blinds 1/2 → 2/3 → 5/10).</p>
+        <p>Conceivably an old retired social worker who is playing at the same casino and sees abuse — but he's a racist old dickhead too. The frame: Fortuna is killing the cops who come after her.</p>
+        <span class="boss-read">read · religious authority · the helping profession's underside</span>
+      </div>
+      <div class="boss-actions">
+        <button class="debug-btn debug-btn-fight btn-fight" type="button">Trigger fight</button>
+        <button class="debug-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="debug-btn btn-reset" type="button">Reset</button>
+        <span class="boss-state">flag: <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+    <!-- Boss 2 — Malechstone (basic placeholder build) -->
+    <article class="boss-card" data-slug="malechstone" data-built="true" data-page="bossfight-malechstone.html">
+      <div class="boss-head">
+        <span class="boss-num">2</span>
+        <h2 class="boss-name">Agent Malechstone <span class="boss-epithet">Wings in wings</span></h2>
+        <span class="boss-status boss-status-built">Basic build</span>
+        <span class="boss-status boss-status-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-notes">
+        <p>Gaza reference. Jewish coding.</p>
+        <span class="boss-line">"Frankly, you're a danger to the neighborhood. Shouldn't YOUR CHILD be reasoning by now?"</span>
+        <p>A bunch of wings and missiles. Barely. Barely. Barely — you gotta LOOK at a map of Gaza.</p>
+        <span class="boss-read">read · an actual cop · general biopower (Foucault) · SENSELESS AUTHORITY</span>
+      </div>
+      <div class="boss-actions">
+        <button class="debug-btn debug-btn-fight btn-fight" type="button">Trigger fight</button>
+        <button class="debug-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="debug-btn btn-reset" type="button">Reset</button>
+        <span class="boss-state">flag: <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+    <!-- Boss 3 — Zashiki-Warashi (basic placeholder build) -->
+    <article class="boss-card" data-slug="zashiki-warashi" data-built="true" data-page="bossfight-zashiki-warashi.html">
+      <div class="boss-head">
+        <span class="boss-num">3</span>
+        <h2 class="boss-name">Agent Zashiki-Warashi <span class="boss-epithet">FBI badges on soot</span></h2>
+        <span class="boss-status boss-status-built">Basic build</span>
+        <span class="boss-status boss-status-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-notes">
+        <span class="boss-line">"Home life is sub-optimal. Potential for creating larger disturbances within society later."</span>
+        <p>Fucked-up Miyazaki riff. Straight up steal the little Zashiki-Warashi / soot dudes from Miyazaki — give them little FBI badges.</p>
+        <span class="boss-read">read · FBI · authority · stability</span>
+      </div>
+      <div class="boss-actions">
+        <button class="debug-btn debug-btn-fight btn-fight" type="button">Trigger fight</button>
+        <button class="debug-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="debug-btn btn-reset" type="button">Reset</button>
+        <span class="boss-state">flag: <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+    <!-- Boss 4 — Nahual (basic placeholder build, no character notes yet) -->
+    <article class="boss-card" data-slug="nahual" data-built="true" data-page="bossfight-nahual.html">
+      <div class="boss-head">
+        <span class="boss-num">4</span>
+        <h2 class="boss-name">Agent Nahual <span class="boss-epithet">— TBD —</span></h2>
+        <span class="boss-status boss-status-built">Basic build</span>
+        <span class="boss-status boss-status-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-notes">
+        <p><em>(no character notes yet — Mesoamerican shapeshifter placeholder; jungle obsidian + jade aesthetic)</em></p>
+      </div>
+      <div class="boss-actions">
+        <button class="debug-btn debug-btn-fight btn-fight" type="button">Trigger fight</button>
+        <button class="debug-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="debug-btn btn-reset" type="button">Reset</button>
+        <span class="boss-state">flag: <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+    <!-- Boss 5 — Fortuna (basic placeholder build) -->
+    <article class="boss-card" data-slug="fortuna" data-built="true" data-page="bossfight-fortuna.html">
+      <div class="boss-head">
+        <span class="boss-num">5</span>
+        <h2 class="boss-name">Fortuna <span class="boss-epithet">Goddess · not a PC</span></h2>
+        <span class="boss-status boss-status-built">Basic build</span>
+        <span class="boss-status boss-status-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-notes">
+        <p>Render like a Virginia Frances Sterrett drawing.</p>
+        <span class="boss-read">read · final · the Palace itself</span>
+      </div>
+      <div class="boss-actions">
+        <button class="debug-btn debug-btn-fight btn-fight" type="button">Trigger fight</button>
+        <button class="debug-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="debug-btn btn-reset" type="button">Reset</button>
+        <span class="boss-state">flag: <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+  </main>
+
+  <script>
+    /* Debug boss hub controller — read-only on load, mutates localStorage only
+       on button click. Schema mirrors bossfight-chavez:
+         wendys_palace_boss_<slug>     = { active, complete, won, snapshot? }
+         wendys_palace_bosses_beaten   = string[] of slugs */
+    (function () {
+      var BEATEN_KEY = 'wendys_palace_bosses_beaten';
+      function flagKey(slug) { return 'wendys_palace_boss_' + slug; }
+
+      function readJSON(key, fallback) {
+        try {
+          var raw = localStorage.getItem(key);
+          if (raw == null) return fallback;
+          return JSON.parse(raw);
+        } catch (e) { return fallback; }
+      }
+      function writeJSON(key, val) {
+        try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+      }
+      function getBeaten() {
+        var b = readJSON(BEATEN_KEY, []);
+        return Array.isArray(b) ? b : [];
+      }
+      function setBeaten(arr) { writeJSON(BEATEN_KEY, arr); }
+
+      function describeFlag(rec, beaten) {
+        if (beaten) return 'BEATEN';
+        if (!rec || typeof rec !== 'object') return 'unset';
+        var parts = [];
+        if (rec.active)   parts.push('active');
+        if (rec.complete) parts.push('complete');
+        if (rec.won)      parts.push('won');
+        return parts.length ? parts.join('+') : 'idle';
+      }
+
+      function refreshCard(card) {
+        var slug = card.getAttribute('data-slug');
+        var rec  = readJSON(flagKey(slug), null);
+        var beatenList = getBeaten();
+        var isBeaten   = beatenList.indexOf(slug) >= 0;
+        var pill   = card.querySelector('[data-beaten-pill]');
+        if (pill) pill.hidden = !isBeaten;
+        var out = card.querySelector('[data-flag-readout]');
+        if (out) out.textContent = describeFlag(rec, isBeaten);
+      }
+      function refreshAll() {
+        document.querySelectorAll('.boss-card').forEach(refreshCard);
+      }
+
+      function triggerFight(card) {
+        var slug = card.getAttribute('data-slug');
+        var page = card.getAttribute('data-page');
+        var built = card.getAttribute('data-built') === 'true';
+        if (!built) return;
+        writeJSON(flagKey(slug), { active: true, complete: false, won: false });
+        location.href = page;
+      }
+
+      function markBeaten(card) {
+        var slug = card.getAttribute('data-slug');
+        writeJSON(flagKey(slug), { active: false, complete: true, won: true });
+        var b = getBeaten();
+        if (b.indexOf(slug) < 0) b.push(slug);
+        setBeaten(b);
+        refreshCard(card);
+      }
+
+      function resetBoss(card) {
+        var slug = card.getAttribute('data-slug');
+        try { localStorage.removeItem(flagKey(slug)); } catch (e) {}
+        var b = getBeaten().filter(function (s) { return s !== slug; });
+        setBeaten(b);
+        refreshCard(card);
+      }
+
+      function clearAll() {
+        if (!confirm('Clear ALL boss state (every record + the beaten list)?')) return;
+        document.querySelectorAll('.boss-card').forEach(function (card) {
+          var slug = card.getAttribute('data-slug');
+          try { localStorage.removeItem(flagKey(slug)); } catch (e) {}
+        });
+        try { localStorage.removeItem(BEATEN_KEY); } catch (e) {}
+        refreshAll();
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.boss-card').forEach(function (card) {
+          var fight  = card.querySelector('.btn-fight');
+          var beaten = card.querySelector('.btn-beaten');
+          var reset  = card.querySelector('.btn-reset');
+          if (fight)  fight.addEventListener('click',  function () { triggerFight(card); });
+          if (beaten) beaten.addEventListener('click', function () { markBeaten(card); });
+          if (reset)  reset.addEventListener('click',  function () { resetBoss(card); });
+        });
+        var clr = document.getElementById('debug-clear-bosses');
+        if (clr) clr.addEventListener('click', clearAll);
+        refreshAll();
+      });
+    })();
+  </script>
+</body>
+</html>

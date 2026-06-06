@@ -1,0 +1,105 @@
+/* Letters left in the home — papers from the outside world */
+
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+
+.letter-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(8, 4, 6, 0.88);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.letter-overlay.is-open {
+  display: flex;
+  opacity: 1;
+}
+
+.letter-stage {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Phase 1 — the preface line, soft and italic, matching child.html voice */
+
+.letter-preface {
+  text-align: center;
+  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  font-style: italic;
+  color: #d8b896;
+  font-size: 19px;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  opacity: 0.94;
+  max-width: 480px;
+}
+
+.letter-action {
+  background: transparent;
+  border: 1px solid #c08a98;
+  color: #f0c8d0;
+  padding: 7px 22px;
+  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 16px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.letter-action:hover {
+  background: rgba(192, 138, 152, 0.12);
+  color: #ffdce4;
+}
+
+/* Phase 2 — the paper */
+
+.letter-paper {
+  background: #ece2cd;
+  color: #1a1410;
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 14.5px;
+  line-height: 1.75;
+  padding: 38px 42px 32px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.65),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+  position: relative;
+  letter-spacing: 0.01em;
+  transform: rotate(-0.4deg);
+}
+
+.letter-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.022) 0 1px, transparent 1px 5px),
+    radial-gradient(ellipse at top left, rgba(120, 80, 40, 0.10), transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(60, 30, 10, 0.10), transparent 55%);
+  mix-blend-mode: multiply;
+}
+
+.letter-paper-body {
+  position: relative;
+  z-index: 1;
+  white-space: pre-wrap;
+}
+
+.letter-close {
+  margin-top: 4px;
+}

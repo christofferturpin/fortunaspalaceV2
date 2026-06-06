@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — SNOWGLOBE (Wartburg TN souvenir, 100 coins)                │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Cheapest item in the shop. A CSS snow globe over a little house in    │
+  │    Wartburg, TN, with falling snowflakes generated in JS. A switch on    │
+  │    the base "lights" the house — but it's not light, it's flames.       │
+  │    The switch sticks on. Three prose lines reveal in sequence: the      │
+  │    flick, the failed flick-off, and the lamp going out with the         │
+  │    windows still glowing. The arson is in the souvenir.                 │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/child.js (for the kaomoji cosmetic toggle)           │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .sg-scene (toggles .lit) > .sg-globe-wrap > .sg-globe           │
+  │      (.sg-house, .sg-window-{1,2}, .sg-flame-{1,2,3}, .sg-snow,         │
+  │      .sg-smoke), .sg-globe-base > #sg-switch, .sg-prose w/ .reveal,     │
+  │      .kc-bay > #kc-preview + .kc-toggle (kaomoji decoration toggle)     │
+  │    flow: inline IIFE: spawns 36 snowflake spans; #sg-switch click/key   │
+  │      cycles state 0→1 (lit, show flick line) → 2 (stuck anim, show     │
+  │      stuck line, then night line on 900ms delay).                       │
+  │      Second IIFE: .kc-toggle click → Child.setCosmetic('snowglobe',!);  │
+  │      Child.onChange→refresh button + preview frame.                     │
+  │    storage R/W: writes wendys_palace_child.cosmetics.snowglobe via      │
+  │      Child.setCosmetic; ownership tracked in wendys_palace_giftshop,    │
+  │      key='snowglobe', by giftshopindex.html                             │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Snow Globe</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Cormorant+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background: #04060a;
+      color: #d8c8b0;
+      font-family: 'Cormorant Garamond', serif;
+      overflow-x: hidden;
+    }
+    .sg-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 22px;
+      gap: 28px;
+      position: relative;
+    }
+    .sg-globe-wrap {
+      position: relative;
+      animation: sg-rock 6s ease-in-out infinite;
+    }
+    @keyframes sg-rock {
+      0%, 100% { transform: rotate(-1deg); }
+      50%      { transform: rotate(1deg); }
+    }
+    .sg-globe {
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 32% 28%, rgba(255,255,255,0.32) 0%, transparent 36%),
+        radial-gradient(circle at center, #1c2638 0%, #08101c 70%, #040810 100%);
+      border: 6px solid #d8c8b0;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        inset 0 -30px 50px rgba(0,0,0,0.7),
+        0 20px 50px rgba(0,0,0,0.7),
+        0 0 30px rgba(255, 140, 60, 0.15);
+    }
+    .sg-house {
+      position: absolute;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90px;
+      height: 56px;
+      background: linear-gradient(180deg, #3a2418 0%, #1a0e08 100%);
+      box-shadow:
+        inset 0 -6px 8px rgba(0,0,0,0.6),
+        0 0 20px rgba(255, 100, 30, 0.5);
+      transition: box-shadow 0.8s ease;
+    }
+    .sg-scene:not(.lit) .sg-house {
+      box-shadow: inset 0 -6px 8px rgba(0,0,0,0.6);
+    }
+    .sg-house::before {
+      content: '';
+      position: absolute;
+      top: -38px;
+      left: -10px;
+      width: 0;
+      height: 0;
+      border-left: 55px solid transparent;
+      border-right: 55px solid transparent;
+      border-bottom: 38px solid #2a1a10;
+    }
+    .sg-window {
+      position: absolute;
+      width: 12px;
+      height: 14px;
+      background: radial-gradient(ellipse at center, #ffd060 0%, #ff7020 60%, transparent 100%);
+      box-shadow: 0 0 12px rgba(255, 160, 60, 0.9);
+      animation: sg-window-flicker 0.3s ease-in-out infinite alternate;
+      transition: background 0.8s ease, box-shadow 0.8s ease, opacity 0.8s ease;
+    }
+    .sg-scene:not(.lit) .sg-window {
+      background: radial-gradient(ellipse at center, rgba(50,40,30,0.45) 0%, transparent 100%);
+      box-shadow: none;
+      animation: none;
+      opacity: 0.45;
+    }
+    @keyframes sg-window-flicker {
+      from { opacity: 0.7; transform: scale(1); }
+      to   { opacity: 1; transform: scale(1.1); }
+    }
+    .sg-window-1 { top: 16px; left: 14px; }
+    .sg-window-2 { top: 16px; right: 14px; animation-delay: 0.1s; }
+    .sg-flames {
+      position: absolute;
+      bottom: 110px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 50px;
+      transition: opacity 0.8s ease;
+    }
+    .sg-scene:not(.lit) .sg-flames { opacity: 0; }
+    .sg-scene:not(.lit) .sg-smoke  { opacity: 0; }
+    .sg-flame {
+      position: absolute;
+      bottom: 0;
+      width: 14px;
+      height: 36px;
+      background: radial-gradient(ellipse at center, #fff1a0 0%, #ffb040 30%, #c8501a 70%, transparent 100%);
+      border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+      filter: blur(0.8px);
+      animation: sg-flame-dance 0.5s ease-in-out infinite alternate;
+    }
+    .sg-flame-1 { left: 8px;  animation-delay: 0s;    height: 42px; }
+    .sg-flame-2 { left: 28px; animation-delay: 0.1s;  height: 50px; }
+    .sg-flame-3 { left: 50px; animation-delay: 0.15s; height: 40px; }
+    @keyframes sg-flame-dance {
+      from { transform: scaleY(1) translateX(0); }
+      to   { transform: scaleY(1.18) translateX(2px); }
+    }
+    .sg-smoke {
+      position: absolute;
+      bottom: 150px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 80px;
+      background:
+        radial-gradient(ellipse at 30% 70%, rgba(60,40,30,0.4) 0%, transparent 60%),
+        radial-gradient(ellipse at 60% 50%, rgba(80,60,50,0.35) 0%, transparent 60%),
+        radial-gradient(ellipse at 40% 30%, rgba(100,80,70,0.25) 0%, transparent 60%);
+      filter: blur(4px);
+      animation: sg-smoke-rise 4s ease-in-out infinite alternate;
+      transition: opacity 0.8s ease;
+    }
+    @keyframes sg-smoke-rise {
+      from { transform: translateX(-50%) translateY(0); opacity: 0.7; }
+      to   { transform: translateX(-50%) translateY(-12px); opacity: 0.4; }
+    }
+    .sg-snow span {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: #fff;
+      border-radius: 50%;
+      opacity: 0.85;
+      animation: sg-fall linear infinite;
+    }
+    @keyframes sg-fall {
+      0%   { transform: translateY(-20px); opacity: 0; }
+      10%  { opacity: 0.9; }
+      90%  { opacity: 0.9; }
+      100% { transform: translateY(280px); opacity: 0; }
+    }
+    .sg-globe-base {
+      width: 220px;
+      margin: -14px auto 0;
+      background: linear-gradient(180deg, #4a3018 0%, #2a1a0e 100%);
+      padding: 14px 0 18px;
+      text-align: center;
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      letter-spacing: 0.32em;
+      color: #c9a14a;
+      border: 1px solid #6a4a20;
+      border-radius: 0 0 12px 12px;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.1),
+        0 10px 28px rgba(0,0,0,0.6);
+      position: relative;
+    }
+    .sg-prose {
+      max-width: 540px;
+      text-align: center;
+      font-size: 18px;
+      line-height: 1.55;
+      color: rgba(216, 200, 176, 0.92);
+      font-style: italic;
+    }
+    .sg-prose p { margin: 0 0 14px; }
+    .sg-prose p:last-child { margin-bottom: 0; }
+    .sg-prose .em {
+      font-style: normal;
+      color: #f0c890;
+      letter-spacing: 0.02em;
+    }
+    .sg-prose .reveal {
+      opacity: 0;
+      max-height: 0;
+      margin-bottom: 0;
+      transition: opacity 0.7s ease, max-height 0.7s ease, margin-bottom 0.7s ease;
+      overflow: hidden;
+    }
+    .sg-prose .reveal.shown {
+      opacity: 1;
+      max-height: 120px;
+      margin-bottom: 14px;
+    }
+    .sg-prose .reveal.shown:last-child { margin-bottom: 0; }
+
+    .sg-switch {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 30px;
+      background: linear-gradient(180deg, #1a0e08 0%, #050200 100%);
+      border: 1px solid #050200;
+      border-radius: 2px;
+      cursor: pointer;
+      box-shadow:
+        inset 0 1px 3px rgba(0,0,0,0.85),
+        inset 0 -1px 0 rgba(255,255,255,0.04);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sg-switch:focus { outline: 1px solid rgba(201,161,74,0.7); outline-offset: 2px; }
+    .sg-switch-slot {
+      position: absolute;
+      inset: 3px;
+      background: #02010a;
+      border-radius: 1px;
+      box-shadow: inset 0 0 3px rgba(0,0,0,0.9);
+    }
+    .sg-switch-slider {
+      position: absolute;
+      left: 2px;
+      right: 2px;
+      height: 10px;
+      background: linear-gradient(180deg, #e0c080 0%, #6a4a20 100%);
+      border: 1px solid #2a1a0e;
+      border-radius: 1px;
+      top: 12px;
+      transition: top 0.16s cubic-bezier(0.5, 1.5, 0.5, 1);
+      box-shadow:
+        0 1px 1px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,230,180,0.4);
+    }
+    .sg-switch.on .sg-switch-slider { top: 2px; }
+    .sg-switch.stuck .sg-switch-slider {
+      animation: sg-stuck 0.42s ease-out;
+    }
+    @keyframes sg-stuck {
+      0%   { top: 2px; }
+      35%  { top: 8px; }
+      70%  { top: 2px; }
+      85%  { top: 5px; }
+      100% { top: 2px; }
+    }
+    .kc-bay {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+    .kc-preview {
+      font-family: 'Special Elite', monospace;
+      font-size: 22px;
+      letter-spacing: 0.04em;
+      color: #d8c8b0;
+      background: rgba(20, 14, 10, 0.55);
+      border: 1px solid rgba(201, 161, 74, 0.35);
+      border-radius: 4px;
+      padding: 10px 18px;
+      min-width: 160px;
+      text-align: center;
+      white-space: pre;
+      line-height: 1.1;
+    }
+    .kc-toggle {
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: #d8c8b0;
+      padding: 12px 26px;
+      background: rgba(20, 14, 10, 0.7);
+      border: 1px solid rgba(201, 161, 74, 0.5);
+      border-radius: 4px;
+      cursor: pointer;
+      min-width: 240px;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .kc-toggle:hover { background: rgba(201, 161, 74, 0.16); border-color: #c9a14a; }
+    .kc-toggle.on { background: rgba(201, 161, 74, 0.22); border-color: #d4b46a; color: #f0d890; }
+
+    .sg-back {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8b0;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    .sg-back:hover {
+      background: rgba(201, 161, 74, 0.15);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="sg-scene">
+    <div class="sg-globe-wrap">
+      <div class="sg-globe">
+        <div class="sg-smoke"></div>
+        <div class="sg-house">
+          <div class="sg-window sg-window-1"></div>
+          <div class="sg-window sg-window-2"></div>
+        </div>
+        <div class="sg-flames">
+          <div class="sg-flame sg-flame-1"></div>
+          <div class="sg-flame sg-flame-2"></div>
+          <div class="sg-flame sg-flame-3"></div>
+        </div>
+        <div class="sg-snow" id="sg-snow"></div>
+      </div>
+      <div class="sg-globe-base">
+        WARTBURG · TENNESSEE
+        <div class="sg-switch" id="sg-switch" role="switch" aria-checked="false" aria-label="Light switch" tabindex="0">
+          <div class="sg-switch-slot"></div>
+          <div class="sg-switch-slider"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sg-prose">
+      <p>You shake it and the snow comes down on the little house.</p>
+      <p class="reveal" id="sg-line-flick">A switch on the bottom makes it look like the little house is burning.</p>
+      <p class="reveal em" id="sg-line-stuck">You try to turn the switch off. The house stays a flame. It must be a defect.</p>
+      <p class="reveal" id="sg-line-night">You set it on the nightstand and turn off the lamp. In the dark the windows still glow.</p>
+    </div>
+
+    <div class="kc-bay">
+      <div class="kc-preview" id="kc-preview" aria-hidden="true">(o_o)</div>
+      <button class="kc-toggle" type="button" aria-pressed="false">Snow the child</button>
+    </div>
+
+    <a class="sg-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/child.js"></script>
+  <script>
+    (function () {
+      const ID = 'snowglobe';
+      const OFF = 'Snow the child';
+      const ON  = 'Take the snow off';
+      const btn  = document.querySelector('.kc-toggle');
+      const prev = document.getElementById('kc-preview');
+      if (!btn || !window.Child) return;
+      function refresh() {
+        const on = Child.getCosmetic(ID);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.textContent = on ? ON : OFF;
+      }
+      let pi = 0;
+      function tick() {
+        if (!prev) return;
+        const d = Child.describeFace();
+        prev.textContent = d.frames[pi % d.frames.length];
+        pi++;
+      }
+      btn.addEventListener('click', () => Child.setCosmetic(ID, !Child.getCosmetic(ID)));
+      Child.onChange(refresh);
+      refresh();
+      tick();
+      setInterval(tick, 420);
+    })();
+  </script>
+
+  <script>
+    (function () {
+      const snow = document.getElementById('sg-snow');
+      for (let i = 0; i < 36; i++) {
+        const s = document.createElement('span');
+        s.style.left = (Math.random() * 100) + '%';
+        s.style.animationDuration = (3 + Math.random() * 4) + 's';
+        s.style.animationDelay = (Math.random() * 4) + 's';
+        s.style.width = s.style.height = (1.5 + Math.random() * 2) + 'px';
+        snow.appendChild(s);
+      }
+
+      const scene = document.querySelector('.sg-scene');
+      const sw = document.getElementById('sg-switch');
+      const lineFlick = document.getElementById('sg-line-flick');
+      const lineStuck = document.getElementById('sg-line-stuck');
+      const lineNight = document.getElementById('sg-line-night');
+      let state = 0;
+      let stuckTimer = null;
+
+      function flick() {
+        if (state === 0) {
+          state = 1;
+          sw.classList.add('on');
+          sw.setAttribute('aria-checked', 'true');
+          scene.classList.add('lit');
+          lineFlick.classList.add('shown');
+        } else {
+          sw.classList.remove('stuck');
+          void sw.offsetWidth;
+          sw.classList.add('stuck');
+          if (stuckTimer) clearTimeout(stuckTimer);
+          stuckTimer = setTimeout(() => sw.classList.remove('stuck'), 450);
+          if (state === 1) {
+            state = 2;
+            lineStuck.classList.add('shown');
+            setTimeout(() => lineNight.classList.add('shown'), 900);
+          }
+        }
+      }
+
+      sw.addEventListener('click', flick);
+      sw.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          flick();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

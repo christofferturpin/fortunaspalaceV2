@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Coin Pusher Craps</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0||c.pleasure<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/coinpusher.css">
+</head>
+<body>
+  <header>
+    <div class="header-nav"><a href="../index.html">← Lobby</a></div>
+    <h1>Coin Pusher Craps</h1>
+    <p class="cp-subtitle">One wager. Three picks. The dice fill the tray.</p>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+    </div>
+  </header>
+
+  <main>
+    <details class="cp-rules">
+      <summary>How it works</summary>
+      <div class="cp-rules-body">
+        <p>Three dice are rolled. Each die has two red faces and four black faces:</p>
+        <ul class="cp-rules-list">
+          <li><strong>Die 1</strong> — red on <span class="cp-pip cp-pip-red">1</span> <span class="cp-pip cp-pip-red">2</span>, black on 3-6</li>
+          <li><strong>Die 2</strong> — red on <span class="cp-pip cp-pip-red">3</span> <span class="cp-pip cp-pip-red">4</span>, black on 1, 2, 5, 6</li>
+          <li><strong>Die 3</strong> — red on <span class="cp-pip cp-pip-red">5</span> <span class="cp-pip cp-pip-red">6</span>, black on 1-4</li>
+        </ul>
+        <p>Pick <strong>one from each of the three rows</strong>. Top sets the number of tokens minted. Bottom sets the per-token value multiplier (miss → ×1). Third makes the tokens <strong>~33% physically bigger</strong> in the pusher if you call the dice right — bulkier coins push harder. Tokens reprice off your <em>current</em> wager every push, so the value travels with whatever you're betting now.</p>
+        <table class="cp-paytable">
+          <thead><tr><th>Bet</th><th>Row</th><th>Condition</th><th>Chance</th><th>Effect on hit</th></tr></thead>
+          <tbody>
+            <tr><td>Mid</td>        <td>Top</td>   <td>Sum 8-15</td>                <td>79.2%</td><td>2 tokens</td></tr>
+            <tr><td>Low</td>        <td>Top</td>   <td>Sum 3-7</td>                 <td>16.2%</td><td>10 tokens</td></tr>
+            <tr><td>High</td>       <td>Top</td>   <td>Sum 16-18</td>               <td>4.6%</td> <td>35 tokens</td></tr>
+            <tr><td>All Black</td>  <td>Bottom</td><td>No red faces</td>            <td>29.6%</td><td>×2 token value</td></tr>
+            <tr><td>Run</td>        <td>Bottom</td><td>3 consecutive, any order</td><td>11.1%</td><td>×5 token value</td></tr>
+            <tr><td>All Red</td>    <td>Bottom</td><td>All red faces</td>           <td>3.7%</td> <td>×10 token value</td></tr>
+            <tr><td>No Doubles</td> <td>Third</td> <td>All 3 dice different</td>    <td>55.6%</td><td>+33% token size</td></tr>
+            <tr><td>Doubles</td>    <td>Third</td> <td>Two or more match</td>       <td>44.4%</td><td>+33% token size</td></tr>
+          </tbody>
+        </table>
+        <p>The pusher cabinet is seeded with house chips at four tiers: <strong>×0.5</strong>, <strong>×1</strong>, <strong>×2</strong>, and a rare <strong>×5</strong>. Each chip is worth <em>that multiplier × your most recent wager</em>, so the field reprices every time you bet. Push them off the front for full value; off the side gutters for half.</p>
+      </div>
+    </details>
+
+    <section class="cp-wager-row">
+      <label class="cp-wager-label" for="cp-wager">Wager</label>
+      <input id="cp-wager" type="number" min="1" value="5" inputmode="numeric" autocomplete="off">
+      <button id="cp-wager-max" class="cp-btn" type="button">MAX</button>
+      <span class="cp-wager-hint">Sets the value of each coin in the pusher.</span>
+    </section>
+
+    <section class="cp-tray" aria-label="Dice tray">
+      <div class="cp-die" id="cp-die-1" data-die="1"></div>
+      <div class="cp-die" id="cp-die-2" data-die="2"></div>
+      <div class="cp-die" id="cp-die-3" data-die="3"></div>
+    </section>
+
+    <div class="cp-readout" id="cp-readout">Pick one from each row. Then roll.</div>
+
+    <div class="cp-picks-banner">
+      <div class="cp-pick-slot">
+        <span class="cp-pick-label">Top</span>
+        <span class="cp-pick-value" id="cp-pick-top">—</span>
+      </div>
+      <span class="cp-pick-sep">·</span>
+      <div class="cp-pick-slot">
+        <span class="cp-pick-label">Bottom</span>
+        <span class="cp-pick-value" id="cp-pick-bottom">—</span>
+      </div>
+      <span class="cp-pick-sep">·</span>
+      <div class="cp-pick-slot">
+        <span class="cp-pick-label">Third</span>
+        <span class="cp-pick-value" id="cp-pick-third">—</span>
+      </div>
+    </div>
+
+    <section class="cp-table">
+      <div class="cp-row">
+        <div class="cp-row-label">Sum bet · pick one · sets token count</div>
+        <div class="cp-row-spots">
+          <div class="cp-spot cp-spot-low"  data-bet="low"  data-row="top" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">LOW</div>
+            <div class="cp-spot-cond">Sum 3-7</div>
+            <div class="cp-spot-mult">10 tokens</div>
+          </div>
+          <div class="cp-spot cp-spot-mid"  data-bet="mid"  data-row="top" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">MID</div>
+            <div class="cp-spot-cond">Sum 8-15</div>
+            <div class="cp-spot-mult">2 tokens</div>
+          </div>
+          <div class="cp-spot cp-spot-high" data-bet="high" data-row="top" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">HIGH</div>
+            <div class="cp-spot-cond">Sum 16-18</div>
+            <div class="cp-spot-mult">35 tokens</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cp-row">
+        <div class="cp-row-label">Special bet · pick one · sets token value multiplier</div>
+        <div class="cp-row-spots">
+          <div class="cp-spot cp-spot-black" data-bet="black" data-row="bottom" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">ALL BLACK</div>
+            <div class="cp-spot-cond">No red faces</div>
+            <div class="cp-spot-mult">×2 value</div>
+          </div>
+          <div class="cp-spot cp-spot-red"   data-bet="red"   data-row="bottom" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">ALL RED</div>
+            <div class="cp-spot-cond">All red faces</div>
+            <div class="cp-spot-mult">×10 value</div>
+          </div>
+          <div class="cp-spot cp-spot-run"   data-bet="run"   data-row="bottom" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">RUN</div>
+            <div class="cp-spot-cond">3 consecutive</div>
+            <div class="cp-spot-mult">×5 value</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cp-row">
+        <div class="cp-row-label">Doubles bet · pick one · adds +33% physical size to minted tokens</div>
+        <div class="cp-row-spots cp-row-spots-2">
+          <div class="cp-spot cp-spot-nodoubles" data-bet="nodoubles" data-row="third" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">NO DOUBLES</div>
+            <div class="cp-spot-cond">All 3 dice different</div>
+            <div class="cp-spot-mult">+33% size</div>
+          </div>
+          <div class="cp-spot cp-spot-doubles"   data-bet="doubles"   data-row="third" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">DOUBLES</div>
+            <div class="cp-spot-cond">Two or more match</div>
+            <div class="cp-spot-mult">+33% size</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="cp-hud">
+      <div class="cp-hud-item">
+        <span class="cp-hud-label">Tray</span>
+        <span class="cp-hud-value cp-hud-tokens" id="cp-tokens">0</span>
+        <span class="cp-hud-suffix">tokens pending</span>
+      </div>
+    </div>
+
+    <div class="cp-controls">
+      <button id="cp-roll" class="cp-btn cp-btn-roll" type="button" disabled>ROLL</button>
+      <button id="cp-clear" class="cp-btn" type="button">Clear picks</button>
+    </div>
+
+    <section class="cp-pusher-cabinet">
+      <div class="cp-pusher-divider"><span>⛓</span></div>
+      <h2 class="cp-pusher-title">The Pusher</h2>
+      <p class="cp-pusher-sub">Drop your tokens. The shelf pays what it pays.</p>
+
+      <div class="cp-pusher-hud">
+        <div class="cp-hud-item">
+          <span class="cp-hud-label">Tray</span>
+          <span class="cp-hud-value cp-hud-tokens" id="cp-pusher-queue">0</span>
+          <span class="cp-hud-suffix">tokens left</span>
+        </div>
+        <div class="cp-hud-item">
+          <span class="cp-hud-label">On field</span>
+          <span class="cp-hud-value" id="cp-pusher-onfield">0</span>
+        </div>
+        <div class="cp-hud-item">
+          <span class="cp-hud-label">This session</span>
+          <span class="cp-hud-value cp-hud-coins" id="cp-pusher-won">0</span>
+          <span class="cp-hud-suffix">coins</span>
+        </div>
+      </div>
+
+      <canvas id="cp-pusher-canvas" tabindex="0" aria-label="Coin pusher playfield"></canvas>
+
+      <p class="cp-pusher-hint">
+        Hover or use <kbd>←</kbd> <kbd>→</kbd> to aim the chute · <kbd>Click</kbd> or <kbd>Space</kbd> drops a token.
+        Front edge pays full coin value. Side gutters pay half.
+      </p>
+    </section>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/coinpusher/page.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
+  <script src="../js/coinpusher/pusher.js"></script>
+  <script src="../js/header.js"></script>
+</body>
+</html>

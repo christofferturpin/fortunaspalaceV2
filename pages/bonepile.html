@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BONEPILE — 4×2 push-your-luck dice scratcher (real drag-to-scratch)     │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A scratch-off ticket: 8 cells in 4 cols × 2 rows. Player sets a       │
+  │    wager and BUYS a ticket (Wallet.spend). Each cell hides either a die  │
+  │    face (1–6) or a single BUST cell. Drag the mouse / finger across a    │
+  │    cell to scratch its silver layer off — flecks of "bone dust" spray    │
+  │    out and fall to the bottom of the screen, piling up as the player     │
+  │    keeps scratching. When enough of a cell's silver is gone the die      │
+  │    underneath is revealed.                                               │
+  │    Any two matching dice faces revealed = one pair, paid out as          │
+  │    bet × face/4 (1=0.25, 2=0.50, 3=0.75, 4=1.00, 5=1.25, 6=1.50).        │
+  │    Pairs stack — each additional same-face reveal completes another      │
+  │    pair (3 of a kind = 1 pair, 4 = 2 pairs, etc). CASH OUT to keep       │
+  │    your winnings; reveal the single BUST cell and the whole ticket       │
+  │    zeros. Buying a ticket runs Child.recordPlay once.                    │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, bonepile/scratch.js,         │
+  │      header.js, bet-input.js, game-intro.js                              │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #debug-reset, #bp-bet, #bp-bet-max, #bp-buy,       │
+  │      #bp-cashout, #bp-newticket, #bp-grid, #bp-winnings, #bp-status,     │
+  │      #bp-paytable, #bp-dust, #bp-sweep                                   │
+  │    flow: buyTicket → Wallet.spend(bet) → Child.recordPlay → genTicket    │
+  │      (7 dice uniform 1-6 + 1 BUST, shuffled into 8 cells) → buildGrid    │
+  │      (each cell = die face div + scratch canvas overlay) → renderActive. │
+  │      pointerdown on cell-canvas → start drag; pointermove → erase brush  │
+  │      stroke + spawn dust particles into global dust system; scratched    │
+  │      area >= REVEAL_THRESHOLD → fully clear canvas → reveal cell.        │
+  │      reveal(i): bust→winnings=0,end; else faceCount[face]++, if pair     │
+  │      completed winnings+=bet*face/4. cashOut→Wallet.add(winnings); end.  │
+  │      dust system: particles (x,y,vx,vy) on #bp-dust canvas; gravity      │
+  │      pulls them down; when they hit the per-column pile height they      │
+  │      settle and bump that column's height. SWEEP button clears the pile. │
+  │    storage R/W: sinnerbox (Wallet R/W), wendys_palace_child (R/W via     │
+  │      Child.recordPlay), wendys_palace_intro_seen (R),                    │
+  │      wendys_palace_death (R), wendys_palace_bonepile_intro_seen (W       │
+  │      via game-intro.js)                                                  │
+  │    routes out: ../index.html (back via lobby pill),                      │
+  │      guard-routes to splash/death/child                                  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LOTTAUTO™</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bonepile/bonepile.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body data-game="bonepile">
+  <header class="bp-header">
+    <div class="bp-marquee">
+      <h1>LOTTAUTO<span class="bp-tm">™</span></h1>
+      <p class="bp-tag">— FEED COINS · RECEIVE STUPIDITY —</p>
+    </div>
+
+    <div class="bp-greeter" aria-hidden="true">
+      <div class="bp-greeter-bubble" id="bp-greeter-bubble">hello, dipshit</div>
+      <svg class="bp-greeter-sprite" viewBox="0 0 12 14" width="84" height="98">
+        <!-- hat -->
+        <rect x="3" y="0" width="6" height="1" fill="#b8001f"/>
+        <rect x="2" y="1" width="8" height="2" fill="#b8001f"/>
+        <rect x="2" y="2" width="8" height="1" fill="#5a000f"/>
+        <!-- head -->
+        <rect x="3" y="3" width="6" height="4" fill="#f4c890"/>
+        <rect x="4" y="4" width="1" height="1" fill="#1a1612"/>
+        <rect x="7" y="4" width="1" height="1" fill="#1a1612"/>
+        <rect x="5" y="6" width="2" height="1" fill="#1a1612"/>
+        <!-- body / vest -->
+        <rect x="2" y="7" width="8" height="4" fill="#1a3050"/>
+        <rect x="5" y="7" width="2" height="4" fill="#d4af37"/>
+        <rect x="4" y="8" width="1" height="1" fill="#d4af37"/>
+        <rect x="7" y="8" width="1" height="1" fill="#d4af37"/>
+        <!-- legs -->
+        <rect x="3" y="11" width="2" height="3" fill="#3a2e24"/>
+        <rect x="7" y="11" width="2" height="3" fill="#3a2e24"/>
+        <!-- shoes -->
+        <rect x="3" y="13" width="3" height="1" fill="#1a1612"/>
+        <rect x="6" y="13" width="3" height="1" fill="#1a1612"/>
+      </svg>
+    </div>
+
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <main class="bp-main">
+    <div class="bp-ticket-wrap">
+      <div class="bp-stack" id="bp-stack" aria-hidden="true"></div>
+    <section class="bp-ticket" id="bp-ticket">
+      <span class="bp-corner bp-corner-tl" id="bp-corner-tl"></span>
+      <span class="bp-corner bp-corner-tr" id="bp-corner-tr"></span>
+      <span class="bp-corner bp-corner-bl" id="bp-corner-bl"></span>
+      <span class="bp-corner bp-corner-br" id="bp-corner-br"></span>
+
+      <div class="bp-top-controls">
+        <label class="bp-bet-label" for="bp-bet">Wager</label>
+        <input type="number" id="bp-bet" min="1" value="4" inputmode="numeric"
+               autocomplete="off" data-bet-input>
+        <button id="bp-bet-max" class="bp-bet-shortcut" type="button">MAX</button>
+        <button id="bp-buy" class="bp-btn bp-btn-primary" type="button">BUY · PRINT</button>
+      </div>
+
+      <div class="bp-ticket-header">
+        <span class="bp-ticket-title" id="bp-ticket-title">★  BONEPILE  ★</span>
+        <span class="bp-ticket-serial" id="bp-serial">№ —</span>
+      </div>
+      <div class="bp-ticket-sub" id="bp-ticket-sub"></div>
+
+      <div class="bp-grid" id="bp-grid" aria-label="scratcher grid"></div>
+
+      <div class="bp-readout">
+        <div class="bp-winnings-block">
+          <span class="bp-winnings-label">Banked</span>
+          <span class="bp-winnings" id="bp-winnings">0</span>
+        </div>
+        <div class="bp-status" id="bp-status">No ticket. Set a wager and BUY.</div>
+      </div>
+
+      <div class="bp-meter" title="Settled bone-dust. Fill it to unlock RUB IT BACK on a BUST.">
+        <span class="bp-meter-label" id="bp-meter-label">BONE-DUST · 0 / 4000</span>
+        <div class="bp-meter-track">
+          <div class="bp-meter-fill" id="bp-meter-fill"></div>
+        </div>
+      </div>
+
+      <div class="bp-controls">
+        <button id="bp-cashout" class="bp-btn bp-btn-cash" type="button" disabled>CASH OUT</button>
+        <button id="bp-newticket" class="bp-btn" type="button" hidden>END · NEW TICKET</button>
+        <button id="bp-rub" class="bp-btn bp-btn-rub" type="button" hidden title="Scoop the pile and smear it back over the BUST">RUB IT BACK</button>
+        <button id="bp-sweep" class="bp-btn bp-btn-sweep" type="button" title="Sweep the dust off the floor (clears the bank)">SWEEP</button>
+      </div>
+    </section>
+    </div>
+
+    <aside class="bp-paytable" id="bp-paytable">
+      <h2 class="bp-pt-title">Paytable · per pair</h2>
+      <ul class="bp-pt-list">
+        <li><span class="bp-pt-face">⚀</span> <span class="bp-pt-mult">0.25 × bet</span></li>
+        <li><span class="bp-pt-face">⚁</span> <span class="bp-pt-mult">0.50 × bet</span></li>
+        <li><span class="bp-pt-face">⚂</span> <span class="bp-pt-mult">0.75 × bet</span></li>
+        <li><span class="bp-pt-face">⚃</span> <span class="bp-pt-mult">1.00 × bet</span></li>
+        <li><span class="bp-pt-face">⚄</span> <span class="bp-pt-mult">1.25 × bet</span></li>
+        <li><span class="bp-pt-face">⚅</span> <span class="bp-pt-mult">1.50 × bet</span></li>
+        <li class="bp-pt-bust"><span class="bp-pt-face">☠</span> <span class="bp-pt-mult">BUST · zero</span></li>
+      </ul>
+      <p class="bp-pt-note">
+        Ticket shape rolls each buy: 4×2, 2×4, 3×3, or 4×4 — squares or
+        circles. 1 BUST hides in every ticket regardless of size.
+        <br><br>
+        <strong>Combos:</strong> 2-of-a-kind = 1 pair, 3 = 2 pairs,
+        4 = 4 pairs, 5 = 6 pairs, 6 = 9 pairs, 7 = 13 pairs. Pile up
+        same faces for fat bonuses.
+      </p>
+    </aside>
+  </main>
+
+  <canvas id="bp-dust" aria-hidden="true"></canvas>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/bonepile/audio.js"></script>
+  <script src="../js/bonepile/scratch.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+﻿<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BOSSFIGHT — NAHUAL — Hold'em vs. Agent Nahual (boss #4, placeholder)    │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Boss #4. PLACEHOLDER — user has not given character notes yet         │
+  │    beyond the name. First-pass register: jungle obsidian — deep night-   │
+  │    green walls, jade-stone accents, jaguar-rosette field across the      │
+  │    background, copper-red blood callouts, a row of Maya glyph-like       │
+  │    cartouches along the bottom. Card backs carry a feline slit pupil     │
+  │    in a jade lozenge. Mechanics: shared BFHoldem + BFAI engine via       │
+  │    page-generic.js. Replace this entire page once Nahual's actual        │
+  │    character notes are written; the slug + persistence key are stable.   │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/bossfight/holdem.js, ../js/bossfight/ai.js,              │
+  │      ../js/bossfight/page-generic.js                                     │
+  │    css: ../css/base.css, ../css/bossfight/poker-base.css,                │
+  │      ../css/bossfight/nahual.css                                         │
+  │    inline route-guards: NONE (placeholder)                               │
+  │    window.BossConfig = { slug:'nahual', name:'AGENT NAHUAL',             │
+  │      startingStacks:{playerChips:100,oppChips:100},                      │
+  │      tells:{idle:'still',thinking:'shifting…',busted:'shed'} }           │
+  │    DOM ids: same shape as bossfight-chavez.html                          │
+  │    storage R/W:                                                          │
+  │      R/W: wendys_palace_boss_nahual {active, complete, won, snapshot}    │
+  │      W (on win): wendys_palace_bosses_beaten (+= 'nahual')               │
+  │    routes out: index.html (via end-splash Back button)                   │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Nahual vs. You — Fortuna's Palace</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bossfight/poker-base.css">
+  <link rel="stylesheet" href="../css/bossfight/nahual.css">
+</head>
+<body class="bf-body bf-theme-nahual">
+
+  <header class="bf-header">
+    <h1 class="bf-title">AGENT NAHUAL <span class="bf-vs">vs.</span> YOU</h1>
+    <div class="bf-meta">
+      Hand <span id="bf-hand">1</span>
+      <span class="bf-meta-sep">·</span>
+      Blinds <span id="bf-blinds">1/2</span>
+    </div>
+  </header>
+
+  <main class="bf-table">
+
+    <section class="bf-seat bf-seat-chavez" id="bf-chavez-seat">
+      <div class="bf-seat-head">
+        <div class="bf-seat-name">AGENT NAHUAL <span class="bf-seat-tag">—</span></div>
+        <div class="bf-boss-tell" id="bf-boss-tell">still</div>
+        <div class="bf-bet" id="bf-chavez-bet"></div>
+      </div>
+      <div class="bf-last-move" id="bf-chavez-last">last move · —</div>
+      <p class="bf-nh-quote" style="margin:0 0 8px;font-family:'Cinzel',serif;font-style:italic;font-size:14px;color:var(--bf-fg-dim);line-height:1.45;letter-spacing:0.05em;">
+        — design notes pending —
+      </p>
+      <div class="bf-cards bf-cards-chavez" id="bf-chavez-cards"></div>
+    </section>
+
+    <section class="bf-felt">
+      <div class="bf-street" id="bf-street">PREFLOP</div>
+      <div class="bf-boss-avatar" id="bf-boss-avatar" aria-hidden="true"></div>
+      <div class="bf-turn-status" id="bf-turn-status">— hand begins —</div>
+      <div class="bf-community" id="bf-community"></div>
+    </section>
+
+    <section class="bf-seat bf-seat-player" id="bf-player-seat">
+      <div class="bf-seat-head">
+        <div class="bf-seat-name">YOU</div>
+      </div>
+
+      <div class="bf-announce" id="bf-announce" aria-live="polite"></div>
+
+      <div class="bf-stakes" id="bf-stakes">
+        <div class="bf-stakes-side bf-stakes-you">
+          <span class="bf-stakes-label">YOU</span>
+          <span class="bf-stakes-value" id="bf-stakes-player">100</span>
+        </div>
+        <div class="bf-stakes-mid" id="bf-stakes-mid">
+          <span class="bf-stakes-label">POT</span>
+          <span class="bf-stakes-value bf-stakes-pot-value" id="bf-stakes-pot">0</span>
+          <span class="bf-stakes-sub" id="bf-stakes-call"></span>
+        </div>
+        <div class="bf-stakes-side bf-stakes-them">
+          <span class="bf-stakes-label">NAHUAL</span>
+          <span class="bf-stakes-value" id="bf-stakes-chavez">100</span>
+        </div>
+      </div>
+
+      <div class="bf-bet" id="bf-player-bet"></div>
+
+      <div class="bf-actions" id="bf-actions">
+        <div class="bf-action-row">
+          <button class="bf-action bf-action-fold" id="bf-act-fold" type="button">Fold</button>
+          <button class="bf-action bf-action-passive" id="bf-act-passive" type="button">Check</button>
+          <button class="bf-action bf-action-aggro" id="bf-act-aggro" type="button">Bet 2</button>
+        </div>
+        <div class="bf-sizing" id="bf-sizing">
+          <div class="bf-preset-row">
+            <button class="bf-preset" data-preset="min"  type="button">Min</button>
+            <button class="bf-preset" data-preset="half" type="button">½ Pot</button>
+            <button class="bf-preset" data-preset="pot"  type="button">Pot</button>
+            <button class="bf-preset" data-preset="all"  type="button">All-in</button>
+          </div>
+          <div class="bf-slider-row">
+            <input type="range" id="bf-raise-amount" min="0" max="0" value="0">
+            <div class="bf-size-value">to <span id="bf-raise-value">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bf-cards bf-cards-player" id="bf-player-cards"></div>
+      <div class="bf-hand-strength" id="bf-hand-strength"></div>
+    </section>
+
+  </main>
+
+  <div class="bf-log" id="bf-log"></div>
+
+  <script>
+    window.BossConfig = {
+      slug: 'nahual',
+      name: 'AGENT NAHUAL',
+      startingStacks: { playerChips: 100, oppChips: 100 },
+      tells: { idle: 'still', thinking: 'shifting…', busted: 'shed' },
+      // Shapeshifter eyes between shimmer waves. White animal emojis
+      // flank the face via nahual.css. Asymmetric eyes drift across the
+      // average frames to suggest the shape shifting.
+      avatarFrames: {
+        lost:    ['≋ ✗_✗ ≋', '≋ x_x ≋', '≋ ✗_✗ ≋', '≋ ⌖_⌖ ≋'],
+        losing:  ['≋ ⌐_⌐ ≋', '≋ ⌐.⌐ ≋', '≋ ⌐_⌐ ≋', '≋ ⌐~⌐ ≋'],
+        average: ['≋ ◑_◐ ≋', '≋ ◐_◑ ≋', '≋ ◑_◐ ≋', '≋ ◐.◑ ≋'],
+        winning: ['≋ ●_● ≋', '≋ ●.● ≋', '≋ ●_● ≋', '≋ ◉_◉ ≋'],
+        won:     ['≋ ◉‿◉ ≋', '≋ ◉.◉ ≋', '≋ ◉‿◉ ≋', '≋ ●‿● ≋'],
+      },
+      // Unpredictable shapeshifter — highest randomness, slightly loose
+      // and aggressive across the board. Hardest to put on a hand.
+      aiStyle: {
+        bluffFreq:  1.2,
+        tightness:  0.9,
+        aggression: 1.1,
+        loose:      1.1,
+        mixedness:  1.6,
+      },
+    };
+  </script>
+  <script src="../js/bossfight/audio.js"></script>
+  <script src="../js/bossfight/holdem.js"></script>
+  <script src="../js/bossfight/ai.js"></script>
+  <script src="../js/bossfight/page-generic.js"></script>
+</body>
+</html>

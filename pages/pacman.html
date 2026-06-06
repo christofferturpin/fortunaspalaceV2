@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  CHANGELINGS — Palace pursuit game; six replacement archetypes         │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A Pac-Man-style pursuit game styled as a psychosis-coded home. The   │
+  │    player walks a randomly generated wood-paneled maze, collecting     │
+  │    bone-colored "consistencies" (dots) that prove this is still her    │
+  │    house. The antagonists are six faerie archetypes — Smiler,         │
+  │    Caller, Watcher, Helper, Mimic, Mama — each with its own targeting │
+  │    AI (chase, ambush, flank, oscillate, dot-thief, lagging trailer).  │
+  │    Phosphor pellets at the corners briefly let her see them for what  │
+  │    they are. Place a wager; the d6 count + per-ghost diffMods set the │
+  │    night's multiplier (0.5× → ~4.5×) and her own steadiness (~0.92× → │
+  │    ~1.6× speed). Click any room to wake up there. No escape — clear   │
+  │    the board (pot + wager × mult) or one of them reaches you.         │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../css/base.css, ../js/{wallet,expenses,child,header}.js,      │
+  │      then inline                                                        │
+  │    DOM ids: header(#balance,#debug-reset), #board, #hud, #hudwager,    │
+  │      #mult, #pot, #score, #stage, #dice, #msg, #controls, #wager,     │
+  │      #bet-max, #play                                                    │
+  │    flow: idle ─bet→ Wallet.spend + Child.recordPlay → rolling          │
+  │      (rollRoster builds mult)                                           │
+  │      → spawn-pick → playing (loop: pac/ghosts/collide) → endRound      │
+  │      (Wallet.add) → idle                                                │
+  │    storage R/W: via Wallet (localStorage['sinnerbox'])                  │
+  │    routes out: ../pages/index.html (lobby)                              │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Changelings</title>
+<link rel="stylesheet" href="../css/base.css">
+<link rel="stylesheet" href="../css/bet-input.css">
+<link rel="stylesheet" href="../css/game-intro.css">
+<style>
+  body { background:#050203; color:#ddd; font-family:monospace; margin:0; padding:0; }
+  .page-content { display:flex; flex-direction:column; align-items:center;
+                  padding:12px; }
+  /* keep palace header full-width even though body is column-flex */
+  body > header { width: 100%; align-self: stretch; }
+  /* CRT housing wraps the canvas — convex bezel, vignette, scanlines, flicker */
+  .crt-wrap {
+    position: relative;
+    margin: 8px 0;
+    padding: 18px;
+    background:
+      radial-gradient(ellipse at center, #1a1410 0%, #0a0405 70%, #050203 100%);
+    border-radius: 24px;
+    box-shadow:
+      0 0 0 4px #1a1612,
+      0 0 0 10px #0a0405,
+      0 0 0 11px #3a2e24,
+      0 12px 32px rgba(0,0,0,0.8);
+  }
+  .crt-screen {
+    position: relative;
+    border-radius: 14px / 22px;
+    overflow: hidden;
+    box-shadow:
+      0 0 30px rgba(255,255,255,0.04) inset,
+      0 0 80px rgba(0,0,0,0.9) inset;
+  }
+  #board {
+    display: block;
+    background: #050203;
+    image-rendering: pixelated;
+    /* desaturate everything on the maze layer → broadcast B&W */
+    filter: grayscale(1) contrast(1.15) brightness(0.95);
+    animation: crt-flicker 4s infinite;
+  }
+  #board.picking { cursor: crosshair; }
+  /* ghost-glow layer is OUTSIDE the grayscale filter — the only color that
+     punches through the broadcast B&W picture */
+  #glow {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    /* additive bloom so the phosphor of the faerie reads through scanlines */
+    mix-blend-mode: screen;
+    z-index: 1;
+  }
+  /* scanlines */
+  .crt-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0)   0px,
+      rgba(0,0,0,0)   2px,
+      rgba(0,0,0,0.35) 2px,
+      rgba(0,0,0,0.35) 3px
+    );
+    mix-blend-mode: multiply;
+    z-index: 2;
+  }
+  /* vignette + glass curvature shading */
+  .crt-screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 50% 40%,
+        rgba(255,255,255,0.04) 0%,
+        rgba(255,255,255,0)   40%,
+        rgba(0,0,0,0.65)      100%);
+    z-index: 3;
+  }
+  /* ===== ambient TV scatter (fixed background of stacked sets) ===== */
+  .tv-scatter {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  body > header, main.page-content { position: relative; z-index: 2; }
+  .tv-mini {
+    position: absolute;
+    aspect-ratio: 4 / 3;
+    padding: 6px 6px 10px;
+    background:
+      repeating-linear-gradient(92deg, #2a1408 0px, #4a2818 2px, #2a1408 3px),
+      linear-gradient(180deg, #4a2818, #1a0a05);
+    border: 1px solid #0a0402;
+    border-radius: 8px 8px 5px 5px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 220, 160, 0.22),
+      inset 0 -3px 0 rgba(0, 0, 0, 0.65),
+      0 10px 20px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+    /* per-TV --rot inline */
+    transform: rotate(var(--rot, 0deg));
+  }
+  /* mini-screen background (lit surface) */
+  .tv-mini::before {
+    content: '';
+    position: absolute;
+    inset: 4px 4px 6px;
+    border-radius: 8px / 6px;
+    z-index: 0;
+    background: #1a1612;
+  }
+  /* scanlines + vignette overlay */
+  .tv-mini::after {
+    content: '';
+    position: absolute;
+    inset: 4px 4px 6px;
+    border-radius: 8px / 6px;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(to bottom,
+        rgba(0,0,0,0)   0px, rgba(0,0,0,0)   1px,
+        rgba(0,0,0,0.45) 1px, rgba(0,0,0,0.45) 2px),
+      radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%);
+    mix-blend-mode: multiply;
+    z-index: 2;
+  }
+  /* per-mode screen content — overrides the ::before background */
+  .tv-mini[data-mode="static"]::before {
+    background:
+      repeating-linear-gradient(0deg,
+        rgba(255,255,255,0.22) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg,
+        rgba(255,255,255,0.15) 0 1px, transparent 1px 4px),
+      #3a2a20;
+  }
+  .tv-mini[data-mode="bars"]::before {
+    background: linear-gradient(to right,
+      #b0b0b0 0 14.28%, #b0b08a 14.28% 28.56%,
+      #8ab0b0 28.56% 42.84%, #8ab08a 42.84% 57.12%,
+      #b08ab0 57.12% 71.4%,  #b08a8a 71.4% 85.68%,
+      #8a8ab0 85.68% 100%);
+    filter: grayscale(1) brightness(0.82);
+  }
+  .tv-mini[data-mode="off"]::before {
+    background: #0a0405;
+  }
+  .tv-mini[data-mode="off"]::after {
+    background:
+      radial-gradient(ellipse at center,
+        rgba(255,255,255,0.10) 0%,
+        rgba(255,255,255,0.04) 4%,
+        transparent 12%),
+      repeating-linear-gradient(to bottom,
+        rgba(0,0,0,0)   0px, rgba(0,0,0,0)   1px,
+        rgba(0,0,0,0.6) 1px, rgba(0,0,0,0.6) 2px),
+      radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.9) 100%);
+  }
+  .tv-mini[data-mode="standby"]::before {
+    background:
+      radial-gradient(ellipse at center,
+        rgba(216,200,176,0.18) 0%,
+        rgba(216,200,176,0.04) 30%,
+        #0a0405 70%);
+  }
+  @keyframes crt-flicker {
+    0%, 100% { opacity: 1; }
+    48%      { opacity: 0.97; }
+    50%      { opacity: 0.92; filter: grayscale(1) contrast(1.2) brightness(0.85); }
+    52%      { opacity: 0.97; }
+    78%      { opacity: 0.95; }
+    80%      { opacity: 0.99; }
+  }
+  #hud { margin:8px 0; font-size:14px; }
+  #dice { margin:8px 0; font-size:13px; min-height:1.4em; color:#ffcc66; }
+  #stage { display:flex; flex-wrap:wrap; gap:10px; justify-content:center;
+           margin:10px 0; min-height:96px; align-items:center; }
+  .die { width:64px; height:64px; border:2px solid #888; border-radius:10px;
+         background:#1a1a1a; display:flex; flex-direction:column;
+         align-items:center; justify-content:center; font-family:monospace;
+         box-shadow:0 0 8px #000 inset; transition:transform .15s; }
+  .die.rolling { animation:shake .08s infinite; border-color:#fc6; }
+  .die.settled { border-color:#9c6; }
+  .die .sides { font-size:10px; color:#888; }
+  .die .face  { font-size:28px; color:#fed; font-weight:bold; line-height:1; }
+  .die .who   { font-size:10px; color:#ffcc66; margin-top:2px;
+                max-width:60px; text-align:center; }
+  @keyframes shake {
+    0%   { transform: translate(0,0) rotate(0deg); }
+    25%  { transform: translate(-2px,1px) rotate(-4deg); }
+    50%  { transform: translate(2px,-1px) rotate(3deg); }
+    75%  { transform: translate(-1px,2px) rotate(-2deg); }
+    100% { transform: translate(1px,-2px) rotate(4deg); }
+  }
+  #msg { margin:8px 0; font-size:18px; min-height:1.4em; }
+  #roster-hud {
+    display: flex; gap: 6px; justify-content: center; min-height: 14px;
+    margin: 4px 0;
+  }
+  #roster-hud .roster-pip {
+    width: 12px; height: 12px; border-radius: 50%;
+    box-shadow: 0 0 10px currentColor;
+  }
+  #choice {
+    display: none;
+    margin: 8px 0;
+    padding: 12px 16px;
+    background: linear-gradient(180deg, #1a1010, #2a1812);
+    border: 1px solid #3a2e24;
+    border-radius: 4px;
+    text-align: center;
+  }
+  #choice.show { display: block; }
+  #choice .choice-prompt {
+    font-family: 'VT323', monospace; font-size: 18px; color: #d8c8b0;
+    letter-spacing: 0.1em; margin-bottom: 10px;
+  }
+  #choice .choice-buttons { display: flex; gap: 10px; justify-content: center; }
+  #choice button { padding: 12px 18px; font-size: 16px; min-width: 180px; }
+  #cash-out {
+    background: linear-gradient(180deg, #1a3a20 0%, #1aff7f 60%, #1a3a20 100%);
+    color: #050203; border-color: #1aff7f; font-weight: bold;
+    text-shadow: none;
+    box-shadow: 0 0 14px rgba(26,255,127,0.45);
+  }
+  #cash-out:hover:not(:disabled) {
+    background: linear-gradient(180deg, #2a5a30 0%, #5affb0 60%, #2a5a30 100%);
+  }
+  #push-it {
+    background: linear-gradient(180deg, #5a0010 0%, #b8001f 60%, #5a0010 100%);
+    color: #fed; border-color: #8a0018; font-weight: bold;
+    text-shadow: 0 0 8px rgba(255,200,160,0.6);
+    box-shadow: 0 0 14px rgba(184,0,31,0.45);
+  }
+  #push-it:hover:not(:disabled) {
+    background: linear-gradient(180deg, #8a0018 0%, #d8002a 60%, #8a0018 100%);
+  }
+  #controls {
+    display: flex;
+    gap: 2px;
+    align-items: stretch;
+    margin: 10px 0;
+    background: #1a1010;
+    border: 1px solid #3a2e24;
+    border-radius: 4px;
+    padding: 2px;
+    box-shadow: 0 0 12px rgba(0,0,0,0.6), 0 0 0 1px #0a0405;
+  }
+  #controls label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #a89878;
+    background: #0a0405;
+    border-radius: 2px;
+  }
+  #controls input[type=number] {
+    width: 90px;
+    background: #050203;
+    color: #1aff7f;
+    border: 1px solid #1a3a24;
+    padding: 8px 6px;
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: right;
+    text-shadow: 0 0 6px rgba(26,255,127,0.5);
+    border-radius: 2px;
+  }
+  #controls input[type=number]:focus {
+    outline: none;
+    border-color: #1aff7f;
+    box-shadow: 0 0 8px rgba(26,255,127,0.3);
+  }
+  button {
+    background: #2a1812;
+    color: #d8c8b0;
+    border: 1px solid #3a2e24;
+    padding: 10px 16px;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background .08s, color .08s;
+  }
+  button:hover:not(:disabled) {
+    background: #3a2418;
+    color: #fed;
+  }
+  button:disabled { opacity:0.35; cursor:default; }
+  /* the marquee button — the one that actually ante's and starts the night */
+  #play {
+    background: linear-gradient(180deg, #5a0010 0%, #b8001f 60%, #5a0010 100%);
+    color: #fed;
+    border: 1px solid #8a0018;
+    padding: 10px 22px;
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 0 0 8px rgba(255,200,160,0.6), 0 1px 0 rgba(0,0,0,0.5);
+    box-shadow: 0 0 14px rgba(184,0,31,0.45), inset 0 1px 0 rgba(255,200,160,0.18);
+  }
+  #play:hover:not(:disabled) {
+    background: linear-gradient(180deg, #8a0018 0%, #d8002a 60%, #8a0018 100%);
+    color: #fff;
+  }
+  #bet-max {
+    background: #1a2a18;
+    color: #1aff7f;
+    border-color: #1a3a24;
+    font-weight: bold;
+    text-shadow: 0 0 6px rgba(26,255,127,0.4);
+  }
+  #bet-max:hover:not(:disabled) { background: #2a3a28; }
+  #fresh-board {
+    background: #1a1010;
+    color: #8a6038;
+    font-size: 13px;
+    padding: 10px 12px;
+    border-left: 2px solid #3a2e24;
+    margin-left: 4px;
+  }
+  #fresh-board:hover:not(:disabled) { color: #d4af37; background: #2a1810; }
+  .legend { font-size:12px; color:#888; margin-top:8px; max-width:520px;
+            line-height:1.5em; }
+  .swatch { display:inline-block; width:10px; height:10px; vertical-align:middle;
+            margin-right:4px; border:1px solid #444; }
+</style>
+</head>
+<body>
+<div class="tv-scatter" aria-hidden="true">
+  <div class="tv-mini" data-mode="static"  data-tv="1"
+       style="top:3vh;  left:1vw;  width:240px; --rot:-5deg;"></div>
+  <div class="tv-mini" data-mode="bars"    data-tv="2"
+       style="top:1vh;  left:18vw; width:200px; --rot:3deg;"></div>
+  <div class="tv-mini" data-mode="standby" data-tv="3"
+       style="top:4vh;  right:2vw; width:280px; --rot:4deg;"></div>
+  <div class="tv-mini" data-mode="off"     data-tv="4"
+       style="top:6vh;  right:22vw;width:220px; --rot:-2deg;"></div>
+  <div class="tv-mini" data-mode="static"  data-tv="5"
+       style="top:24vh; left:1vw;  width:260px; --rot:6deg;"></div>
+  <div class="tv-mini" data-mode="bars"    data-tv="6"
+       style="top:28vh; right:1vw; width:200px; --rot:-4deg;"></div>
+  <div class="tv-mini" data-mode="static"  data-tv="7"
+       style="top:48vh; left:2vw;  width:220px; --rot:-3deg;"></div>
+  <div class="tv-mini" data-mode="standby" data-tv="8"
+       style="top:52vh; right:3vw; width:240px; --rot:5deg;"></div>
+  <div class="tv-mini" data-mode="off"     data-tv="9"
+       style="bottom:18vh;left:8vw; width:200px; --rot:7deg;"></div>
+  <div class="tv-mini" data-mode="static"  data-tv="10"
+       style="bottom:14vh;right:6vw;width:260px; --rot:-6deg;"></div>
+  <div class="tv-mini" data-mode="bars"    data-tv="11"
+       style="bottom:2vh; left:1vw; width:240px; --rot:2deg;"></div>
+  <div class="tv-mini" data-mode="static"  data-tv="12"
+       style="bottom:1vh; left:24vw;width:200px; --rot:-3deg;"></div>
+  <div class="tv-mini" data-mode="standby" data-tv="13"
+       style="bottom:3vh; right:18vw;width:220px; --rot:4deg;"></div>
+  <div class="tv-mini" data-mode="off"     data-tv="14"
+       style="bottom:2vh; right:1vw; width:260px; --rot:-7deg;"></div>
+  <div class="tv-mini" data-mode="static"  data-tv="15"
+       style="top:38vh; left:18vw; width:180px; --rot:-5deg;"></div>
+  <div class="tv-mini" data-mode="bars"    data-tv="16"
+       style="top:42vh; right:20vw;width:180px; --rot:6deg;"></div>
+</div>
+<header>
+  <h1>Changelings</h1>
+  <div class="coins-bar">
+    <span class="coins-label">Coins</span>
+    <span id="balance">0</span>
+    <button id="debug-reset">reset</button>
+  </div>
+</header>
+<main class="page-content">
+<div id="hud">
+  wager: <span id="hudwager">—</span>c &nbsp;|&nbsp;
+  round: <span id="roundnum">—</span>/6 &nbsp;|&nbsp;
+  mult: <span id="mult">—</span> &nbsp;|&nbsp;
+  pac: <span id="spd">1.00×</span> &nbsp;|&nbsp;
+  payout if you cash: <span id="cashval">—</span>c
+</div>
+<div id="roster-hud"></div>
+<div id="controls">
+  <label>wager <input type="number" id="wager" min="1" step="1" value="10" /></label>
+  <button id="bet-max">max</button>
+  <button id="play">place bet &amp; roll</button>
+  <button id="fresh-board" title="rebuild the maze; costs 5% of current coins">fresh board (−5%)</button>
+</div>
+<div id="msg"></div>
+<div id="choice">
+  <div class="choice-prompt"></div>
+  <div class="choice-buttons">
+    <button id="cash-out" type="button">cash out</button>
+    <button id="push-it" type="button">push — round next</button>
+  </div>
+</div>
+<div id="stage"></div>
+<div id="dice"></div>
+<div class="crt-wrap">
+  <div class="crt-screen">
+    <canvas id="board"></canvas>
+    <canvas id="glow"></canvas>
+  </div>
+</div>
+<div class="legend">
+  six faerie archetypes:<br>
+  <span class="swatch" style="background:#a89878"></span>Mama &nbsp;
+  <span class="swatch" style="background:#d8c8b0"></span>Mimic &nbsp;
+  <span class="swatch" style="background:#ff6a00"></span>Helper &nbsp;
+  <span class="swatch" style="background:#d4af37"></span>Caller &nbsp;
+  <span class="swatch" style="background:#1aff7f"></span>Watcher &nbsp;
+  <span class="swatch" style="background:#b8001f"></span>Smiler
+  <br><br>
+  Push-your-luck. Set a wager. Each round a die rolls a new faerie into the
+  room with you — clearing the round earns the round's multiplier:<br>
+  &nbsp;&nbsp;<code>round 1 → 1.00× &nbsp; round 2 → 1.25× &nbsp; round 3 → 1.50×
+  &nbsp; round 4 → 2.00× &nbsp; round 5 → 3.00× &nbsp; round 6 → 5.00×</code>
+  <br><br>
+  After every clear: <b>cash out</b> at the current multiplier, or <b>push</b> to
+  add another faerie and bump the multiplier. The baby walks faster (~0.92× →
+  ~1.6× speed) as the multiplier climbs. A faerie reaching the baby wipes the
+  wager and everything you've earned this run.
+</div>
+</div>
+
+</main>
+<script src="../js/wallet.js"></script>
+<script src="../js/bet-input.js"></script>
+<script src="../js/expenses.js"></script>
+<script src="../js/child.js"></script>
+<script src="../js/header.js"></script>
+<script>
+/*
+  CODE (terse, AI-readable):
+  CONST: TILE=22, PAC_SPD=5.5·TILE/s, GHOST_SPD=5·TILE/s,
+         FRIGHT_SPD=3·TILE/s, EATEN_SPD=9·TILE/s, TURN_TOL=0.4·TILE
+  gambling: push-your-luck ladder.
+            ROUND_MULT=[_,1.0,1.25,1.5,2.0,3.0,5.0]; each round adds one
+            non-duplicate faerie to currentRoster (d6 reroll on dup).
+            after clear → cash-out (wager·mult) or push to next round.
+            round 6 clear forces cash-out at 5×. death wipes the wager.
+  state: phase∈{idle,rolling,spawn,playing}, wager, mult, pacSpeedMult, pot, score
+  maze: generated each freshBoard() via DFS-carve on odd-cell grid +
+        ~15% random wall-removal for loops; tunnelRow=middle (open ends);
+        ghost-house = center of tunnelRow; pac-spawn = bottom-mid;
+        4 power pellets at corner cells
+  board: persists across rounds; freshBoard() only on full clear OR
+         user pays fresh-board cost = ⌈Wallet.balance·.05⌉ from idle
+  pacSpd: PAC_SPD·computePacSpeedMult(mult); 0.92× (mult=1.2) → 1.6× (mult=11)
+  spawn: click any walkable tile (not wall, not ghost-house, not on a ghost)
+         to drop pac in; no fallback default
+  physics: continuous px; walls clamp center at tile-center on motion axis;
+           turns require |perpAxis - tileCen|<TURN_TOL && target walkable
+  pac: nextDir queued by input; instant-reverse always allowed
+  ghost: on tile entry → recompute target via GHOSTS[id].target,
+         pick non-reverse neighbor minimizing dist²(neighborCen, target);
+         snap perp-axis to tile center on dir change (prevents drift)
+  pelletEat: 'o' → frightenedUntil=now+7s; chain=0; pot+=POT_PELLET;
+             ghosts reverse + slow to FRIGHT_SPD
+  startRound: Wallet.spend(wager)→ multiplier=COUNT_BASE_MULT[n] + Σdiffmod;
+              build maze; spawn pac at P; spawn n ghosts around G
+  no cashout: round only ends on clear or death (commit-only)
+  endRound(reason): clear → Wallet.add(pot + ⌊wager·mult⌋);
+                    death → 0; →idle
+  collision: dx²+dy² < (TILE·.5)²
+  exports: none (inline)
+*/
+(() => {
+  const W = 19, H = 15, TILE = 40;
+  const PAC_SPD     = TILE * 5.5;
+  const GHOST_SPD   = TILE * 5.0;
+  const FRIGHT_SPD  = TILE * 3.0;
+  const EATEN_SPD   = TILE * 9.0;
+  const TURN_TOL    = TILE * 0.4;
+  const FRIGHT_MS   = 7000;
+  const PELLET_PTS  = [200, 400, 800, 1600];
+  // Push-your-luck. Each round adds one new faerie to the roster and bumps
+  // the multiplier; you can cash out after each cleared round or push for
+  // the next rung. Death wipes everything.
+  const DICE_TO_GHOST = [null, 'mama','mimic','helper','caller','watcher','smiler'];
+  const ROUND_MULT    = [0, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0]; // index = round
+  const MAX_ROUND     = 6;
+
+  const canvas = document.getElementById('board');
+  canvas.width = W * TILE; canvas.height = H * TILE;
+  const ctx = canvas.getContext('2d');
+  // glow overlay — bypasses the canvas grayscale filter so faeries stay lit
+  const glow = document.getElementById('glow');
+  glow.width = W * TILE; glow.height = H * TILE;
+  const gctx = glow.getContext('2d');
+
+  // -------- maze setup --------
+  let grid;
+  let pacStartTile = {tx:0,ty:0}, ghostHouseTile = {tx:0,ty:0};
+  let tunnelRow = 7;
+  let dotCount = 0;
+
+  // randomized recursive-backtracking maze + symmetric tunnel + power pellets.
+  // Cells live at odd indices (2i+1, 2j+1); walls between cells get carved.
+  function generateMaze() {
+    const m = Array.from({length: H}, () => Array(W).fill('#'));
+    const CW = Math.floor((W-1)/2), CH = Math.floor((H-1)/2);
+    const visited = Array.from({length: CH}, () => Array(CW).fill(false));
+    function carve(cx, cy) {
+      visited[cy][cx] = true;
+      m[1+2*cy][1+2*cx] = '.';
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+      for (let i=dirs.length-1; i>0; i--) {
+        const j = Math.floor(Math.random()*(i+1));
+        [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+      }
+      for (const [dx,dy] of dirs) {
+        const nx = cx+dx, ny = cy+dy;
+        if (nx>=0 && nx<CW && ny>=0 && ny<CH && !visited[ny][nx]) {
+          m[1+2*cy+dy][1+2*cx+dx] = '.';
+          carve(nx, ny);
+        }
+      }
+    }
+    carve(Math.floor(CW/2), Math.floor(CH/2));
+    // open ~15% of interior walls to create loops (less puzzle, more pac-feel)
+    const openLoops = Math.floor(CW*CH*0.15);
+    for (let i=0; i<openLoops; i++) {
+      const x = 1 + Math.floor(Math.random()*(W-2));
+      const y = 1 + Math.floor(Math.random()*(H-2));
+      if (m[y][x] === '#') m[y][x] = '.';
+    }
+    // tunnel row: middle cell row, fully open + wraps via empty edges
+    tunnelRow = 1 + 2*Math.floor(CH/2);
+    for (let x=0; x<W; x++) m[tunnelRow][x] = '.';
+    m[tunnelRow][0] = ' '; m[tunnelRow][W-1] = ' ';
+    // ghost house at the middle of the tunnel row
+    const gx = 1 + 2*Math.floor(CW/2), gy = tunnelRow;
+    m[gy][gx] = 'G';
+    // pac spawn at bottom-middle
+    const px = 1 + 2*Math.floor(CW/2), py = 1 + 2*(CH-1);
+    m[py][px] = 'P';
+    // power pellets at the four corner cells
+    m[1][1] = 'o';
+    m[1][W-2] = 'o';
+    m[H-2][1] = 'o';
+    m[H-2][W-2] = 'o';
+    return m;
+  }
+
+  function freshBoard() {
+    grid = generateMaze();
+    dotCount = 0;
+    for (let ty=0; ty<H; ty++) for (let tx=0; tx<W; tx++) {
+      const c = grid[ty][tx];
+      if (c === 'P') { pacStartTile = {tx,ty}; grid[ty][tx] = '.'; }
+      else if (c === 'G') { ghostHouseTile = {tx,ty}; grid[ty][tx] = ' '; }
+      if (grid[ty][tx] === '.' || grid[ty][tx] === 'o') dotCount++;
+    }
+  }
+  freshBoard();
+
+  const tileCenter = (tx, ty) => ({x: tx*TILE + TILE/2, y: ty*TILE + TILE/2});
+  const tileOf = (px, py) => ({tx: Math.floor(px/TILE), ty: Math.floor(py/TILE)});
+  const isWallTile = (tx, ty) => {
+    if (ty < 0 || ty >= H) return true;
+    if (tx < 0 || tx >= W) return ty !== tunnelRow;
+    return grid[ty][tx] === '#';
+  };
+  const wrapX = x => ((x % (W*TILE)) + W*TILE) % (W*TILE);
+
+  const DIRS = {
+    up:    {dx:0, dy:-1},
+    down:  {dx:0, dy: 1},
+    left:  {dx:-1,dy: 0},
+    right: {dx: 1,dy: 0},
+  };
+  const OPP = { up:'down', down:'up', left:'right', right:'left' };
+  const dist2 = (a,b) => { const dx=a.x-b.x, dy=a.y-b.y; return dx*dx+dy*dy; };
+
+  // -------- ghost AI definitions (target in PIXEL space) --------
+  // Six replacement archetypes — each one is your husband/sister/child with
+  // the wrong wattage. Same silhouette (rendering-wise), different tell.
+  const GHOSTS = {
+    smiler:  { color:'#b8001f', name:'Smiler', diffMod: 0.5, mult: 3.0,  // --blood
+      // direct chase — she always knows where you are
+      target: (g, c) => ({x:c.pac.x, y:c.pac.y}) },
+    caller:  { color:'#d4af37', name:'Caller', diffMod: 0.35, mult: 1.5, // --sulfur
+      // ambush: appears four tiles ahead of where you're looking
+      target: (g, c) => {
+        const d = DIRS[c.pac.dir];
+        let tx = c.pac.x + 4*TILE*d.dx, ty = c.pac.y + 4*TILE*d.dy;
+        if (c.pac.dir === 'up') tx -= 4*TILE;
+        return {x:tx, y:ty};
+      } },
+    watcher: { color:'#1aff7f', name:'Watcher', diffMod: 0.4, mult: 2.0, // --phosphor
+      // flanks — uses Smiler's position to pin you between them
+      target: (g, c) => {
+        const d = DIRS[c.pac.dir];
+        const ax = c.pac.x + 2*TILE*d.dx, ay = c.pac.y + 2*TILE*d.dy;
+        const b = c.blinky || c.pac;
+        return {x: 2*ax - b.x, y: 2*ay - b.y};
+      } },
+    helper:  { color:'#ff6a00', name:'Helper', diffMod: 0.15, mult: 1.0, // --ember
+      // oscillates: approaches, then retreats. never quite arrives.
+      scatter: () => tileCenter(1, H-2),
+      target: function(g, c) {
+        const dx = g.x - c.pac.x, dy = g.y - c.pac.y;
+        const within8 = (dx*dx+dy*dy) < (8*TILE)*(8*TILE);
+        return within8 ? this.scatter() : {x:c.pac.x, y:c.pac.y};
+      } },
+    mimic:   { color:'#d8c8b0', name:'Mimic', diffMod: 0.1, mult: 0.8, // --bone
+      // hands like his — reaches for the consistencies before you can
+      target: (g, c) => {
+        let best = null, bd = Infinity;
+        for (let ty=0;ty<H;ty++) for (let tx=0;tx<W;tx++) {
+          if (grid[ty][tx] === '.' || grid[ty][tx] === 'o') {
+            const cen = tileCenter(tx,ty);
+            const d = (g.x-cen.x)*(g.x-cen.x)+(g.y-cen.y)*(g.y-cen.y);
+            if (d < bd) { bd = d; best = cen; }
+          }
+        }
+        return best || {x:c.pac.x, y:c.pac.y};
+      } },
+    mama:    { color:'#a89878', name:'Mama', diffMod: 0.0, mult: 0.5, // --bone-dim
+      // always one beat behind. she calls you Mama from where you just were.
+      target: (g, c) => {
+        const N = 60;
+        return c.pacHistory[Math.max(0, c.pacHistory.length-1-N)]
+            || {x:c.pac.x, y:c.pac.y};
+      } },
+  };
+
+  // -------- ghost spawn corners (each ghost spawns in its scatter corner) --------
+  const GHOST_SPAWN_CORNER = {
+    smiler:  () => ({tx: W-2, ty: 1}),      // top-right
+    caller:  () => ({tx: 1,   ty: 1}),      // top-left
+    watcher: () => ({tx: W-2, ty: H-2}),    // bottom-right
+    helper:  () => ({tx: 1,   ty: H-2}),    // bottom-left
+    mimic:   () => ({tx: ghostHouseTile.tx, ty: ghostHouseTile.ty}), // center
+    mama:    () => ({tx: 2,   ty: 1}),      // near top-left (haunts the same corner)
+  };
+  // BFS-ish spiral from a target tile out to the nearest walkable cell
+  function nearestWalkable(tx, ty) {
+    if (!isWallTile(tx, ty)) return {tx, ty};
+    for (let r=1; r<Math.max(W,H); r++) {
+      for (let dx=-r; dx<=r; dx++) for (let dy=-r; dy<=r; dy++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const nx=tx+dx, ny=ty+dy;
+        if (nx>=0 && nx<W && ny>=0 && ny<H && !isWallTile(nx, ny)) {
+          return {tx:nx, ty:ny};
+        }
+      }
+    }
+    return {tx, ty};
+  }
+
+  // -------- state --------
+  let pac, ghosts, pacHistory, score, alive, won;
+  let rolling = false;
+  let frightenedUntil = 0, chain = 0;
+  // gambling
+  let phase = 'idle'; // idle | rolling | spawn | playing | choice
+  let wager = 0;
+  let multiplier = 0;     // current ROUND_MULT[roundNum]
+  let roundNum = 0;       // 1..MAX_ROUND during a run
+  let currentRoster = []; // ghost ids accumulated this run
+  let pacSpeedMult = 1.0;
+  let choiceResolve = null;
+
+  // map roster multiplier → pac speed multiplier
+  // weakest roster (1×Echo: mult≈0.5) → 0.92×  (slightly slow)
+  // strongest roster (6×all max: mult≈4.5) → 1.6× (fast af)
+  function computePacSpeedMult(mult) {
+    const t = Math.max(0, Math.min(1, (mult - 1.0) / (5.0 - 1.0)));
+    return 0.92 + 0.68 * t;
+  }
+
+  // -------- wallet UI --------
+  const W$ = id => document.getElementById(id);
+  function refreshHud() {
+    W$('balance').textContent = (window.Wallet ? Wallet.getBalance() : 0);
+    W$('hudwager').textContent = wager > 0 ? wager : '—';
+    W$('roundnum').textContent = roundNum > 0 ? roundNum : '—';
+    W$('mult').textContent = multiplier > 0 ? multiplier.toFixed(2) + '×' : '—';
+    W$('spd').textContent = pacSpeedMult.toFixed(2) + '×';
+    W$('cashval').textContent = (wager > 0 && multiplier > 0)
+      ? Math.round(wager * multiplier) : '—';
+    const host = W$('roster-hud');
+    if (host) {
+      host.innerHTML = currentRoster.map(id => {
+        const g = GHOSTS[id];
+        return `<span class="roster-pip" title="${g.name}" style="background:${g.color}; color:${g.color}"></span>`;
+      }).join('');
+    }
+  }
+  function setControlsEnabled(enabled) {
+    W$('wager').disabled = !enabled;
+    W$('bet-max').disabled = !enabled;
+    W$('play').disabled = !enabled;
+  }
+  function clampWagerInput() {
+    const bal = window.Wallet ? Wallet.getBalance() : 0;
+    const el = W$('wager');
+    let v = parseInt(el.value, 10) || 0;
+    if (v < 1) v = 1;
+    if (v > bal) v = bal;
+    el.value = v;
+    el.max = Math.max(1, bal);
+    return v;
+  }
+
+  // -------- dice animation --------
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  function makeDie(sides, label) {
+    const stage = document.getElementById('stage');
+    const die = document.createElement('div');
+    die.className = 'die rolling';
+    die.innerHTML = `<div class="sides">d${sides}${label?' · '+label:''}</div>
+                     <div class="face">?</div>
+                     <div class="who"></div>`;
+    stage.appendChild(die);
+    return die;
+  }
+  async function animateRoll(die, sides, durationMs=700) {
+    const face = die.querySelector('.face');
+    const start = performance.now();
+    const result = 1 + Math.floor(Math.random()*sides);
+    while (performance.now() - start < durationMs) {
+      face.textContent = 1 + Math.floor(Math.random()*sides);
+      await sleep(60);
+    }
+    face.textContent = result;
+    die.classList.remove('rolling');
+    die.classList.add('settled');
+    return result;
+  }
+  // Roll a d6 to pick the next ghost type to ADD to the run's roster.
+  // Re-rolls (visually, single die) until landing on one not already present.
+  async function rollNewGhost() {
+    rolling = true;
+    document.getElementById('stage').innerHTML = '';
+    document.getElementById('dice').innerText =
+      `round ${roundNum} — rolling for the next face…`;
+    const die = makeDie(6, `round ${roundNum}`);
+    let n, id;
+    // Keep rolling until we get a non-duplicate. Players see each roll.
+    while (true) {
+      n = await animateRoll(die, 6, 700);
+      id = DICE_TO_GHOST[n];
+      if (!currentRoster.includes(id)) break;
+      // duplicate — show "again" and re-shake
+      const w = die.querySelector('.who');
+      w.textContent = 'again';
+      w.style.color = '#a89878';
+      die.classList.remove('settled');
+      die.classList.add('rolling');
+      await sleep(350);
+    }
+    const g = GHOSTS[id];
+    const w = die.querySelector('.who');
+    w.innerHTML = `${g.name}`;
+    w.style.color = g.color;
+    document.getElementById('dice').innerText =
+      `${g.name} joins the room (round ${roundNum}, ${ROUND_MULT[roundNum].toFixed(2)}×).`;
+    rolling = false;
+    return id;
+  }
+
+  // ----- run lifecycle -----
+  // startRun:  ante + run round 1
+  // playRound: roll new ghost → spawn pick → game loop → afterRound
+  // afterRound: clear→choice (cash/push) | death→endRun(lost)
+  // endRun:    pay out + return to idle
+
+  async function startRun() {
+    if (phase !== 'idle') return;
+    const bal = window.Wallet ? Wallet.getBalance() : 0;
+    if (bal < 1) {
+      W$('msg').innerText = 'the Palace requires chips. visit the shop.';
+      return;
+    }
+    const w = clampWagerInput();
+    if (!window.Wallet || !Wallet.spend(w)) {
+      W$('msg').innerText = 'insufficient chips.';
+      return;
+    }
+    if (window.Child && typeof Child.recordPlay === 'function') {
+      Child.recordPlay();
+    }
+    wager = w;
+    currentRoster = [];
+    roundNum = 0;
+    multiplier = 0;
+    score = 0;
+    won = false;
+    setControlsEnabled(false);
+    W$('msg').innerText = '';
+    await playRound();
+  }
+
+  async function playRound() {
+    roundNum++;
+    multiplier = ROUND_MULT[roundNum];
+    pacSpeedMult = computePacSpeedMult(multiplier);
+    freshBoard(); // each round: a new layout to walk
+    alive = false; won = false;
+
+    const start = tileCenter(pacStartTile.tx, pacStartTile.ty);
+    pac = { x:start.x, y:start.y, dir:'left', nextDir:'left' };
+    pacHistory = [];
+    frightenedUntil = 0; chain = 0;
+    refreshHud();
+
+    // dice phase: roll a new ghost to add to the roster
+    phase = 'rolling';
+    const newId = await rollNewGhost();
+    currentRoster.push(newId);
+    refreshHud();
+
+    // build ghosts for the whole current roster at their scatter corners
+    ghosts = currentRoster.map((id, i) => {
+      const corner = GHOST_SPAWN_CORNER[id] || (() => ghostHouseTile);
+      const want = corner();
+      const safe = nearestWalkable(want.tx, want.ty);
+      const cen = tileCenter(safe.tx, safe.ty);
+      return {
+        id, name: GHOSTS[id].name, color: GHOSTS[id].color,
+        x: cen.x, y: cen.y,
+        dir: i%2 ? 'left' : 'right',
+        eaten: false, lastDecidedTile: null,
+      };
+    });
+
+    // spawn pick
+    phase = 'spawn';
+    W$('msg').innerText = 'click any tile to set the baby down.';
+    const chosen = await pickSpawn();
+    const cen = tileCenter(chosen.tx, chosen.ty);
+    pac.x = cen.x; pac.y = cen.y;
+    W$('msg').innerText = '';
+
+    // play
+    phase = 'playing';
+    alive = true;
+    lastFrame = performance.now();
+  }
+
+  async function afterClear() {
+    alive = false;
+    won = true;
+    const cashNow  = Math.round(wager * multiplier);
+    const nextMult = ROUND_MULT[roundNum + 1];
+
+    if (roundNum >= MAX_ROUND) {
+      // forced cash-out at the top of the ladder
+      endRun('cashout-max');
+      return;
+    }
+    // present choice
+    phase = 'choice';
+    const prompt = `round ${roundNum} cleared — cash out ${cashNow}c, or push to round ${roundNum+1} for ${nextMult.toFixed(2)}×?`;
+    W$('choice').classList.add('show');
+    W$('choice').querySelector('.choice-prompt').textContent = prompt;
+    W$('cash-out').textContent = `cash out ${cashNow}c`;
+    W$('push-it').textContent = `push — round ${roundNum+1} (${nextMult.toFixed(2)}×)`;
+    const choice = await new Promise(r => { choiceResolve = r; });
+    W$('choice').classList.remove('show');
+    if (choice === 'cashout') {
+      endRun('cashout');
+    } else {
+      await playRound();
+    }
+  }
+
+  function endRun(reason, ghostName) {
+    let payout = 0, msg = '';
+    if (reason === 'cashout' || reason === 'cashout-max') {
+      payout = Math.round(wager * multiplier);
+      msg = reason === 'cashout-max'
+        ? `you walked out of all six rooms.  +${payout}c  (${wager} × ${multiplier.toFixed(2)})`
+        : `you cashed out at round ${roundNum}.  +${payout}c  (${wager} × ${multiplier.toFixed(2)})`;
+    } else if (reason === 'death') {
+      payout = 0;
+      msg = `${ghostName} reached the baby in round ${roundNum}.  lost ${wager}c.`;
+    }
+    if (payout > 0 && window.Wallet) Wallet.add(payout);
+    W$('msg').innerText = msg;
+    phase = 'idle';
+    wager = 0; multiplier = 0; roundNum = 0;
+    currentRoster = []; pacSpeedMult = 1.0;
+    setControlsEnabled(true);
+    refreshHud();
+    clampWagerInput();
+  }
+
+  // -------- physics --------
+  // Try to apply a direction change to entity e.
+  // Returns true if the change was applied.
+  function tryTurn(e, newDir) {
+    if (!newDir || newDir === e.dir) return false;
+    const d = DIRS[newDir];
+
+    // instant reverse: always allowed
+    if (newDir === OPP[e.dir]) { e.dir = newDir; return true; }
+
+    // perpendicular turn: require proximity to a tile center AND walkable target
+    const curD = DIRS[e.dir];
+    const {tx, ty} = tileOf(e.x, e.y);
+    const cen = tileCenter(tx, ty);
+    // distance from tile center along motion axis
+    const offAxis = curD.dx !== 0 ? Math.abs(e.x - cen.x) : Math.abs(e.y - cen.y);
+    if (offAxis > TURN_TOL) return false;
+
+    // is the tile in newDir from current tile walkable?
+    if (isWallTile(tx + d.dx, ty + d.dy)) return false;
+
+    // commit: snap motion-axis to tile center, perp axis untouched
+    if (curD.dx !== 0) e.x = cen.x; else e.y = cen.y;
+    // also snap the perpendicular-to-newDir axis to tile center
+    if (d.dx !== 0) e.y = cen.y; else e.x = cen.x;
+    e.dir = newDir;
+    return true;
+  }
+
+  // Move entity by speed*dt in its current direction, clamped by walls.
+  function physicsStep(e, speed, dt) {
+    const d = DIRS[e.dir];
+    if (!d) return;
+    const {tx, ty} = tileOf(e.x, e.y);
+    const cen = tileCenter(tx, ty);
+    const ahead = isWallTile(tx + d.dx, ty + d.dy);
+
+    let nx = e.x + d.dx * speed * dt;
+    let ny = e.y + d.dy * speed * dt;
+
+    if (ahead) {
+      // clamp center at current tile center along motion axis
+      if (d.dx > 0) nx = Math.min(nx, cen.x);
+      else if (d.dx < 0) nx = Math.max(nx, cen.x);
+      if (d.dy > 0) ny = Math.min(ny, cen.y);
+      else if (d.dy < 0) ny = Math.max(ny, cen.y);
+    }
+
+    e.x = nx; e.y = ny;
+    if (ty === tunnelRow || tileOf(e.x, e.y).ty === tunnelRow) {
+      if (e.x < -TILE/2) e.x = W*TILE + TILE/2;
+      else if (e.x > W*TILE + TILE/2) e.x = -TILE/2;
+    }
+  }
+
+  // -------- pac update --------
+  function updatePac(dt) {
+    // try queued direction first
+    tryTurn(pac, pac.nextDir);
+    physicsStep(pac, PAC_SPD * pacSpeedMult, dt);
+
+    // record history (pixel-space) for Echo
+    pacHistory.push({x: pac.x, y: pac.y});
+    if (pacHistory.length > 400) pacHistory.shift();
+
+    // eat the tile the center sits in
+    const {tx, ty} = tileOf(pac.x, pac.y);
+    if (tx >= 0 && tx < W && ty >= 0 && ty < H) {
+      const cell = grid[ty][tx];
+      if (cell === '.' || cell === 'o') {
+        score += (cell === 'o' ? 50 : 10);
+        grid[ty][tx] = ' ';
+        dotCount--;
+        if (cell === 'o') {
+          frightenedUntil = performance.now() + FRIGHT_MS;
+          chain = 0;
+          for (const g of ghosts) {
+            if (!g.eaten) {
+              g.dir = OPP[g.dir] || g.dir;
+              g.lastDecidedTile = null;
+            }
+          }
+        }
+        if (dotCount === 0) {
+          alive = false;
+          afterClear();
+        }
+      }
+    }
+
+  }
+
+  // -------- ghost update --------
+  function ghostSpeed(g, t) {
+    if (g.eaten) return EATEN_SPD;
+    if (t < frightenedUntil) return FRIGHT_SPD;
+    return GHOST_SPD;
+  }
+  // Snap entity to the center of its current tile on the axis perpendicular
+  // to its (new) direction of motion, keeping motion-axis position. This
+  // prevents drift accumulating when ghosts/pac change direction off-center.
+  function snapToTileAxis(e, newDir, tile) {
+    const cen = tileCenter(tile.tx, tile.ty);
+    const nd = DIRS[newDir];
+    if (!nd) return;
+    if (nd.dx !== 0) e.y = cen.y; else e.x = cen.x;
+  }
+
+  function decideGhostDir(g, t) {
+    const blinky = ghosts.find(x => x.id === 'smiler' && !x.eaten);
+    const ctx = { pac, blinky, pacHistory };
+    const tile = tileOf(g.x, g.y);
+    const {tx, ty} = tile;
+    const opts = [];
+    for (const [name, d] of Object.entries(DIRS)) {
+      if (name === OPP[g.dir]) continue;
+      if (!isWallTile(tx + d.dx, ty + d.dy)) {
+        opts.push({name, ntx: tx+d.dx, nty: ty+d.dy});
+      }
+    }
+    if (opts.length === 0) {
+      // dead end → reverse
+      g.dir = OPP[g.dir] || g.dir;
+      snapToTileAxis(g, g.dir, tile);
+      return;
+    }
+
+    let target;
+    if (g.eaten) {
+      target = tileCenter(ghostHouseTile.tx, ghostHouseTile.ty);
+    } else if (t < frightenedUntil) {
+      const pick = opts[Math.floor(Math.random()*opts.length)];
+      g.dir = pick.name;
+      snapToTileAxis(g, g.dir, tile);
+      return;
+    } else {
+      target = GHOSTS[g.id].target.call(GHOSTS[g.id], g, ctx);
+    }
+
+    opts.sort((a,b) => {
+      const ca = tileCenter(a.ntx, a.nty);
+      const cb = tileCenter(b.ntx, b.nty);
+      return dist2(ca, target) - dist2(cb, target);
+    });
+    g.dir = opts[0].name;
+    snapToTileAxis(g, g.dir, tile);
+  }
+
+  function updateGhost(g, t, dt) {
+    // when entering a new tile, redecide direction
+    const tile = tileOf(g.x, g.y);
+    const key = tile.tx + ',' + tile.ty;
+    if (g.lastDecidedTile !== key) {
+      decideGhostDir(g, t);
+      g.lastDecidedTile = key;
+    }
+    physicsStep(g, ghostSpeed(g, t), dt);
+
+    // arrived back home → revive
+    if (g.eaten) {
+      const home = tileCenter(ghostHouseTile.tx, ghostHouseTile.ty);
+      if (Math.abs(g.x - home.x) < TILE*0.3 && Math.abs(g.y - home.y) < TILE*0.3) {
+        g.eaten = false;
+        g.x = home.x; g.y = home.y;
+        g.lastDecidedTile = null;
+      }
+    }
+  }
+
+  // -------- collision --------
+  function checkCollision() {
+    const t = performance.now();
+    for (const g of ghosts) {
+      if (g.eaten) continue;
+      const dx = g.x - pac.x, dy = g.y - pac.y;
+      const HIT = TILE * 0.5;
+      if (dx*dx + dy*dy < HIT*HIT) {
+        if (t < frightenedUntil) {
+          const pts = PELLET_PTS[Math.min(chain, PELLET_PTS.length-1)];
+          score += pts; chain++;
+          g.eaten = true; g.lastDecidedTile = null;
+          document.getElementById('msg').innerText =
+            `you saw ${g.name} for what it was.`;
+          setTimeout(() => {
+            if (alive) document.getElementById('msg').innerText = '';
+          }, 800);
+        } else {
+          alive = false;
+          endRun('death', g.name);
+          return;
+        }
+      }
+    }
+  }
+
+  // -------- render --------
+  function draw() {
+    canvas.classList.toggle('picking', phase === 'spawn');
+    // wood-paneled floor of the maze (dark warm void)
+    ctx.fillStyle = '#0a0405';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    for (let ty=0; ty<H; ty++) for (let tx=0; tx<W; tx++) {
+      const c = grid[ty][tx];
+      const px = tx*TILE, py = ty*TILE;
+      if (c === '#') {
+        // bright sandstone wall — reads as clean mid-grey through grayscale
+        ctx.fillStyle = '#b88a5a';
+        ctx.fillRect(px+1, py+1, TILE-2, TILE-2);
+        ctx.fillStyle = '#8a6038';
+        ctx.fillRect(px+1, py+1, TILE-2, 2);
+      } else if (c === '.') {
+        // bone — a consistency to collect
+        ctx.fillStyle = '#d8c8b0';
+        const dr = Math.max(2, TILE * 0.09);
+        ctx.beginPath();
+        ctx.arc(px+TILE/2, py+TILE/2, dr/2, 0, Math.PI*2);
+        ctx.fill();
+      }
+      // power pellets are drawn on the glow layer instead (see below)
+    }
+
+    // (no cash-out tile — players must commit through clear or death)
+
+    // spawn-pick highlights
+    if (phase === 'spawn') {
+      for (let ty=0; ty<H; ty++) for (let tx=0; tx<W; tx++) {
+        if (isValidSpawnTile(tx, ty)) {
+          ctx.fillStyle = 'rgba(26, 255, 127, 0.10)';
+          ctx.fillRect(tx*TILE+2, ty*TILE+2, TILE-4, TILE-4);
+        }
+      }
+      if (spawnHoverTile) {
+        ctx.fillStyle = 'rgba(255, 234, 102, 0.4)';
+        ctx.fillRect(spawnHoverTile.tx*TILE+2, spawnHoverTile.ty*TILE+2,
+                     TILE-4, TILE-4);
+      }
+    }
+
+    // the baby — rendered on the glow canvas so the emoji keeps its color
+    // through the broadcast grayscale filter on #board
+    const t = performance.now();
+    let drawPacAt = {x:pac.x, y:pac.y}, pacAlpha = 1;
+    let suppressPac = false;
+    if (phase === 'spawn') {
+      if (spawnHoverTile) {
+        const c = tileCenter(spawnHoverTile.tx, spawnHoverTile.ty);
+        drawPacAt = {x:c.x, y:c.y};
+        pacAlpha = 0.55;
+      } else {
+        suppressPac = true;
+      }
+    } else if (phase === 'rolling') {
+      suppressPac = true;
+    }
+    if (!suppressPac) {
+      const breathe = 1 + 0.03 * Math.sin(t/420);
+      const size = TILE * 0.86 * breathe;
+      gctx.save();
+      gctx.globalAlpha = pacAlpha;
+      gctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+      gctx.textAlign = 'center';
+      gctx.textBaseline = 'middle';
+      // soft warm halo behind the baby so it doesn't get lost on dark floors
+      gctx.shadowColor = 'rgba(255,200,160,0.6)';
+      gctx.shadowBlur = TILE * 0.6;
+      gctx.fillText('👶', drawPacAt.x, drawPacAt.y + TILE*0.04);
+      gctx.restore();
+    }
+
+    // ghosts + power pellets — drawn on the glow overlay so they punch
+    // through the grayscale filter applied to #board
+    gctx.clearRect(0, 0, glow.width, glow.height);
+
+    // power pellets first, behind the ghosts
+    const pulse = 0.65 + 0.35 * Math.sin(performance.now() / 220);
+    const pellR = TILE * 0.18;
+    for (let ty=0; ty<H; ty++) for (let tx=0; tx<W; tx++) {
+      if (grid[ty][tx] !== 'o') continue;
+      const cx = tx*TILE + TILE/2, cy = ty*TILE + TILE/2;
+      gctx.save();
+      gctx.shadowColor = '#1aff7f';
+      gctx.shadowBlur = 40 + 20*pulse;
+      gctx.fillStyle = '#1aff7f';
+      gctx.globalAlpha = 0.9;
+      gctx.beginPath();
+      gctx.arc(cx, cy, pellR + 2*pulse, 0, Math.PI*2);
+      gctx.fill();
+      gctx.shadowBlur = 0;
+      gctx.globalAlpha = 1;
+      gctx.fill();
+      gctx.restore();
+    }
+
+    const fright = t < frightenedUntil;
+    const remaining = frightenedUntil - t;
+    const flashing = fright && remaining < 2000;
+    const flashOn = flashing && Math.floor(t / 200) % 2 === 0;
+    for (const g of ghosts) {
+      if (g.eaten) {
+        // returning eyes — dim, no glow
+        const eyeR = Math.max(3, TILE * 0.10);
+        const pupR = Math.max(1.6, TILE * 0.05);
+        const eyeDx = TILE * 0.18, eyeDy = TILE * 0.05;
+        gctx.fillStyle = '#fff';
+        gctx.beginPath(); gctx.arc(g.x-eyeDx, g.y-eyeDy, eyeR, 0, Math.PI*2); gctx.fill();
+        gctx.beginPath(); gctx.arc(g.x+eyeDx, g.y-eyeDy, eyeR, 0, Math.PI*2); gctx.fill();
+        gctx.fillStyle = '#00f';
+        const ed = DIRS[g.dir] || {dx:0,dy:0};
+        gctx.beginPath(); gctx.arc(g.x-eyeDx+ed.dx*eyeR*0.45, g.y-eyeDy+ed.dy*eyeR*0.45, pupR, 0, Math.PI*2); gctx.fill();
+        gctx.beginPath(); gctx.arc(g.x+eyeDx+ed.dx*eyeR*0.45, g.y-eyeDy+ed.dy*eyeR*0.45, pupR, 0, Math.PI*2); gctx.fill();
+        continue;
+      }
+      let color = g.color;
+      if (fright) color = flashOn ? '#fff' : '#22f';
+      const r = TILE/2 - 5;
+      const pulse = 0.6 + 0.4 * Math.sin(t/180 + (g.id ? g.id.length : 0));
+
+      // build the ghost-body path once and reuse for the stacked color passes
+      const bodyPath = () => {
+        gctx.beginPath();
+        gctx.arc(g.x, g.y - 2, r, Math.PI, 0);
+        gctx.lineTo(g.x + r, g.y + r - 4);
+        const waves = 4;
+        for (let i=0; i<waves; i++) {
+          const x1 = g.x + r - (i*2+1)*(r/waves);
+          const x2 = g.x + r - (i*2+2)*(r/waves);
+          gctx.lineTo(x1, g.y + r - 12);
+          gctx.lineTo(x2, g.y + r - 4);
+        }
+        gctx.closePath();
+      };
+
+      // outer atmospheric haze — huge soft halo that bleeds past tile bounds
+      gctx.save();
+      gctx.shadowColor = color;
+      gctx.shadowBlur = 60 + 20 * pulse;
+      gctx.fillStyle = color;
+      gctx.globalAlpha = 0.35;
+      bodyPath(); gctx.fill();
+      // mid halo
+      gctx.shadowBlur = 32;
+      gctx.globalAlpha = 0.7;
+      bodyPath(); gctx.fill();
+      // solid core
+      gctx.shadowBlur = 12;
+      gctx.globalAlpha = 1;
+      bodyPath(); gctx.fill();
+      gctx.restore();
+
+      // a bright inner highlight for body shading
+      gctx.save();
+      gctx.globalCompositeOperation = 'lighter';
+      gctx.fillStyle = color;
+      gctx.globalAlpha = 0.45;
+      gctx.beginPath();
+      gctx.arc(g.x - r*0.35, g.y - r*0.45, r*0.55, 0, Math.PI*2);
+      gctx.fill();
+      gctx.restore();
+
+      // eyes — larger now that TILE is 64
+      const eyeR = Math.max(3, TILE * 0.10);
+      const pupR = Math.max(1.6, TILE * 0.05);
+      const eyeDx = TILE * 0.18, eyeDy = TILE * 0.06;
+      gctx.fillStyle = '#fff';
+      gctx.beginPath(); gctx.arc(g.x-eyeDx, g.y-eyeDy, eyeR, 0, Math.PI*2); gctx.fill();
+      gctx.beginPath(); gctx.arc(g.x+eyeDx, g.y-eyeDy, eyeR, 0, Math.PI*2); gctx.fill();
+      gctx.fillStyle = fright ? '#f00' : '#001';
+      const ed = DIRS[g.dir] || {dx:0,dy:0};
+      const pupOff = eyeR * 0.45;
+      gctx.beginPath(); gctx.arc(g.x-eyeDx+ed.dx*pupOff, g.y-eyeDy+ed.dy*pupOff, pupR, 0, Math.PI*2); gctx.fill();
+      gctx.beginPath(); gctx.arc(g.x+eyeDx+ed.dx*pupOff, g.y-eyeDy+ed.dy*pupOff, pupR, 0, Math.PI*2); gctx.fill();
+    }
+  }
+
+  // -------- loop --------
+  let lastFrame = 0;
+  function loop(t) {
+    let dt = (t - lastFrame) / 1000;
+    lastFrame = t;
+    if (dt > 0.05) dt = 0.05; // cap on tab-switch lag
+
+    if (alive) {
+      updatePac(dt);
+      if (chain > 0 && t >= frightenedUntil) chain = 0;
+      for (const g of ghosts) updateGhost(g, t, dt);
+      checkCollision();
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // -------- round lifecycle --------
+  // -------- spawn pick --------
+  let spawnHoverTile = null, spawnResolve = null;
+  function isValidSpawnTile(tx, ty) {
+    if (tx < 0 || tx >= W || ty < 0 || ty >= H) return false;
+    if (isWallTile(tx, ty)) return false;
+    if (tx === ghostHouseTile.tx && ty === ghostHouseTile.ty) return false;
+    for (const g of ghosts) {
+      const gt = tileOf(g.x, g.y);
+      if (gt.tx === tx && gt.ty === ty) return false;
+    }
+    return true;
+  }
+  function pickSpawn() {
+    return new Promise(resolve => { spawnResolve = resolve; });
+  }
+
+  // -------- input --------
+  document.addEventListener('keydown', e => {
+    if (!pac || phase !== 'playing') return;
+    const k = e.key.toLowerCase();
+    let d = null;
+    if (k === 'arrowup'    || k === 'w') d = 'up';
+    else if (k === 'arrowdown'  || k === 's') d = 'down';
+    else if (k === 'arrowleft'  || k === 'a') d = 'left';
+    else if (k === 'arrowright' || k === 'd') d = 'right';
+    if (!d) return;
+    e.preventDefault();
+    pac.nextDir = d;
+    if (alive) tryTurn(pac, d);
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    if (phase !== 'spawn') { spawnHoverTile = null; return; }
+    const rect = canvas.getBoundingClientRect();
+    const tx = Math.floor((e.clientX - rect.left) * (canvas.width/rect.width) / TILE);
+    const ty = Math.floor((e.clientY - rect.top) * (canvas.height/rect.height) / TILE);
+    spawnHoverTile = isValidSpawnTile(tx, ty) ? {tx, ty} : null;
+  });
+  canvas.addEventListener('mouseleave', () => { spawnHoverTile = null; });
+  canvas.addEventListener('click', e => {
+    if (phase !== 'spawn' || !spawnResolve) return;
+    const rect = canvas.getBoundingClientRect();
+    const tx = Math.floor((e.clientX - rect.left) * (canvas.width/rect.width) / TILE);
+    const ty = Math.floor((e.clientY - rect.top) * (canvas.height/rect.height) / TILE);
+    if (!isValidSpawnTile(tx, ty)) return;
+    const r = spawnResolve; spawnResolve = null;
+    spawnHoverTile = null;
+    r({tx, ty});
+  });
+
+  W$('play').addEventListener('click', startRun);
+  W$('cash-out').addEventListener('click', () => {
+    if (phase !== 'choice' || !choiceResolve) return;
+    const r = choiceResolve; choiceResolve = null;
+    r('cashout');
+  });
+  W$('push-it').addEventListener('click', () => {
+    if (phase !== 'choice' || !choiceResolve) return;
+    const r = choiceResolve; choiceResolve = null;
+    r('push');
+  });
+  W$('fresh-board').addEventListener('click', () => {
+    if (phase !== 'idle') return;
+    const bal = window.Wallet ? Wallet.getBalance() : 0;
+    const cost = Math.max(1, Math.ceil(bal * 0.05));
+    if (cost > bal || !window.Wallet || !Wallet.spend(cost)) {
+      W$('msg').innerText = 'not enough chips for a fresh board.';
+      return;
+    }
+    freshBoard();
+    W$('msg').innerText = `fresh board — ${cost}c spent.`;
+    refreshHud();
+  });
+  W$('bet-max').addEventListener('click', () => {
+    const bal = window.Wallet ? Wallet.getBalance() : 0;
+    W$('wager').value = Math.max(1, bal);
+    clampWagerInput();
+  });
+  W$('wager').addEventListener('input', clampWagerInput);
+  W$('wager').addEventListener('change', clampWagerInput);
+  if (window.Wallet) Wallet.onChange(() => refreshHud());
+
+  // initial render: idle, awaiting bet. freshBoard() already ran above.
+  refreshHud();
+  clampWagerInput();
+  pac = { x:tileCenter(pacStartTile.tx, pacStartTile.ty).x,
+          y:tileCenter(pacStartTile.tx, pacStartTile.ty).y,
+          dir:'left', nextDir:'left' };
+  ghosts = [];
+  W$('msg').innerText = 'set a wager. the dice tell you who came home tonight.';
+  requestAnimationFrame(loop);
+})();
+</script>
+<script src="../js/game-intro.js"></script>
+</body>
+</html>

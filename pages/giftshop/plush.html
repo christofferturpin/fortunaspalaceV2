@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — PLUSH (Plush Donkey, 3,200 coins)                          │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item page for the secondhand stuffed donkey — the one bought for      │
+  │    the new baby, not the first. CSS donkey on a tilted scrapbook card    │
+  │    with a $2.99 USED tag. Cursive prose narrates the unspoken distance   │
+  │    the player keeps from the new child after losing the first.           │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: (none — self-contained <style>, no <script src>)              │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .pl-scene > .pl-card (.pl-donkey, .pl-prose)                    │
+  │    flow: static page; no JS, no animations                              │
+  │    storage R/W: none on this page (ownership tracked in                 │
+  │      wendys_palace_giftshop, key='plush', by giftshopindex.html)        │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Plush Donkey</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Special+Elite&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background: #2a221c;
+      background-image:
+        radial-gradient(ellipse at top, #3a2e22 0%, #1a1410 70%, #0c0805 100%);
+      color: #1a1410;
+      font-family: 'Caveat', cursive;
+      overflow-x: hidden;
+    }
+    .pl-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 50px 22px 60px;
+      gap: 30px;
+    }
+    .pl-card {
+      width: min(540px, 92vw);
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.02) 0 1px, transparent 1px 4px),
+        #f4eada;
+      padding: 36px 32px 28px;
+      border-radius: 4px;
+      box-shadow:
+        0 30px 60px rgba(0,0,0,0.7),
+        inset 0 0 30px rgba(120, 90, 60, 0.18);
+      position: relative;
+      transform: rotate(-1.2deg);
+    }
+    .pl-card::before,
+    .pl-card::after {
+      content: '';
+      position: absolute;
+      width: 90px;
+      height: 22px;
+      background:
+        linear-gradient(135deg, rgba(220, 180, 90, 0.5) 0%, rgba(180, 140, 60, 0.7) 50%, rgba(220, 180, 90, 0.5) 100%);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .pl-card::before { top: -10px; left: 30px; transform: rotate(-3deg); }
+    .pl-card::after  { bottom: -10px; right: 30px; transform: rotate(2deg); }
+
+    .pl-donkey {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 12px;
+      position: relative;
+    }
+    .pl-ear {
+      position: absolute;
+      top: 8px;
+      width: 32px;
+      height: 60px;
+      background: linear-gradient(180deg, #6a5040 0%, #4a3828 100%);
+      border-radius: 50% 50% 30% 30%;
+      border: 2px solid #2a1a0e;
+    }
+    .pl-ear-l { left: 50px; transform: rotate(-18deg); }
+    .pl-ear-r { right: 50px; transform: rotate(18deg); }
+    .pl-ear::before {
+      content: '';
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 14px;
+      height: 32px;
+      background: #8a6850;
+      border-radius: 50% 50% 30% 30%;
+    }
+    .pl-head {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 150px;
+      background:
+        radial-gradient(circle at 38% 30%, #8a6a52 0%, #5a4030 70%, #3a2818 100%);
+      border-radius: 50%;
+      border: 2px solid #2a1a0e;
+      box-shadow:
+        inset 0 -10px 20px rgba(0,0,0,0.4),
+        0 6px 14px rgba(0,0,0,0.5);
+    }
+    .pl-eye-l, .pl-eye-r {
+      position: absolute;
+      top: 42px;
+      width: 22px;
+      height: 22px;
+      font-family: serif;
+      font-size: 26px;
+      color: #1a1108;
+      font-weight: 700;
+      text-align: center;
+      line-height: 22px;
+    }
+    .pl-eye-l { left: 32px; }
+    .pl-eye-r { right: 32px;
+      width: 22px;
+      height: 22px;
+      background: radial-gradient(circle at 35% 35%, #1a1108 0%, #000 70%);
+      border-radius: 50%;
+      color: transparent;
+      box-shadow: inset 0 0 4px rgba(255,255,255,0.2);
+    }
+    .pl-eye-stitch {
+      position: absolute;
+      top: 44px;
+      left: 30px;
+      width: 26px;
+      height: 4px;
+    }
+    .pl-eye-stitch::before,
+    .pl-eye-stitch::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 1px;
+      background: #2a1a0e;
+    }
+    .pl-eye-stitch::before { top: 0;  transform: rotate(28deg); }
+    .pl-eye-stitch::after  { top: 0;  transform: rotate(-28deg); }
+    .pl-snout {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 70px;
+      height: 50px;
+      background: radial-gradient(ellipse at center, #b8967a 0%, #8a6a52 100%);
+      border-radius: 50%;
+      border: 1px solid #2a1a0e;
+    }
+    .pl-nostril-l, .pl-nostril-r {
+      position: absolute;
+      top: 12px;
+      width: 6px;
+      height: 9px;
+      background: #1a1108;
+      border-radius: 50%;
+    }
+    .pl-nostril-l { left: 16px; }
+    .pl-nostril-r { right: 16px; }
+    .pl-mouth {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 8px;
+      border-bottom: 2px solid #1a1108;
+      border-radius: 0 0 50% 50%;
+    }
+    .pl-tag {
+      position: absolute;
+      top: 124px;
+      right: 8px;
+      width: 38px;
+      height: 26px;
+      background: #f4eada;
+      border: 1px solid #6a4a20;
+      transform: rotate(14deg);
+      font-family: 'Special Elite', monospace;
+      font-size: 8px;
+      letter-spacing: 0.08em;
+      color: #6a4a20;
+      text-align: center;
+      padding-top: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .pl-tag::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #2a1a0e;
+    }
+
+    .pl-prose {
+      font-size: 26px;
+      line-height: 1.35;
+      color: #2a1a0e;
+      text-align: center;
+    }
+    .pl-prose p { margin: 0 0 12px; }
+    .pl-prose p:last-child { margin: 0; }
+    .pl-prose .child {
+      display: block;
+      font-size: 30px;
+      color: #5a1a22;
+      font-weight: 700;
+      margin: 10px 0 4px;
+    }
+    .pl-prose .narrator {
+      display: block;
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      color: rgba(42, 26, 14, 0.7);
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed rgba(106, 74, 32, 0.4);
+    }
+
+    .pl-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8b0;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+    }
+    .pl-back:hover {
+      background: rgba(201, 161, 74, 0.15);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="pl-scene">
+    <div class="pl-card">
+      <div class="pl-donkey">
+        <div class="pl-ear pl-ear-l"></div>
+        <div class="pl-ear pl-ear-r"></div>
+        <div class="pl-head">
+          <div class="pl-eye-stitch"></div>
+          <div class="pl-eye-r"></div>
+          <div class="pl-snout">
+            <div class="pl-nostril-l"></div>
+            <div class="pl-nostril-r"></div>
+            <div class="pl-mouth"></div>
+          </div>
+          <div class="pl-tag">$2.99<br>USED</div>
+        </div>
+      </div>
+      <div class="pl-prose">
+        <p>You buy it for the new one. Not the first one. The new one.</p>
+        <p>You hold it out and the baby grabs the ear in a fist and that is a thing the first one never got to do.</p>
+        <p class="child">cooing — wet — happy</p>
+        <p>You smile down and your face does what faces do. Underneath that, behind your sternum, you are keeping a small careful distance you could not name if anyone asked.</p>
+        <span class="narrator">You loved the first one all the way. You will not survive doing that again. The donkey is from a Goodwill, and the donkey did not ask to be a stand-in for anything, and the donkey does not know that what is being handed down to it is the part of you that you have to keep back.</span>
+      </div>
+    </div>
+
+    <a class="pl-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — REBECCA  (Used E-Reader, 14,000 coins)                      │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    What looks like the Rebecca paperback is actually a battered e-reader │
+  │    in a cracked plastic shell. Boot screen is a Library of 7 covers    │
+  │    in a 3-col grid: Rebecca, Mrs. Dalloway, The Yellow Wallpaper, Jane │
+  │    Eyre, the mass-market paperback Zanthia, a "CoolReads" tab (stub), │
+  │    and House of Leaves — a manual recursion: tapping the library     │
+  │    cover opens a view showing the same cover; clicking that cover    │
+  │    swaps it for an iframe loading the page again straight into HoL,   │
+  │    where another cover waits for another click. Each click descends   │
+  │    one level (capped at 6 so the browser survives), and the deepest   │
+  │    frame shows a static ∞ glyph. Jane Eyre randomly splices 2–3 lines │
+  │    from the other books                                               │
+  │    into the text on every open (the player half-remembers it).        │
+  │    Tapping a cover opens that book's excerpt in a paper-lit reading    │
+  │    view; ← Library returns. Reading view preserves the original        │
+  │    Rebecca marginalia and adds one annotation per book.                │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/child.js (for the kaomoji cosmetic toggle)          │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death │
+  │    DOM: .er-room > .er-device > .er-screen > .er-status, .er-view      │
+  │      (id=lib | rebecca | dalloway | wallpaper | eyre | zanthia | cool) │
+  │      .er-nav at bottom of screen with ← Library button (in books)      │
+  │    flow: IIFE binds .er-cover[data-book] clicks → show(id);            │
+  │      .er-home buttons → show('lib'); single visible .er-view at a time │
+  │    storage R/W: writes wendys_palace_child.cosmetics.rebecca via       │
+  │      Child.setCosmetic; ownership tracked in wendys_palace_giftshop,   │
+  │      key='rebecca', by giftshopindex.html                              │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)            │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rebecca</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Special+Elite&family=Limelight&family=Cinzel:wght@500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 50% 35%, #1f1812 0%, #0f0a07 60%, #06040a 100%);
+      color: #d8c8a4;
+      font-family: 'EB Garamond', serif;
+      overflow-x: hidden;
+    }
+    .er-room {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 50px 18px 60px;
+      gap: 26px;
+    }
+
+    /* ────────── e-reader physical device ────────── */
+    .er-device {
+      width: min(560px, 96vw);
+      aspect-ratio: 9 / 13;
+      background:
+        linear-gradient(135deg, #1a1a1e 0%, #0e0e12 50%, #1a1a1e 100%);
+      border-radius: 22px;
+      padding: 30px 22px 56px;
+      position: relative;
+      box-shadow:
+        0 30px 60px rgba(0,0,0,0.75),
+        inset 0 0 0 1px rgba(255,255,255,0.04),
+        inset 0 -2px 0 rgba(0,0,0,0.6),
+        inset 0 2px 0 rgba(255,255,255,0.05);
+    }
+    /* fine plastic texture */
+    .er-device::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: 22px;
+      background:
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0 2px, transparent 2px 4px);
+      pointer-events: none;
+    }
+    /* hairline crack across the bezel — gentle, easy to miss */
+    .er-device::after {
+      content: '';
+      position: absolute;
+      top: 14%; right: 8%;
+      width: 38%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+      transform: rotate(18deg);
+      pointer-events: none;
+    }
+    .er-brand {
+      position: absolute;
+      bottom: 18px; left: 0; right: 0;
+      text-align: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.45em;
+      color: rgba(220, 220, 230, 0.18);
+    }
+    .er-button {
+      position: absolute;
+      bottom: 14px; left: 50%;
+      transform: translateX(-50%);
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 30%, #2a2a2e 0%, #0c0c10 70%, #000 100%);
+      box-shadow:
+        inset 0 1px 1px rgba(255,255,255,0.1),
+        inset 0 -2px 4px rgba(0,0,0,0.6);
+    }
+
+    .er-screen {
+      width: 100%;
+      height: 100%;
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.020) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, #efe6cf 0%, #e4d8b8 100%);
+      color: #1a1410;
+      border-radius: 4px;
+      box-shadow:
+        inset 0 0 0 2px #0a0a0c,
+        inset 0 0 22px rgba(0,0,0,0.18),
+        0 0 0 1px rgba(180,180,200,0.06);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ────────── status bar ────────── */
+    .er-status {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: rgba(40, 28, 14, 0.65);
+      border-bottom: 1px solid rgba(80, 50, 20, 0.18);
+      background: rgba(0,0,0,0.02);
+    }
+    .er-status .left, .er-status .right { display: flex; gap: 10px; align-items: center; }
+    .er-status .dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: rgba(40, 28, 14, 0.45);
+    }
+
+    /* ────────── views ────────── */
+    .er-view {
+      display: none;
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 18px 24px 24px;
+    }
+    .er-view.show { display: block; }
+    .er-view::-webkit-scrollbar { width: 6px; }
+    .er-view::-webkit-scrollbar-thumb { background: rgba(80,50,20,0.25); border-radius: 3px; }
+
+    /* ──── library view ──── */
+    .er-shelf-title {
+      font-family: 'Limelight', serif;
+      font-size: 13px;
+      letter-spacing: 0.34em;
+      color: #5a3210;
+      text-align: center;
+      margin: 4px 0 16px;
+    }
+    .er-shelf {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px 14px;
+    }
+    .er-cover {
+      position: relative;
+      aspect-ratio: 2 / 3;
+      cursor: pointer;
+      background: #e8d8a8;
+      box-shadow:
+        0 6px 12px rgba(0,0,0,0.35),
+        0 0 0 1px rgba(40,20,10,0.25);
+      overflow: hidden;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      color: inherit;
+      text-decoration: none;
+    }
+    .er-cover:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 10px 18px rgba(0,0,0,0.5),
+        0 0 0 1px rgba(40,20,10,0.4);
+    }
+    .er-cover-meta {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      font-family: 'Special Elite', monospace;
+      font-size: 8px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(40, 28, 14, 0.72);
+      background: rgba(255, 248, 224, 0.78);
+      padding: 4px 6px 5px;
+      text-align: center;
+      border-top: 1px solid rgba(40,20,10,0.12);
+    }
+    /* per-book cover styling */
+    .er-cv-rebecca {
+      background:
+        linear-gradient(180deg, #1a2030 0%, #2a3040 100%);
+      color: #e8ddc5;
+    }
+    .er-cv-rebecca .er-cv-title {
+      position: absolute; top: 24%; left: 0; right: 0;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: 0.18em;
+      text-align: center;
+      color: #d8c8a4;
+    }
+    .er-cv-rebecca .er-cv-author {
+      position: absolute; top: 64%; left: 0; right: 0;
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-align: center;
+      color: #b8a880;
+    }
+
+    .er-cv-dalloway {
+      background:
+        radial-gradient(ellipse at 50% 30%, #f0e0c8 0%, #e0c8a0 100%);
+      color: #2a1a08;
+    }
+    .er-cv-dalloway .er-cv-title {
+      position: absolute; top: 30%; left: 0; right: 0;
+      font-family: 'Cinzel', serif;
+      font-weight: 500;
+      font-size: 14px;
+      letter-spacing: 0.22em;
+      text-align: center;
+      color: #2a1a08;
+    }
+    .er-cv-dalloway .er-cv-author {
+      position: absolute; top: 60%; left: 0; right: 0;
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 11px;
+      text-align: center;
+      color: #4a2a18;
+    }
+
+    .er-cv-wallpaper {
+      background:
+        repeating-linear-gradient(45deg, #d8b850 0 8px, #c8a840 8px 16px),
+        #d8b850;
+      color: #2a1a08;
+    }
+    .er-cv-wallpaper::before {
+      /* sickly wallpaper figures */
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 10px 14px at 22% 24%, rgba(60,30,10,0.35), transparent 60%),
+        radial-gradient(ellipse 10px 14px at 70% 38%, rgba(60,30,10,0.35), transparent 60%),
+        radial-gradient(ellipse 10px 14px at 36% 60%, rgba(60,30,10,0.35), transparent 60%),
+        radial-gradient(ellipse 10px 14px at 82% 70%, rgba(60,30,10,0.35), transparent 60%);
+    }
+    .er-cv-wallpaper .er-cv-title {
+      position: absolute; top: 38%; left: 8%; right: 8%;
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-weight: 500;
+      font-size: 16px;
+      text-align: center;
+      color: #2a1a08;
+      text-shadow: 0 0 6px rgba(255, 248, 200, 0.5);
+      background: rgba(255, 248, 200, 0.55);
+      padding: 6px 4px;
+    }
+
+    .er-cv-eyre {
+      background:
+        radial-gradient(ellipse at 50% 30%, #6a1818 0%, #3a0808 100%);
+      color: #f0e0c8;
+    }
+    .er-cv-eyre .er-cv-title {
+      position: absolute; top: 28%; left: 0; right: 0;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: 0.18em;
+      text-align: center;
+      color: #f0e0c8;
+    }
+    .er-cv-eyre .er-cv-author {
+      position: absolute; top: 62%; left: 0; right: 0;
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-align: center;
+      color: #d8a890;
+    }
+
+    .er-cv-zanthia {
+      background:
+        radial-gradient(ellipse at 40% 30%, #4a1080 0%, #1a0438 70%, #06010a 100%);
+      color: #f0e8ff;
+      position: relative;
+    }
+    .er-cv-zanthia::before {
+      /* crescent moon + sparkles */
+      content: '';
+      position: absolute;
+      top: 12%; right: 14%;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #e8d8ff 60%, transparent 62%);
+      box-shadow: 8px 4px 0 -6px #1a0438;
+    }
+    .er-cv-zanthia .er-cv-title {
+      position: absolute; top: 36%; left: 6%; right: 6%;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      text-align: center;
+      color: #ffe8b0;
+      text-shadow:
+        0 0 8px rgba(255, 200, 120, 0.65),
+        2px 2px 0 #6a2810;
+      line-height: 1;
+    }
+    .er-cv-zanthia .er-cv-sub {
+      position: absolute; top: 58%; left: 6%; right: 6%;
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-align: center;
+      color: #d8c8ff;
+    }
+    .er-cv-zanthia .er-cv-author {
+      position: absolute; top: 78%; left: 0; right: 0;
+      font-family: 'Special Elite', monospace;
+      font-size: 9px;
+      letter-spacing: 0.22em;
+      text-align: center;
+      color: #b8a8d8;
+    }
+
+    .er-cv-hol {
+      background: #07071a;
+      color: #f0eee8;
+      position: relative;
+    }
+    .er-cv-hol::before {
+      content: '';
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(74, 120, 255, 0.25);
+      pointer-events: none;
+    }
+    .er-cv-hol .er-cv-title {
+      position: absolute; top: 32%; left: 0; right: 0;
+      font-family: 'Cinzel', serif;
+      font-weight: 500;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-align: center;
+      color: #f0eee8;
+      line-height: 1.15;
+      text-transform: lowercase;
+    }
+    .er-cv-hol .er-cv-title .blue { color: #4a78ff; }
+    .er-cv-hol .er-cv-author {
+      position: absolute; top: 64%; left: 0; right: 0;
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-align: center;
+      color: #b0b0c0;
+    }
+
+    .er-cv-cool {
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.04) 0 1px, transparent 1px 4px),
+        linear-gradient(180deg, #f0e0a8 0%, #d8b878 100%);
+      color: #2a1a08;
+    }
+    .er-cv-cool .er-cv-title {
+      position: absolute; top: 30%; left: 0; right: 0;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.14em;
+      text-align: center;
+      color: #5a3210;
+    }
+    .er-cv-cool .er-cv-sub {
+      position: absolute; top: 52%; left: 8%; right: 8%;
+      font-family: 'Special Elite', monospace;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-align: center;
+      color: #6a4220;
+    }
+
+    /* ──── book reading view ──── */
+    .er-bk-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid rgba(80, 50, 20, 0.25);
+    }
+    .er-home {
+      flex: 0 0 auto;
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #2a1a08;
+      background: rgba(255, 240, 200, 0.5);
+      border: 1px solid rgba(80, 50, 20, 0.4);
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+    .er-home:hover { background: rgba(255, 220, 160, 0.85); }
+    .er-bk-meta { flex: 1 1 auto; line-height: 1.15; }
+    .er-bk-meta .ti {
+      font-family: 'Cinzel', serif;
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      color: #1a1410;
+    }
+    .er-bk-meta .au {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: 11px;
+      color: #5a3210;
+    }
+    .er-bk-text {
+      font-family: 'EB Garamond', serif;
+      font-size: 16px;
+      line-height: 1.7;
+      color: #1a1410;
+      max-width: 56ch;
+      margin: 0 auto;
+    }
+    .er-bk-text p { margin: 0 0 12px; text-indent: 1.4em; }
+    .er-bk-text p:first-child { text-indent: 0; }
+    .er-bk-text p:first-child::first-letter {
+      font-family: 'Limelight', serif;
+      font-size: 38px;
+      float: left;
+      line-height: 0.9;
+      padding: 4px 7px 0 0;
+      color: #6a2818;
+    }
+    .er-bk-text .hi {
+      background: rgba(255, 210, 110, 0.45);
+      padding: 0 2px;
+      box-shadow: 0 0 0 1px rgba(180, 120, 30, 0.15) inset;
+    }
+    .er-bk-text .marg {
+      display: block;
+      margin: 14px 0;
+      padding: 8px 12px;
+      background: rgba(255, 240, 200, 0.55);
+      border-left: 3px solid #8a4a18;
+      font-style: italic;
+      font-size: 14px;
+      color: #4a1a08;
+      text-indent: 0;
+    }
+    .er-bk-text .marg::before {
+      content: '— ';
+      font-style: normal;
+      color: #8a4a18;
+    }
+    .er-bk-foot {
+      text-align: center;
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: rgba(60, 30, 10, 0.55);
+      margin-top: 22px;
+      padding-top: 12px;
+      border-top: 1px dashed rgba(80, 40, 8, 0.35);
+    }
+
+    /* foreign sentences spliced into Jane Eyre */
+    .er-bk-text .foreign {
+      font-style: italic;
+      color: #5a2a1a;
+      background: rgba(180, 80, 30, 0.08);
+      padding: 0 2px;
+    }
+
+    /* House of Leaves — the e-reader embedded inside its own HoL view */
+    .er-view#er-houseofleaves {
+      padding: 0;
+      display: none;
+      flex-direction: column;
+    }
+    .er-view#er-houseofleaves.show { display: flex; }
+    .er-view#er-houseofleaves .er-bk-header {
+      padding: 10px 14px;
+      margin-bottom: 0;
+    }
+    .er-hol-recurse {
+      flex: 1 1 auto;
+      position: relative;
+      background: #07071a;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .er-hol-trigger {
+      width: 52%;
+      max-width: 220px;
+      aspect-ratio: 2 / 3;
+      cursor: pointer;
+    }
+    .er-hol-iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #07071a;
+    }
+    .er-hol-cap {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #4a78ff;
+      font-family: 'Cinzel', serif;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-align: center;
+      padding: 14px;
+      background: #07071a;
+    }
+    .er-hol-cap .dot {
+      font-size: 22px;
+      letter-spacing: 0.4em;
+      color: #f0eee8;
+    }
+
+    /* re-fire animation on every view switch */
+    .er-view.show {
+      animation: er-fade-in 0.22s ease;
+    }
+    @keyframes er-fade-in {
+      from { opacity: 0.35; transform: translateY(3px); }
+      to   { opacity: 1;    transform: translateY(0); }
+    }
+
+    /* CoolReads stub */
+    .er-cool-stub {
+      text-align: center;
+      padding: 40px 24px;
+      color: #5a3210;
+    }
+    .er-cool-stub h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      letter-spacing: 0.18em;
+      margin-bottom: 10px;
+    }
+    .er-cool-stub p {
+      font-family: 'Special Elite', monospace;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      color: rgba(60, 30, 10, 0.6);
+    }
+    .er-cool-stub .blink {
+      animation: er-blink 1.2s steps(2, end) infinite;
+    }
+    @keyframes er-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ────────── back to gift shop ────────── */
+    .kc-bay {
+      display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px;
+    }
+    .kc-preview {
+      font-family: 'Special Elite', monospace; font-size: 22px; letter-spacing: 0.04em;
+      color: #d8c8a4; background: rgba(20,14,10,0.6);
+      border: 1px solid rgba(201,161,74,0.35); border-radius: 4px;
+      padding: 10px 18px; min-width: 160px; text-align: center;
+      white-space: pre; line-height: 1.1;
+    }
+    .kc-toggle {
+      font-family: 'Special Elite', monospace; font-size: 14px;
+      letter-spacing: 0.26em; text-transform: uppercase; color: #d8c8a4;
+      padding: 12px 26px; background: rgba(20,14,10,0.6);
+      border: 1px solid rgba(201,161,74,0.5); border-radius: 4px;
+      cursor: pointer; min-width: 240px;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .kc-toggle:hover { background: rgba(201,161,74,0.16); border-color: #c9a14a; }
+    .kc-toggle.on { background: rgba(201,161,74,0.22); border-color: #d4b46a; color: #f0d890; }
+
+    .er-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8a4;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+    }
+    .er-back:hover {
+      background: rgba(201, 161, 74, 0.18);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="er-room">
+    <div class="er-device">
+      <div class="er-screen">
+        <div class="er-status">
+          <div class="left">
+            <span class="dot"></span>
+            <span>OFFLINE</span>
+          </div>
+          <div class="right">
+            <span>52%</span>
+            <span>11:42 PM</span>
+          </div>
+        </div>
+
+        <!-- ────────── LIBRARY ────────── -->
+        <div class="er-view er-view-lib" id="er-lib">
+          <div class="er-shelf-title">— MY LIBRARY —</div>
+          <div class="er-shelf">
+            <div class="er-cover er-cv-rebecca" data-book="rebecca">
+              <div class="er-cv-title">REBECCA</div>
+              <div class="er-cv-author">du Maurier</div>
+              <div class="er-cover-meta">PAGE 8 / 384</div>
+            </div>
+            <div class="er-cover er-cv-dalloway" data-book="dalloway">
+              <div class="er-cv-title">MRS<br>DALLOWAY</div>
+              <div class="er-cv-author">V. Woolf</div>
+              <div class="er-cover-meta">UNFINISHED</div>
+            </div>
+            <div class="er-cover er-cv-wallpaper" data-book="wallpaper">
+              <div class="er-cv-title">The Yellow Wallpaper</div>
+              <div class="er-cover-meta">SHORT STORY</div>
+            </div>
+            <div class="er-cover er-cv-eyre" data-book="eyre">
+              <div class="er-cv-title">JANE EYRE</div>
+              <div class="er-cv-author">C. Brontë</div>
+              <div class="er-cover-meta">RE-READ · 3RD TIME</div>
+            </div>
+            <div class="er-cover er-cv-zanthia" data-book="zanthia">
+              <div class="er-cv-title">ZANTHIA</div>
+              <div class="er-cv-sub">Daughter of the Crooked Moon</div>
+              <div class="er-cv-author">K · R · VANCE</div>
+              <div class="er-cover-meta">BOOK 1 OF 7</div>
+            </div>
+            <div class="er-cover er-cv-cool" data-book="cool">
+              <div class="er-cv-title">CoolReads</div>
+              <div class="er-cv-sub">recommended for you</div>
+              <div class="er-cover-meta">DISCOVER</div>
+            </div>
+            <div class="er-cover er-cv-hol" data-book="houseofleaves">
+              <div class="er-cv-title">house<br><span class="blue">of leaves</span></div>
+              <div class="er-cv-author">Z. Danielewski</div>
+              <div class="er-cover-meta">PAGE ∞ / ∞</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ────────── REBECCA ────────── -->
+        <div class="er-view" id="er-rebecca">
+          <div class="er-bk-header">
+            <button class="er-home" type="button">← Library</button>
+            <div class="er-bk-meta">
+              <div class="ti">REBECCA</div>
+              <div class="au">Daphne du Maurier · Chapter One</div>
+            </div>
+          </div>
+          <div class="er-bk-text">
+            <p>Last night I dreamt I went to Manderley again. It seemed to me I stood by the iron gate leading to the drive, and for a while I could not enter, for the way was barred to me.</p>
+            <p>There was a padlock and a chain upon the gate. I called in my dream to the lodge-keeper, and had no answer, and peering closer through the rusted spokes of the gate I saw that the lodge was uninhabited.</p>
+            <p>No smoke came from the chimney, and the little lattice windows gaped forlorn. Then, like all dreamers, I was possessed of a sudden with supernatural powers and passed like a spirit through the barrier before me.</p>
+            <p class="marg">This is where the page is dog-eared. This is where you have stopped, every time, for three years.</p>
+            <p class="marg">It's in the floor board of the truck now.</p>
+          </div>
+          <div class="er-bk-foot">PAGE 8 OF 384 · LAST OPENED 2023</div>
+        </div>
+
+        <!-- ────────── MRS DALLOWAY ────────── -->
+        <div class="er-view" id="er-dalloway">
+          <div class="er-bk-header">
+            <button class="er-home" type="button">← Library</button>
+            <div class="er-bk-meta">
+              <div class="ti">MRS DALLOWAY</div>
+              <div class="au">Virginia Woolf</div>
+            </div>
+          </div>
+          <div class="er-bk-text">
+            <p>For Heaven only knows why one loves it so, how one sees it so, making it up, building it round one, tumbling it, creating it every moment afresh; but the veriest frumps, the most dejected of miseries sitting on doorsteps (drink their downfall) do the same; can't be dealt with, she felt positive, by Acts of Parliament for that very reason: they love life. In people's eyes, in the swing, tramp, and trudge; in the bellow and the uproar; the carriages, motor cars, omnibuses, vans, sandwich men shuffling and swinging; brass bands; barrel organs; in the triumph and the jingle and the strange high singing of some aeroplane overhead was what she loved; life; London; this moment of June.</p>
+            <p>She had once thrown a shilling into the Serpentine, never anything more. But he had flung it away. They went on living (she would have to go back; the rooms were still crowded; people kept on coming). They (all day she had been thinking of Bourton, of Peter, of Sally), they would grow old. A thing there was that mattered; a thing, wreathed about with chatter, defaced, obscured in her own life, let drop every day in corruption, lies, chatter. This he had preserved. Death was defiance. Death was an attempt to communicate, people feeling the impossibility of reaching the centre which, mystically, evaded them; closeness drew apart; rapture faded; one was alone. <span class="hi">There was an embrace in death.</span></p>
+            <p class="marg">You highlighted this on the porch swing. Before any of it.</p>
+          </div>
+          <div class="er-bk-foot">14% READ · LAST OPENED 11:42 TONIGHT</div>
+        </div>
+
+        <!-- ────────── YELLOW WALLPAPER ────────── -->
+        <div class="er-view" id="er-wallpaper">
+          <div class="er-bk-header">
+            <button class="er-home" type="button">← Library</button>
+            <div class="er-bk-meta">
+              <div class="ti">THE YELLOW WALLPAPER</div>
+              <div class="au">Charlotte Perkins Gilman</div>
+            </div>
+          </div>
+          <div class="er-bk-text">
+            <p>The front pattern <em>does</em> move — and no wonder! The woman behind shakes it!</p>
+            <p>Sometimes I think there are a great many women behind, and sometimes only one, and she crawls around fast, and her crawling shakes it all over.</p>
+            <p>Then in the very bright spots she keeps still, and in the very shady spots she just takes hold of the bars and shakes them hard.</p>
+            <p>And she is all the time trying to climb through. But nobody could climb through that pattern — it strangles so; I think that is why it has so many heads.</p>
+            <p>They get through, and then the pattern strangles them off and turns them upside down, and <span class="hi">makes their eyes white!</span></p>
+            <p class="marg">The wallpaper in the den came down in 2017. You still see it some nights.</p>
+          </div>
+          <div class="er-bk-foot">COMPLETE · BOOKMARKED PAGE 18</div>
+        </div>
+
+        <!-- ────────── JANE EYRE ────────── -->
+        <div class="er-view" id="er-eyre">
+          <div class="er-bk-header">
+            <button class="er-home" type="button">← Library</button>
+            <div class="er-bk-meta">
+              <div class="ti">JANE EYRE</div>
+              <div class="au">Charlotte Brontë</div>
+            </div>
+          </div>
+          <div class="er-bk-text" id="er-eyre-body"></div>
+          <div class="er-bk-foot">RE-READ · 3RD TIME</div>
+        </div>
+
+        <!-- ────────── HOUSE OF LEAVES (recursive — iframe of self) ─── -->
+        <div class="er-view" id="er-houseofleaves">
+          <div class="er-bk-header">
+            <button class="er-home" type="button">← Library</button>
+            <div class="er-bk-meta">
+              <div class="ti">HOUSE OF LEAVES</div>
+              <div class="au">Mark Z. Danielewski</div>
+            </div>
+          </div>
+          <div class="er-hol-recurse" id="er-hol-recurse">
+            <div class="er-cover er-cv-hol er-cv-big er-hol-trigger" id="er-hol-trigger">
+              <div class="er-cv-title">house<br><span class="blue">of leaves</span></div>
+              <div class="er-cv-author">Z. Danielewski</div>
+              <div class="er-cover-meta">OPEN</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ────────── ZANTHIA ────────── -->
+        <div class="er-view" id="er-zanthia">
+          <div class="er-bk-header">
+            <button class="er-home" type="button">← Library</button>
+            <div class="er-bk-meta">
+              <div class="ti">ZANTHIA: DAUGHTER OF THE CROOKED MOON</div>
+              <div class="au">K. R. Vance · Silverthorn Books, 2004</div>
+            </div>
+          </div>
+          <div class="er-bk-text">
+            <p>Zanthia drew the moonsteel blade from its sheath and the runes along the fuller flickered to wakefulness, drinking in the torchlight of the chamber. Across the obsidian dais, Lord Vexilar smiled his terrible smile.</p>
+            <p>"You cannot kill me, witch-child," he hissed. "I am older than the seven kingdoms. I was old when your grandmother's grandmother was a babe at the breast."</p>
+            <p>"I don't have to kill you," Zanthia said, and her violet eyes blazed with the inner fire her mother had named the Gift and her father had named the Curse. "I only have to remember you correctly."</p>
+            <p>She spoke the Word.</p>
+            <p>Lord Vexilar's smile faltered. Something passed behind his eyes — a flicker, a doubt, a small cold question. Had he been a cruel man? Or had he been a kind one, much wronged? The chamber seemed, for a moment, to hold two versions of him at once, and then three, and then a dozen, each one bleeding faintly into the next like ink in water.</p>
+            <p>"Stop," he whispered.</p>
+            <p>"I haven't begun," said Zanthia.</p>
+            <p>Behind her, the captive princess Aelyndra stirred in her chains and made a sound that was almost, but not quite, a laugh. The torches guttered. Somewhere in the high vaults of the keep, a bell that had not rung in four hundred years began, very softly, to ring.</p>
+          </div>
+          <div class="er-bk-foot">BOOK 1 OF 7 · MASS MARKET · ALWAYS IN PROGRESS</div>
+        </div>
+
+        <!-- ────────── COOLREADS (stub) ────────── -->
+        <div class="er-view" id="er-cool">
+          <div class="er-bk-header">
+            <button class="er-home" type="button">← Library</button>
+            <div class="er-bk-meta">
+              <div class="ti">CoolReads</div>
+              <div class="au">recommended for you</div>
+            </div>
+          </div>
+          <div class="er-cool-stub">
+            <h2>Loading recommendations<span class="blink">…</span></h2>
+            <p>(coming soon)</p>
+          </div>
+        </div>
+
+      </div>
+      <span class="er-brand">PALACE READER · MK II</span>
+      <span class="er-button" aria-hidden="true"></span>
+    </div>
+
+    <div class="kc-bay">
+      <div class="kc-preview" id="kc-preview" aria-hidden="true">(o_o)</div>
+      <button class="kc-toggle" type="button" aria-pressed="false">Read to them</button>
+    </div>
+
+    <a class="er-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/child.js"></script>
+  <script>
+    (function () {
+      const ID = 'rebecca';
+      const OFF = 'Read to them';
+      const ON  = 'Close the book';
+      const btn  = document.querySelector('.kc-toggle');
+      const prev = document.getElementById('kc-preview');
+      if (!btn || !window.Child) return;
+      function refresh() {
+        const on = Child.getCosmetic(ID);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.textContent = on ? ON : OFF;
+      }
+      let pi = 0;
+      function tick() {
+        if (!prev) return;
+        const d = Child.describeFace();
+        prev.textContent = d.frames[pi % d.frames.length];
+        pi++;
+      }
+      btn.addEventListener('click', () => Child.setCosmetic(ID, !Child.getCosmetic(ID)));
+      Child.onChange(refresh);
+      refresh();
+      tick();
+      setInterval(tick, 420);
+    })();
+  </script>
+
+  <script>
+  /*
+    CODE (terse, AI-readable):
+    views = $$('.er-view'); covers = $$('.er-cover'); homes = $$('.er-home')
+    EYRE_PARAS = 3 base paragraphs (Brontë + the wainscot insertion)
+    FOREIGN = 12 short sentences from Dalloway/Wallpaper/Rebecca/Zanthia
+    rebuildEyre(): shuffle FOREIGN, pick 2-3; for each, choose random
+      paragraph & random sentence-boundary, splice <span.foreign> in;
+      append marg "you don't really remember all of this one but you love it"
+    show(id): ∀v: v.classList.remove('show'); reflow; addClass show;
+      scrollTop=0; id==='eyre'→rebuildEyre()
+    nestHoL(): clear #er-hol-recurse; read d from ?d=N; if d≥MAX_D=6 →
+      static ∞ glyph; else inject <iframe src=path+'?d='+(d+1)+'#houseofleaves'>
+    init: ∀cover→click→show(.dataset.book); ∀home→click→show('lib');
+      #er-hol-trigger click→nestHoL();
+      boot: hash==='#houseofleaves'→show('houseofleaves') else 'lib'
+    nesting is manual: every nested iframe boots into HoL, shows its own
+      trigger cover, waits for click → swaps cover for next iframe
+  */
+  (function(){
+    var views = document.querySelectorAll('.er-view');
+    var EYRE_PARAS = [
+      "That night, on going to bed, I forgot to prepare in imagination the Barmecide supper of hot roast potatoes, or white bread and new milk, with which I was wont to amuse my inward cravings: I feasted instead on the spectacle of ideal drawings, which I saw in the dark; all the work of my own hands: freely pencilled houses and trees, picturesque rocks and ruins, Cuyp-like groups of cattle, sweet paintings of butterflies hovering over unblown roses, of birds picking at ripe cherries, of wren's nests enclosing pearl-like eggs, wreathed about with young ivy sprays. I examined, too, in thought, the possibility of my ever being able to translate currently a certain little French story which Madame Pierrot had that day shown me; nor was that problem solved to my satisfaction ere I fell sweetly asleep.",
+      "\"Children can feel, but they cannot analyse their feelings; and if the analysis is partially effected in thought, they know not how to express the result of the process in words.\" I was glad when at length I was summoned to bed.",
+      "A figure rose from the wainscot — or so I dreamt — and stood at the foot of the bed, neither speaking nor moving, but watching me with an expression I could not read. I knew her. I had always known her. She was myself, and she was not, and when I reached out my hand the candle guttered and the room was as it had always been, and I was alone, and the wind in the chimney was only the wind."
+    ];
+    var FOREIGN = [
+      "There was an embrace in death.",
+      "Last night I dreamt I went to Manderley again.",
+      "I only have to remember you correctly.",
+      "Death was defiance.",
+      "The woman behind shakes it.",
+      "Closeness drew apart; rapture faded; one was alone.",
+      "She spoke the Word.",
+      "No smoke came from the chimney.",
+      "It strangles so.",
+      "Makes their eyes white.",
+      "Somewhere in the high vaults of the keep, a bell that had not rung in four hundred years began, very softly, to ring.",
+      "This he had preserved."
+    ];
+
+    function rebuildEyre() {
+      var paras = EYRE_PARAS.slice();
+      var pool = FOREIGN.slice();
+      // Fisher–Yates shuffle
+      for (var i = pool.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+      }
+      var n = 2 + Math.floor(Math.random() * 2); // 2 or 3
+      for (var p = 0; p < n; p++) {
+        var line = pool[p];
+        var pi = Math.floor(Math.random() * paras.length);
+        var text = paras[pi];
+        var boundaries = [];
+        var re = /\.\s+/g, m;
+        while ((m = re.exec(text)) !== null) boundaries.push(m.index + m[0].length);
+        if (boundaries.length === 0) continue;
+        var pos = boundaries[Math.floor(Math.random() * boundaries.length)];
+        paras[pi] = text.slice(0, pos) + '<span class="foreign">' + line + '</span> ' + text.slice(pos);
+      }
+      var html = '';
+      for (var k = 0; k < paras.length; k++) html += '<p>' + paras[k] + '</p>';
+      html += '<p class="marg">you don\'t really remember all of this one but you love it</p>';
+      document.getElementById('er-eyre-body').innerHTML = html;
+    }
+
+    // Recursion depth from query string (?d=N). HoL stops nesting past MAX_D.
+    var MAX_D = 6;
+    function getDepth() {
+      var m = location.search.match(/[?&]d=(\d+)/);
+      return m ? parseInt(m[1], 10) || 0 : 0;
+    }
+    function nestHoL() {
+      var slot = document.getElementById('er-hol-recurse');
+      if (!slot) return;
+      var depth = getDepth();
+      slot.innerHTML = '';
+      if (depth >= MAX_D) {
+        // bottom of the well — leave a static glyph instead of another iframe
+        var cap = document.createElement('div');
+        cap.className = 'er-hol-cap';
+        cap.innerHTML = '<div class="dot">∞</div><div>house of leaves</div>';
+        slot.appendChild(cap);
+        return;
+      }
+      var next = depth + 1;
+      var iframe = document.createElement('iframe');
+      iframe.className = 'er-hol-iframe';
+      iframe.setAttribute('title', 'house of leaves');
+      iframe.src = location.pathname + '?d=' + next + '#houseofleaves';
+      slot.appendChild(iframe);
+    }
+
+    function show(id) {
+      var target = document.getElementById('er-' + id);
+      if (!target) return;
+      for (var i = 0; i < views.length; i++) views[i].classList.remove('show');
+      // force reflow so the fade-in animation re-fires even on the same view
+      void target.offsetWidth;
+      target.classList.add('show');
+      target.scrollTop = 0;
+      if (id === 'eyre') rebuildEyre();
+    }
+
+    // Bind the in-view HoL trigger: each click swaps the cover for a fresh
+    // nested iframe (which itself shows the cover until clicked, ad infinitum).
+    var holTrigger = document.getElementById('er-hol-trigger');
+    if (holTrigger) {
+      holTrigger.addEventListener('click', function(e){
+        e.stopPropagation();
+        nestHoL();
+      });
+    }
+
+    var covers = document.querySelectorAll('.er-cover');
+    for (var c = 0; c < covers.length; c++) {
+      (function(el){ el.addEventListener('click', function(){ show(el.dataset.book); }); })(covers[c]);
+    }
+    var homes = document.querySelectorAll('.er-home');
+    for (var h = 0; h < homes.length; h++) {
+      homes[h].addEventListener('click', function(){ show('lib'); });
+    }
+
+    // Boot view: #houseofleaves opens HoL directly (used by nested iframes).
+    var initial = (location.hash === '#houseofleaves') ? 'houseofleaves' : 'lib';
+    show(initial);
+  })();
+  </script>
+</body>
+</html>

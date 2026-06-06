@@ -1,0 +1,163 @@
+﻿<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  BOSSFIGHT — ZASHIKI-WARASHI — Hold'em vs. Agent Zashiki-Warashi (#3)    │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Boss #3. Visual register: federal-office institutional friendliness   │
+  │    with the floor falling out. Black soot-sprite silhouettes float       │
+  │    across the page; each carries a tiny gold FBI shield. A faded         │
+  │    federal seal watermarks the lower-right corner. Card backs are a      │
+  │    soot-sprite face. The boss's signature line — "Home life is sub-      │
+  │    optimal" — sits in his seat with the bureau dossier tag overhead.     │
+  │    Mechanics: shared BFHoldem + BFAI engine via page-generic.js.         │
+  │                                                                          │
+  │    DESIGN PLACEHOLDER. Persistence schema mirrors Chavez: key is         │
+  │    wendys_palace_boss_zashiki-warashi. Win → 'zashiki-warashi' beaten.   │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/bossfight/holdem.js, ../js/bossfight/ai.js,              │
+  │      ../js/bossfight/page-generic.js                                     │
+  │    css: ../css/base.css, ../css/bossfight/poker-base.css,                │
+  │      ../css/bossfight/zashiki-warashi.css                                │
+  │    inline route-guards: NONE (placeholder)                               │
+  │    window.BossConfig = { slug:'zashiki-warashi',                         │
+  │      name:'AGENT ZASHIKI-WARASHI',                                       │
+  │      startingStacks:{playerChips:100,oppChips:75},                       │
+  │      tells:{idle:'filing notes',thinking:'consulting protocol…',         │
+  │             busted:'transferred'} }                                      │
+  │    DOM ids: same shape as bossfight-chavez.html                          │
+  │    storage R/W:                                                          │
+  │      R/W: wendys_palace_boss_zashiki-warashi {active,complete,won,snap}  │
+  │      W (on win): wendys_palace_bosses_beaten (+= 'zashiki-warashi')      │
+  │    routes out: index.html (via end-splash Back button)                   │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Zashiki-Warashi vs. You — Fortuna's Palace</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bossfight/poker-base.css">
+  <link rel="stylesheet" href="../css/bossfight/zashiki-warashi.css">
+</head>
+<body class="bf-body bf-theme-zashiki">
+
+  <header class="bf-header">
+    <h1 class="bf-title">AGENT ZASHIKI-WARASHI <span class="bf-vs">vs.</span> YOU</h1>
+    <div class="bf-meta">
+      Hand <span id="bf-hand">1</span>
+      <span class="bf-meta-sep">·</span>
+      Blinds <span id="bf-blinds">1/2</span>
+    </div>
+  </header>
+
+  <main class="bf-table">
+
+    <section class="bf-seat bf-seat-chavez" id="bf-chavez-seat">
+      <div class="bf-seat-head">
+        <div class="bf-seat-name">AGENT ZASHIKI-WARASHI <span class="bf-seat-tag">FBI</span></div>
+        <div class="bf-boss-tell" id="bf-boss-tell">filing notes</div>
+        <div class="bf-bet" id="bf-chavez-bet"></div>
+      </div>
+      <div class="bf-last-move" id="bf-chavez-last">last move · —</div>
+      <p class="bf-zw-quote" style="margin:0 0 8px;font-family:'VT323',monospace;font-size:15px;color:var(--bf-fg-dim);line-height:1.45;letter-spacing:0.02em;">
+        "Home life is <strong style="color:var(--bf-danger);font-weight:400;">sub-optimal</strong>. Potential for creating larger disturbances within society later."
+      </p>
+      <div class="bf-cards bf-cards-chavez" id="bf-chavez-cards"></div>
+    </section>
+
+    <section class="bf-felt">
+      <div class="bf-street" id="bf-street">PREFLOP</div>
+      <div class="bf-boss-avatar" id="bf-boss-avatar" aria-hidden="true"></div>
+      <div class="bf-turn-status" id="bf-turn-status">— hand begins —</div>
+      <div class="bf-community" id="bf-community"></div>
+    </section>
+
+    <section class="bf-seat bf-seat-player" id="bf-player-seat">
+      <div class="bf-seat-head">
+        <div class="bf-seat-name">YOU</div>
+      </div>
+
+      <div class="bf-announce" id="bf-announce" aria-live="polite"></div>
+
+      <div class="bf-stakes" id="bf-stakes">
+        <div class="bf-stakes-side bf-stakes-you">
+          <span class="bf-stakes-label">YOU</span>
+          <span class="bf-stakes-value" id="bf-stakes-player">100</span>
+        </div>
+        <div class="bf-stakes-mid" id="bf-stakes-mid">
+          <span class="bf-stakes-label">POT</span>
+          <span class="bf-stakes-value bf-stakes-pot-value" id="bf-stakes-pot">0</span>
+          <span class="bf-stakes-sub" id="bf-stakes-call"></span>
+        </div>
+        <div class="bf-stakes-side bf-stakes-them">
+          <span class="bf-stakes-label">ZW</span>
+          <span class="bf-stakes-value" id="bf-stakes-chavez">75</span>
+        </div>
+      </div>
+
+      <div class="bf-bet" id="bf-player-bet"></div>
+
+      <div class="bf-actions" id="bf-actions">
+        <div class="bf-action-row">
+          <button class="bf-action bf-action-fold" id="bf-act-fold" type="button">Fold</button>
+          <button class="bf-action bf-action-passive" id="bf-act-passive" type="button">Check</button>
+          <button class="bf-action bf-action-aggro" id="bf-act-aggro" type="button">Bet 2</button>
+        </div>
+        <div class="bf-sizing" id="bf-sizing">
+          <div class="bf-preset-row">
+            <button class="bf-preset" data-preset="min"  type="button">Min</button>
+            <button class="bf-preset" data-preset="half" type="button">½ Pot</button>
+            <button class="bf-preset" data-preset="pot"  type="button">Pot</button>
+            <button class="bf-preset" data-preset="all"  type="button">All-in</button>
+          </div>
+          <div class="bf-slider-row">
+            <input type="range" id="bf-raise-amount" min="0" max="0" value="0">
+            <div class="bf-size-value">to <span id="bf-raise-value">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bf-cards bf-cards-player" id="bf-player-cards"></div>
+      <div class="bf-hand-strength" id="bf-hand-strength"></div>
+    </section>
+
+  </main>
+
+  <div class="bf-log" id="bf-log"></div>
+
+  <script>
+    window.BossConfig = {
+      slug: 'zashiki-warashi',
+      name: 'AGENT ZASHIKI-WARASHI',
+      startingStacks: { playerChips: 100, oppChips: 75 },
+      tells: { idle: 'filing notes', thinking: 'consulting protocol…', busted: 'transferred' },
+      // Soot-sprite eyes in dossier brackets. FBI badge clips beside via
+      // zashiki-warashi.css.
+      avatarFrames: {
+        lost:    ['[ ✗_✗ ]', '[ x_x ]', '[ ✗_✗ ]', '[ ⨯_⨯ ]'],
+        losing:  ['[ ●;_● ]', '[ ●~● ]', '[ ●;_● ]', '[ ◐_◑ ]'],
+        average: ['[ ●_● ]', '[ ●.● ]', '[ ●_● ]', '[ ●—● ]'],
+        winning: ['[ ●ᴗ● ]', '[ ●.● ]', '[ ●ᴗ● ]', '[ ◕_◕ ]'],
+        won:     ['[ ◕‿◕ ]', '[ ◕.◕ ]', '[ ◕‿◕ ]', '[ ◔‿◔ ]'],
+      },
+      // Passive trapper — calls a lot, raises seldom, slow-plays the
+      // good ones. Tight but very call-happy.
+      aiStyle: {
+        bluffFreq:  0.4,
+        tightness:  1.1,
+        aggression: 0.7,
+        loose:      1.4,
+        mixedness:  0.8,
+      },
+    };
+  </script>
+  <script src="../js/bossfight/audio.js"></script>
+  <script src="../js/bossfight/holdem.js"></script>
+  <script src="../js/bossfight/ai.js"></script>
+  <script src="../js/bossfight/page-generic.js"></script>
+</body>
+</html>

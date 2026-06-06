@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GONEGAISHIMASU — 9×9 bottle-cap Go sharpied onto an old pizza box       │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    9×9 Go drawn in sharpie on an old greasy Large Luigi's Pizza box,     │
+  │    in the back of a bar-band's Econoline — bottle caps for stones,       │
+  │    milk crate for a stool, beer-can ring stains on the box top. Game     │
+  │    begin says "Onegaishimasu" (Go etiquette: please be kind to me).      │
+  │    You play the RED caps (your half of the coffee can); the opponent     │
+  │    plays the BLUE caps. Red moves first; blue gets 6.5 komi. Opponent    │
+  │    rank scales with difficulty: ROADIE / OPENER / DRUMMER / HEADLINER.   │
+  │    Three re-flips per game (each undoes your last cap AND the            │
+  │    opponent's reply). Pass / fold (resign) always available. Two passes  │
+  │    end it — caps counted, komi added to blue.                            │
+  │    The READ THE BOARD toggle paints territory + influence tints on       │
+  │    empty intersections so you can see who controls what at a glance.     │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, bet-input.js, expenses.js, child.js,                │
+  │      go/board.js, go/ai.js, go/sequencer.js (Web-Audio pad               │
+  │      sequencer), go/translate-trap.js (Chrome auto-translate             │
+  │      hijack), go/page.js, header.js                                      │
+  │    assets: ../assets/images/bottlecapred.png (player cap bitmap;         │
+  │      preloaded), ../assets/images/bottlecapblue.png (house cap bitmap),  │
+  │      ../assets/images/cardboard.jpeg (board surface, center cropped)     │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #go-canvas, #go-status, #go-result,                │
+  │      #go-difficulty (knob wrap; .go-knob-mark children + data-level on   │
+  │      the wrap drives the chrome dial rotation + mountain scroll speed),  │
+  │      #go-wager, #go-wager-max, #go-begin, #go-pass, #go-resign,          │
+  │      #go-takeback, #go-takebacks-left, #go-captures-b, #go-captures-w,   │
+  │      #go-tomove, #go-show-control, #go-key (cycles minor-pent root       │
+  │      through 12 chromatic keys), #go-bpm (sequencer BPM 40-240),         │
+  │      #go-pieces (rolling-tail length 1-81 — how many recent caps sing),  │
+  │      #go-estimate, #go-est-b, #go-est-w,                                 │
+  │      #go-est-d, #go-bump-flash (full-page overlay), #go-pay-summary,     │
+  │      #go-rules-body (Chinese game rules; when Chrome's auto-translate    │
+  │      fires, translate-trap.js swaps the chrome to Spanish and the rules  │
+  │      body to the Spanish synth-engine manual — wrong target language,    │
+  │      wrong document), #debug-reset                                       │
+  │    flow: page.js init → bind controls → idle (pre-game) → beginGame:     │
+  │      Wallet.spend(ceil(stake*1.1)), Child.recordPlay, new board, draw;   │
+  │      player click → tryPlay; if legal, schedule AI reply (setTimeout);   │
+  │      AI plays via GoAI.chooseMove(state, difficulty); two passes end →   │
+  │      score+komi → settle: if winner==BLACK → Wallet.add(stake*winMult)   │
+  │    storage R/W: sinnerbox (Wallet), wendys_palace_child,                 │
+  │      wendys_palace_intro_seen (R), wendys_palace_death (R)               │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Gonegaishimasu — 9×9 围棋(面包车里)</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/go/go.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body class="go-body">
+  <div id="go-bump-flash" class="go-bump-flash" aria-hidden="true"></div>
+  <header>
+    <h1 class="go-title">Gonegaishimasu</h1>
+    <p class="go-subtitle">gg;hf</p>
+    <div class="coins-bar">
+      <span class="coins-label">硬币</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">重置</button>
+    </div>
+  </header>
+
+  <main>
+    <details class="go-rules">
+      <summary>玩法 — 围棋规则</summary>
+      <div class="go-rules-body" id="go-rules-body">
+        <p>红色盖子是你的;同伴持<strong>蓝色</strong>盖子。红先。蓝得 <strong>6.5 贴目</strong>(让分,9×9 通用)以补后手。</p>
+        <ul>
+          <li>点击纸盒上的空交叉点放下一颗盖子。无气者从盘上拿走。不许自杀;不许立即提劫。</li>
+          <li><strong>悔棋:每局三次。</strong>撤回你最后一颗盖子,<em>连同</em>对手的回应一并归还咖啡罐。</li>
+          <li>无可下时<strong>弃权</strong>(敲一下盒子)。连续两次弃权,对局结束。</li>
+          <li><strong>认输</strong>:抽身走人。下注归零。</li>
+          <li>数子:盘上盖子 + 独占领地。总数高者胜(蓝方加 6.5 贴目)。</li>
+        </ul>
+        <p class="go-rules-pay"><strong>赌账。</strong>入场费:<code>下注 × 1.1</code>(剩下的 0.1 维持灯火)。胜利按 <code>下注 × 倍数</code> 计:侍女 2× · 嫔 4× · 贵妃 8× · 皇后 16×。</p>
+      </div>
+    </details>
+
+    <section class="go-floor">
+      <div class="go-board-wrap">
+        <div class="go-status-row">
+          <div class="go-status-cell">
+            <span class="go-status-label">下一手</span>
+            <span class="go-status-val" id="go-tomove">—</span>
+          </div>
+          <div class="go-status-cell">
+            <span class="go-status-label">提子 (红/蓝)</span>
+            <span class="go-status-val"><span id="go-captures-b">0</span> · <span id="go-captures-w">0</span></span>
+          </div>
+          <div class="go-status-cell">
+            <span class="go-status-label">悔棋剩余</span>
+            <span class="go-status-val" id="go-takebacks-left">3</span>
+          </div>
+          <div class="go-status-cell go-status-cell-wide">
+            <span class="go-status-label">估算 (红/蓝+贴目)</span>
+            <span class="go-status-val" id="go-estimate"><span id="go-est-b">0</span> · <span id="go-est-w">6.5</span> <span class="go-est-dame">(单官 <span id="go-est-d">81</span>)</span></span>
+          </div>
+        </div>
+        <div class="go-canvas-wrap">
+          <canvas id="go-canvas" width="540" height="540" aria-label="9×9 瓶盖围棋(披萨盒)"></canvas>
+        </div>
+        <div class="go-status" id="go-status">选择对手。下注。开局。</div>
+        <div class="go-result" id="go-result"></div>
+      </div>
+
+      <aside class="go-panel">
+        <section class="go-setup">
+          <h3 class="go-section-title">下注台</h3>
+
+          <div class="go-diff-row">
+            <label class="go-label">对手 — 转动旋钮</label>
+            <div class="go-knob-wrap" id="go-difficulty" role="radiogroup" aria-label="对手等级旋钮" data-level="1">
+              <div class="go-knob" aria-hidden="true">
+                <div class="go-knob-tick go-knob-tick-1"></div>
+                <div class="go-knob-tick go-knob-tick-2"></div>
+                <div class="go-knob-tick go-knob-tick-3"></div>
+                <div class="go-knob-tick go-knob-tick-4"></div>
+                <div class="go-knob-body">
+                  <div class="go-knob-pointer"></div>
+                </div>
+              </div>
+              <div class="go-knob-marks">
+                <button class="go-knob-mark" type="button" role="radio" data-level="1" aria-checked="true">
+                  <span class="go-knob-mark-num">1</span>
+                  <span class="go-knob-mark-name">侍女</span>
+                  <span class="go-knob-mark-pay">2×</span>
+                </button>
+                <button class="go-knob-mark" type="button" role="radio" data-level="2" aria-checked="false">
+                  <span class="go-knob-mark-num">2</span>
+                  <span class="go-knob-mark-name">嫔</span>
+                  <span class="go-knob-mark-pay">4×</span>
+                </button>
+                <button class="go-knob-mark" type="button" role="radio" data-level="3" aria-checked="false">
+                  <span class="go-knob-mark-num">3</span>
+                  <span class="go-knob-mark-name">贵妃</span>
+                  <span class="go-knob-mark-pay">8×</span>
+                </button>
+                <button class="go-knob-mark" type="button" role="radio" data-level="4" aria-checked="false">
+                  <span class="go-knob-mark-num">4</span>
+                  <span class="go-knob-mark-name">皇后</span>
+                  <span class="go-knob-mark-pay">16×</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="go-wager-row">
+            <label class="go-label" for="go-wager">下注额</label>
+            <input id="go-wager" type="number" min="1" value="5" inputmode="numeric" autocomplete="off" data-bet-input>
+            <button id="go-wager-max" class="go-btn go-btn-small" type="button">最大</button>
+          </div>
+
+          <div class="go-pay-summary" id="go-pay-summary">
+            成本 <span class="go-pay-cost">6</span> · 奖池 <span class="go-pay-win">10</span>
+          </div>
+
+          <button id="go-begin" class="go-btn go-btn-begin" type="button">Onegaishimasu</button>
+        </section>
+
+        <section class="go-actions">
+          <h3 class="go-section-title">棋盘</h3>
+          <button id="go-show-control" class="go-btn go-btn-toggle" type="button" aria-pressed="true">读盘</button>
+          <button id="go-key" class="go-btn go-btn-key" type="button" aria-label="调式 (小调)">Am</button>
+          <div class="go-wager-row go-seq-row">
+            <label class="go-label" for="go-bpm">BPM</label>
+            <input id="go-bpm" type="number" min="40" max="240" value="90" inputmode="numeric" autocomplete="off">
+          </div>
+          <div class="go-wager-row go-seq-row">
+            <label class="go-label" for="go-pieces">余响</label>
+            <input id="go-pieces" type="number" min="1" max="81" value="10" inputmode="numeric" autocomplete="off">
+          </div>
+          <button id="go-pass" class="go-btn" type="button" disabled>弃权</button>
+          <button id="go-takeback" class="go-btn" type="button" disabled>悔棋</button>
+          <button id="go-resign" class="go-btn go-btn-resign" type="button" disabled>认输</button>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/go/board.js"></script>
+  <script src="../js/go/ai.js"></script>
+  <script src="../js/go/sequencer.js"></script>
+  <script src="../js/go/translate-trap.js"></script>
+  <script src="../js/go/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

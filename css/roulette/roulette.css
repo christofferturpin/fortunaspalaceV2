@@ -1,0 +1,502 @@
+/* Russian Roulette — dirty meat locker */
+
+body {
+  background: transparent;
+  color: #c8b8a4;
+  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* ==================== MEAT LOCKER SCENE ==================== */
+
+.rr-locker {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Subway-tile wall, dim and yellow-stained */
+.rr-tile-wall {
+  position: absolute;
+  inset: 0;
+  background:
+    /* grout (vertical) */
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.55) 0,
+      rgba(0, 0, 0, 0.55) 2px,
+      transparent 2px,
+      transparent 70px
+    ),
+    /* grout (horizontal, offset rows) */
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.55) 0,
+      rgba(0, 0, 0, 0.55) 2px,
+      transparent 2px,
+      transparent 38px
+    ),
+    /* tile color with vertical light fall-off */
+    linear-gradient(180deg, #4a4036 0%, #3a3028 30%, #221a14 70%, #100a08 100%),
+    /* sickly green tint near top */
+    linear-gradient(180deg, rgba(80, 110, 70, 0.18) 0%, transparent 45%);
+  background-blend-mode: normal, normal, normal, screen;
+}
+
+/* Stagger the tile rows (offset every other row) */
+.rr-tile-wall::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.45) 0,
+      rgba(0, 0, 0, 0.45) 2px,
+      transparent 2px,
+      transparent 70px
+    );
+  background-position: 35px 0;
+  mask: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 38px,
+    #000 38px,
+    #000 76px
+  );
+  -webkit-mask: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 38px,
+    #000 38px,
+    #000 76px
+  );
+}
+
+/* Floor: tighter grout pattern + downward fade */
+.rr-grout-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.65) 0,
+      rgba(0, 0, 0, 0.65) 2px,
+      transparent 2px,
+      transparent 50px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.65) 0,
+      rgba(0, 0, 0, 0.65) 2px,
+      transparent 2px,
+      transparent 50px
+    ),
+    linear-gradient(180deg, #1a1410 0%, #050402 100%);
+  /* fake perspective: scale wider toward viewer */
+  transform: perspective(500px) rotateX(58deg);
+  transform-origin: 50% 0;
+}
+
+/* Grime / mold — soft brown-green blotches via radial gradients */
+.rr-grime {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 220px 90px at 18% 22%, rgba(70, 55, 30, 0.35), transparent 70%),
+    radial-gradient(ellipse 180px 70px at 84% 36%, rgba(50, 60, 30, 0.32), transparent 70%),
+    radial-gradient(ellipse 280px 110px at 55% 78%, rgba(40, 30, 20, 0.45), transparent 75%),
+    radial-gradient(ellipse 140px 60px at 8% 64%, rgba(60, 40, 20, 0.28), transparent 75%),
+    radial-gradient(ellipse 160px 70px at 95% 88%, rgba(40, 50, 25, 0.4), transparent 75%);
+  mix-blend-mode: multiply;
+  opacity: 0.95;
+}
+
+/* Faded stencil text on the wall */
+.rr-stencil {
+  position: absolute;
+  top: 6%;
+  left: 4%;
+  font-family: 'Special Elite', 'Courier Prime', 'Courier New', monospace;
+  font-size: 14px;
+  letter-spacing: 0.35em;
+  color: rgba(184, 0, 31, 0.28);
+  transform: rotate(-2deg);
+  text-shadow: 0 0 1px rgba(184, 0, 31, 0.18);
+  white-space: nowrap;
+}
+
+/* Hanging chain (above the bulb) */
+.rr-chain {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 28px;
+  height: 110px;
+  transform: translateX(-50%);
+  transform-origin: 50% 0;
+  animation: rr-sway 6.4s ease-in-out infinite;
+}
+
+/* Bulb */
+.rr-bulb-wrap {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  transform-origin: 50% -90px;
+  animation: rr-sway 6.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.rr-bulb {
+  display: block;
+  width: 70px;
+  height: 130px;
+  filter: drop-shadow(0 0 18px rgba(255, 200, 90, 0.45));
+  animation: rr-bulb-flicker 5.2s steps(1) infinite;
+}
+
+.rr-bulb-glow {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  width: 900px;
+  height: 900px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(255, 220, 140, 0.35) 0%,
+    rgba(255, 180, 90, 0.15) 18%,
+    rgba(180, 90, 30, 0.08) 38%,
+    transparent 65%
+  );
+  pointer-events: none;
+  animation: rr-bulb-flicker 5.2s steps(1) infinite;
+}
+
+/* Meat hooks in the corners */
+.rr-hook {
+  position: absolute;
+  top: 0;
+  width: 90px;
+  height: 280px;
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.7));
+}
+.rr-hook-left  { left: 6%; transform: rotate(-3deg); }
+.rr-hook-right { right: 6%; transform: scaleX(-1) rotate(-3deg); }
+
+/* Blood stains (full-screen SVG) */
+.rr-stains {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6));
+}
+
+/* Edges of the room: heavy vignette */
+.rr-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 35%, transparent 0%, transparent 40%, rgba(0, 0, 0, 0.65) 80%, #000 100%),
+    linear-gradient(180deg, transparent 60%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+@keyframes rr-sway {
+  0%, 100% { transform: translateX(-50%) rotate(-1.4deg); }
+  50%      { transform: translateX(-50%) rotate(1.4deg); }
+}
+
+@keyframes rr-bulb-flicker {
+  0%, 7%, 9%, 100%   { opacity: 1; }
+  8%                  { opacity: 0.4; }
+  43%, 47%            { opacity: 1; }
+  44%                 { opacity: 0.55; }
+  45%                 { opacity: 0.85; }
+  46%                 { opacity: 0.3; }
+  78%                 { opacity: 0.7; }
+  79%                 { opacity: 1; }
+}
+
+/* ==================== HEADER ==================== */
+
+header {
+  text-align: center;
+  width: 100%;
+  max-width: 720px;
+  position: relative;
+  margin-bottom: 20px;
+  z-index: 1;
+}
+
+.header-nav {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.header-nav a {
+  color: #8a7060;
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+.header-nav a:hover { color: #b8001f; opacity: 1; }
+
+h1 {
+  font-family: 'IM Fell English', 'Pirata One', serif;
+  font-style: italic;
+  font-weight: 700;
+  color: #cdb8a4;
+  font-size: 56px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+  text-shadow:
+    0 0 2px rgba(255, 245, 230, 0.6),
+    2px 4px 0 #5a0010,
+    4px 8px 0 #2a0008,
+    0 14px 22px rgba(140, 0, 24, 0.75),
+    0 0 44px rgba(184, 0, 31, 0.4);
+}
+
+.rr-subtitle {
+  font-style: italic;
+  color: #8a7060;
+  margin: 0 0 12px;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.coins-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  background: rgba(20, 14, 10, 0.92);
+  border: 1px solid #3a3032;
+  padding: 4px 14px;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.coins-bar .coins-label {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8a7060;
+  font-size: 13px;
+}
+
+#balance {
+  color: #1aff7f;
+  font-weight: 700;
+  font-size: 22px;
+}
+
+/* ==================== MAIN ==================== */
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  margin-top: 12px;
+  text-align: center;
+  z-index: 1;
+}
+
+.rr-status {
+  font-size: 18px;
+  font-style: italic;
+  color: #b8a098;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* ==================== REVOLVER STAGE ==================== */
+
+.rr-stage {
+  position: relative;
+  width: clamp(280px, 64vmin, 480px);
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0 8px;
+}
+
+/* Soft pool of light beneath the gun */
+.rr-stage-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -12%;
+  width: 110%;
+  height: 30%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse 60% 100% at 50% 50%,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.5) 50%,
+    transparent 80%
+  );
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+.rr-revolver {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter:
+    drop-shadow(0 12px 18px rgba(0, 0, 0, 0.85))
+    drop-shadow(0 0 24px rgba(0, 0, 0, 0.6));
+  transform-origin: 50% 50%;
+}
+
+.rr-revolver.is-firing {
+  animation: rr-recoil 0.42s ease-out;
+}
+
+.rr-revolver.is-shake {
+  animation: rr-spin-shake 0.18s ease-in-out infinite;
+}
+
+.rr-cylinder {
+  transform-origin: 0 0;
+  /* JS drives transform via requestAnimationFrame */
+}
+
+.rr-flash {
+  transform-origin: 0 0;
+  opacity: 0;
+}
+
+.rr-flash.is-flash {
+  animation: rr-flash 0.34s ease-out forwards;
+}
+
+@keyframes rr-flash {
+  0%   { opacity: 0;   r: 0;   }
+  10%  { opacity: 1;   r: 360; }
+  40%  { opacity: 0.9; r: 480; }
+  100% { opacity: 0;   r: 600; }
+}
+
+@keyframes rr-recoil {
+  0%   { transform: translateZ(0) scale(1); }
+  20%  { transform: translate(0, -6px) scale(1.18); }
+  60%  { transform: translate(0, 4px)  scale(1.04); }
+  100% { transform: translateZ(0) scale(1); }
+}
+
+@keyframes rr-spin-shake {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(0.6px, -0.4px); }
+}
+
+/* ==================== TRIGGER + RESULT ==================== */
+
+.rr-trigger {
+  font-family: 'Pirata One', serif;
+  font-size: 32px;
+  color: #d8c8b0;
+  background: linear-gradient(180deg, #2a0608 0%, #4a0a10 100%);
+  border: 2px solid #b8001f;
+  padding: 14px 36px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 14px rgba(184, 0, 31, 0.45),
+    0 0 0 1px rgba(0, 0, 0, 0.4);
+  transition: transform 0.1s, background 0.15s, box-shadow 0.15s;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.rr-trigger:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4a0a10 0%, #6e0014 100%);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 6px 18px rgba(184, 0, 31, 0.6);
+}
+
+.rr-trigger:active:not(:disabled) { transform: translateY(0); }
+.rr-trigger:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.rr-result {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 22px;
+  min-height: 1.5em;
+  color: #d8c8b0;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+}
+
+.rr-result.survive {
+  color: #a4b58a;
+}
+
+.rr-result.death {
+  color: #b8001f;
+  font-family: 'Pirata One', serif;
+  font-style: normal;
+  font-size: 36px;
+  letter-spacing: 0.08em;
+  text-shadow:
+    0 0 8px rgba(184, 0, 31, 0.8),
+    0 0 18px rgba(184, 0, 31, 0.4);
+}
+
+.rr-counter {
+  font-family: 'Cinzel', 'Special Elite', serif;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8a7060;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* Death blackout flash */
+.rr-blackout {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9999;
+  transition: opacity 0.45s ease-in;
+}
+
+.rr-blackout.is-on {
+  opacity: 1;
+}
+
+.rr-blackout.is-burst {
+  background: radial-gradient(circle at 50% 50%, #fff 0%, #ffd060 12%, #ff5a00 30%, #6e0014 60%, #000 90%);
+  opacity: 1;
+  transition: opacity 0.06s linear;
+}
+
+@media (max-width: 720px) {
+  h1 { font-size: 44px; }
+  .rr-stencil { font-size: 11px; }
+  .rr-hook { width: 70px; height: 220px; }
+  .rr-trigger { font-size: 26px; padding: 12px 28px; }
+}

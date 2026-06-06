@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  DICE PRISM — triangular d4 + side-9 triangle grid (scratch sandbox)     │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A side-9 triangle grid (81 small △/▽ cells, 55 vertices) with a       │
+  │    laser emitter pinned to vertex (4, 0) on the left edge. The emitter   │
+  │    has toggles for its output color (W/R/G/B) and outgoing direction    │
+  │    (0..5 = E/SE/SW/W/NW/NE). The beam travels along grid lines, hopping │
+  │    vertex-to-vertex along one of six 60°-spaced directions — the light  │
+  │    literally runs along the points of the lattice.                     │
+  │    Four triangular d4 dice sit in the sidebar tray. Click a tray die to │
+  │    pick it up. While held you can cycle its top face (W/R/G/B) and its │
+  │    rotation (cont/refr/refl), then click any empty triangle cell to    │
+  │    drop it onto the grid. Click a placed die to pick it up again.      │
+  │    When a beam crosses an edge of a die-occupied triangle T, the die   │
+  │    refracts at the arrival vertex into one or more of three available  │
+  │    outputs: cont (continue straight), refr (turn into T toward its     │
+  │    third vertex U), or refl (bounce back the way it came). A white     │
+  │    face on a white beam splits into all three at once — cont becomes   │
+  │    R, refr becomes G, refl becomes B (a true 3-way prism). Colored     │
+  │    faces filter or tint along the die's rotation pick; mismatched      │
+  │    colored beams are absorbed.                                         │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/dice-prism/page.js (standalone — no Wallet/Child gating)│
+  │    inline route-guards (top of <head>): none (scratch page)             │
+  │    DOM ids: #dp-canvas, #dp-emit-color, #dp-emit-dir, #dp-held,         │
+  │      #dp-tray, #dp-btn-emit-color, #dp-btn-emit-dir, #dp-btn-face,      │
+  │      #dp-btn-rot, #dp-btn-drop, #dp-btn-clear                           │
+  │    grid: L=9 → vertices (vr,vc) vr∈[0,L] vc∈[0,vr]; cells (cr,cc)       │
+  │      cr∈[0,L-1] cc∈[0,2*cr]; even cc=△, odd cc=▽                        │
+  │    flow: page.js init → buildGrid → bind canvas click + sidebar btns →  │
+  │      traceBeams hops vertex→vertex along 6 grid-line dirs; at each     │
+  │      arrival vertex, dies on cells containing the traversed edge       │
+  │      refract per prism rules.                                          │
+  │    prism rules: F='W'+C='W' → 3 beams (cont=R, refr=G, refl=B);        │
+  │      F='W'+C≠W → pass cont; F≠W+C='W' → tint to F per die.rot;         │
+  │      F=C → pass per die.rot; F≠C&&C≠W → absorbed.                      │
+  │    storage R/W: none                                                    │
+  │    routes out: ../pages/index.html (back to lobby)                      │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dice Prism</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/dice-prism.css">
+</head>
+<body>
+  <a class="lobby-pill" href="index.html" title="Back to Fortuna's Palace">← Lobby</a>
+  <header>
+    <h1>Dice Prism</h1>
+    <p class="dp-subtitle">triangle dice · 3-way prism · light hops along the lattice</p>
+  </header>
+
+  <main class="dp-board">
+    <div class="dp-canvas-wrap">
+      <canvas id="dp-canvas" aria-label="Triangle grid prism board"></canvas>
+    </div>
+
+    <aside class="dp-side">
+      <div class="dp-readout">
+        <span class="dp-readout-label">Emitter</span>
+        <span class="dp-readout-value" id="dp-emit-color">EMIT: W</span><br>
+        <span class="dp-readout-value" id="dp-emit-dir">DIR: 0 (E)</span>
+      </div>
+      <button id="dp-btn-emit-color" class="dp-btn" type="button">cycle emit color (W→R→G→B)</button>
+      <button id="dp-btn-emit-dir"   class="dp-btn" type="button">cycle emit dir (0→5)</button>
+
+      <div class="dp-readout">
+        <span class="dp-readout-label">Held die</span>
+        <span class="dp-readout-value" id="dp-held">empty</span>
+      </div>
+      <button id="dp-btn-face" class="dp-btn" type="button">cycle held face (W/R/G/B)</button>
+      <button id="dp-btn-rot"  class="dp-btn" type="button">cycle held rot (cont/refr/refl)</button>
+      <button id="dp-btn-drop" class="dp-btn" type="button">drop held back to tray</button>
+
+      <div class="dp-section-title">Tray</div>
+      <div id="dp-tray" class="dp-tray" aria-label="Available dice"></div>
+
+      <button id="dp-btn-clear" class="dp-btn" type="button">clear board (all dice → tray)</button>
+
+      <div class="dp-help">
+        <b>Click</b> a tray die to pick up. <b>Click</b> a triangle cell to place
+        / pick up.<br>
+        <b>W</b> face + <b>W</b> beam → splits 3 ways (cont=R, refr=G, refl=B).<br>
+        <b>Colored</b> face → filters or tints along the die's <b>rot</b>
+        (cont = straight, refr = bend into the triangle, refl = bounce back).<br>
+        Mismatched colored beams are absorbed.
+      </div>
+    </aside>
+  </main>
+
+  <script src="../js/dice-prism/page.js"></script>
+</body>
+</html>

@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  SHAREWARE POKER — 10 dealt, split LEFT 5 + RIGHT 5, two regular hands   │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Solo video poker on 38 cards (three suits 1–6 × two copies + two      │
+  │    wilds). Bet, deal 10 — five go to the LEFT row, five to the RIGHT.    │
+  │    All 10 cards START KEPT; click a card to mark it DISCARD. Draw        │
+  │    replaces the discarded cards. Then drag a card onto another to        │
+  │    swap their slots (move cards between the two hands). Each side is     │
+  │    scored independently as a standard 5-card poker hand; payouts sum.    │
+  │    Themed as a forgotten old-Mac System 7 preinstalled shareware game:   │
+  │    striped titlebar, 1-bit dithered desktop, Chicago/Geneva fonts,       │
+  │    outset 3D buttons, inverted-selection highlights, marching ants.      │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../css/base.css, ../js/wallet.js, ../js/expenses.js,           │
+  │      ../js/child.js, ../js/foresthoard/page.js, ../js/header.js          │
+  │      (header.js builds the floating .child-status widget; base.css       │
+  │       provides its gothic styling — deliberate Palace intrusion)         │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen   → splash.html                           │
+  │      wendys_palace_death.dead    → death.html                            │
+  │      any child stat <= 0         → child-died.html                       │
+  │      child.lockedUntil > now     → child.html                            │
+  │    DOM ids: #paytable, #hand-left, #hand-right, #preview-left,           │
+  │      #preview-right, #preview-total, #status, #flash, #bet-amount,       │
+  │      #bet-balance, #btn-deal, #btn-draw, #btn-suggest, #btn-new,         │
+  │      #btn-mute, #sort-rank, #sort-suit, #swap-counter                    │
+  │    flow: init → render IDLE → onDeal (spend bet, deal 10, phase=HOLD)    │
+  │      → click=hold → onDraw (replace !holds, phase=SWAP, swapsRem=1) →    │
+  │      click-pair OR drag=swap (cross-side decrements counter) →           │
+  │      onScore → DONE → scoreAndPay (bestEval each 5-card side, both pay). │
+  │      onSuggest at any HOLD/SWAP step: charge 50% of potential winnings,  │
+  │      auto-apply optimal holds (HOLD) or optimal ≤1 swap (SWAP).          │
+  │    storage R/W: via Wallet only (localStorage['sinnerbox'])              │
+  │    routes out: ../index.html (back to lobby)                             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shareware Poker</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <!-- base.css supplies the .child-status floating-widget styling that header.js renders into. -->
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+  <style>
+    :root {
+      --ink:           #0a0a0a;
+      --paper:         #FBFAF5;
+      --paper-shade:   #ECEAE0;
+      --paper-dim:     #c8c4b3;
+      --platinum:      #B0B0B0;
+      --platinum-hi:   #FFFFFF;
+      --platinum-lo:   #6c6c6c;
+      --selection:     #000000;
+      --selection-fg:  #FFFFFF;
+      --hold-stripe:   #000000;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: 'Geneva', 'Verdana', 'Lucida Grande', 'Tahoma', sans-serif;
+      font-size: 12px;
+      color: var(--ink);
+      line-height: 1.35;
+    }
+    body {
+      min-height: 100vh;
+      /* classic Mac desktop: 50% dither pattern on platinum gray */
+      background-color: var(--platinum);
+      background-image:
+        linear-gradient(45deg, var(--platinum-lo) 25%, transparent 25%, transparent 75%, var(--platinum-lo) 75%),
+        linear-gradient(45deg, var(--platinum-lo) 25%, transparent 25%, transparent 75%, var(--platinum-lo) 75%);
+      background-size: 2px 2px;
+      background-position: 0 0, 1px 1px;
+      padding: 14px;
+    }
+
+    /* ----- Menu bar (decorative, top of screen) ----- */
+    #menu-bar {
+      background: var(--platinum-hi);
+      border: 1px solid var(--ink);
+      height: 19px;
+      max-width: 1080px;
+      margin: 0 auto 8px;
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      font-family: 'Chicago', 'Charcoal', 'Geneva', sans-serif;
+      gap: 14px;
+      box-shadow: 1px 1px 0 var(--ink);
+    }
+    #menu-bar .apple { font-size: 11px; }
+    #menu-bar a, #menu-bar span.menu {
+      color: var(--ink); text-decoration: none;
+      font-size: 12px; padding: 1px 4px;
+      cursor: default;
+    }
+    #menu-bar a:hover { background: var(--selection); color: var(--selection-fg); }
+    #menu-bar .clock {
+      margin-left: auto;
+      font-family: 'Chicago', 'Geneva', monospace;
+      font-size: 11px;
+    }
+
+    /* ----- Application window ----- */
+    main {
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      max-width: 1080px;
+      margin: 0 auto;
+      box-shadow: 2px 2px 0 var(--ink);
+      padding: 0;
+    }
+    #titlebar {
+      position: relative;
+      height: 19px;
+      border-bottom: 1px solid var(--ink);
+      background-color: var(--paper);
+      /* Horizontal stripes (drag-handle) — classic System 7 */
+      background-image: repeating-linear-gradient(
+        0deg,
+        var(--ink) 0 1px,
+        transparent 1px 3px
+      );
+      display: flex;
+      align-items: center;
+    }
+    #titlebar .close-box {
+      width: 11px; height: 11px;
+      margin: 0 6px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+    }
+    #titlebar .title {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--paper);
+      padding: 0 8px;
+      font-family: 'Chicago', 'Charcoal', 'Geneva', sans-serif;
+      font-weight: bold;
+      font-size: 12px;
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+    #titlebar .zoom-box {
+      width: 11px; height: 11px;
+      margin-right: 6px;
+      margin-left: auto;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      position: relative;
+    }
+    #titlebar .zoom-box::after {
+      content: '';
+      position: absolute;
+      inset: 1px;
+      border: 1px solid var(--ink);
+    }
+    #window-body { padding: 10px 12px 12px; }
+
+    /* ----- Window header / about strip ----- */
+    #window-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 6px 4px 8px;
+      border-bottom: 1px dotted var(--platinum-lo);
+      margin-bottom: 8px;
+    }
+    /* ----- Window-header title — plain System 7 heading, no plaque ----- */
+    #window-header .app-title {
+      font-family: 'Chicago', 'ChicagoFLF', 'Charcoal', 'Geneva', sans-serif;
+      font-size: 22px;
+      font-weight: bold;
+      color: var(--ink);
+      line-height: 1;
+      letter-spacing: 0.01em;
+    }
+    #window-header .app-version {
+      color: var(--platinum-lo);
+      font-size: 10px;
+      font-family: 'Geneva', sans-serif;
+      align-self: flex-end;
+      padding-bottom: 2px;
+    }
+    #window-header .back-link {
+      margin-left: auto;
+      color: var(--ink);
+      text-decoration: underline;
+      font-size: 11px;
+      align-self: flex-end;
+      padding-bottom: 2px;
+    }
+    #window-header .back-link:hover { background: var(--selection); color: var(--selection-fg); text-decoration: none; }
+    @media (max-width: 720px) {
+      #window-header { flex-wrap: wrap; }
+      #window-header .app-title { font-size: 18px; }
+    }
+
+    /* ----- Reusable boxes ----- */
+    .mac-box {
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      box-shadow: 1px 1px 0 var(--platinum-lo);
+    }
+
+    /* ----- Rules accordion (as a Mac twist-down section) ----- */
+    #rules-accordion {
+      margin: 0 0 8px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+    }
+    #rules-accordion summary {
+      cursor: default;
+      padding: 3px 8px;
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 12px;
+      color: var(--ink);
+      list-style: none;
+      display: flex; align-items: center; gap: 6px;
+      user-select: none;
+      background: var(--paper-shade);
+      border-bottom: 1px solid var(--ink);
+    }
+    #rules-accordion:not([open]) summary { border-bottom: none; }
+    #rules-accordion summary::-webkit-details-marker { display: none; }
+    #rules-accordion summary::before {
+      content: '▸';
+      display: inline-block;
+      width: 8px;
+    }
+    #rules-accordion[open] summary::before { content: '▾'; }
+    #rules-accordion .rules-body {
+      padding: 8px 12px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    #rules-accordion h3 {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 12px;
+      margin: 8px 0 2px;
+    }
+    #rules-accordion h3:first-child { margin-top: 0; }
+    #rules-accordion p, #rules-accordion ol, #rules-accordion ul { margin: 2px 0; }
+    #rules-accordion ol, #rules-accordion ul { padding-left: 18px; }
+    #rules-accordion li { margin: 1px 0; }
+    #rules-accordion b { font-weight: bold; }
+
+    /* ----- Bet panel ----- */
+    #bet-panel {
+      margin: 0 0 8px; padding: 6px 8px;
+      background: var(--paper-shade);
+      border: 1px solid var(--ink);
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+    .bet-row { display: flex; align-items: center; gap: 6px; }
+    .bet-label {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 11px;
+    }
+    #bet-amount {
+      width: 64px; padding: 1px 4px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      border-radius: 0;
+      color: var(--ink);
+      font-family: 'Chicago', 'Geneva', 'Courier New', monospace;
+      font-size: 12px;
+      text-align: right;
+      /* inset look — top/left dark, bottom/right light (editable field) */
+      box-shadow: inset 1px 1px 0 var(--platinum-lo);
+    }
+    #bet-amount:focus { outline: 1px dotted var(--ink); outline-offset: 1px; }
+    .bet-balance {
+      font-family: 'Chicago', 'Geneva', monospace;
+      font-size: 11px;
+    }
+    .bet-balance b { font-weight: bold; }
+
+    /* ----- Paytable ----- */
+    #paytable {
+      margin: 0 0 8px; padding: 0;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0;
+    }
+    .pt-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      padding: 2px 8px;
+      font-size: 11px;
+      align-items: baseline;
+      border-bottom: 1px dotted var(--platinum-lo);
+    }
+    .pt-row:nth-child(2n) { border-left: 1px dotted var(--platinum-lo); }
+    .pt-row:nth-last-child(-n+2) { border-bottom: none; }
+    .pt-row .pt-name { font-family: 'Chicago', 'Geneva', sans-serif; }
+    .pt-row .pt-desc { color: var(--platinum-lo); font-size: 10px; font-style: italic; }
+    .pt-row .pt-pays {
+      font-family: 'Chicago', 'Geneva', monospace;
+      text-align: right; min-width: 3em;
+    }
+    /* preview = light dither pattern (selection 'about to be made') */
+    .pt-row.previewed {
+      background-image:
+        linear-gradient(45deg, var(--platinum-lo) 25%, transparent 25%, transparent 75%, var(--platinum-lo) 75%);
+      background-size: 2px 2px;
+      background-color: var(--paper-shade);
+    }
+    /* matched = inverted selection, classic Mac highlight */
+    .pt-row.matched {
+      background: var(--selection);
+      color: var(--selection-fg);
+    }
+    .pt-row.matched .pt-desc { color: #BBB; }
+
+    /* ----- Status + preview ----- */
+    #status {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 11px;
+      margin: 4px 0 6px;
+      padding: 3px 6px;
+      background: var(--paper-shade);
+      border: 1px solid var(--ink);
+      min-height: 1.4em;
+    }
+    #preview-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .preview-cell {
+      font-size: 11px;
+      min-height: 1.7em;
+      padding: 3px 6px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline;
+    }
+    .preview-cell .prev-label {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 0 3px;
+    }
+    .preview-cell .prev-name {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 11px;
+    }
+    .preview-cell .prev-name.prev-win { /* inverted on dark when win */ background: var(--ink); color: var(--paper); padding: 0 3px; }
+    .preview-cell .prev-name.prev-bust { color: var(--platinum-lo); }
+    .preview-cell .prev-sub { font-family: 'Courier New', monospace; color: var(--platinum-lo); font-size: 10px; }
+    .preview-cell .prev-pays {
+      font-family: 'Chicago', 'Geneva', monospace;
+      margin-left: auto;
+      font-weight: bold;
+    }
+    .preview-cell .prev-hint { color: var(--platinum-lo); font-style: italic; }
+    .preview-cell .prev-pays.void {
+      text-decoration: line-through;
+      color: var(--platinum-lo);
+      font-weight: normal;
+    }
+
+    /* ----- Combined-payout strip (under the two preview cells) ----- */
+    #preview-total {
+      display: flex; align-items: baseline; gap: 8px;
+      margin: 0 0 6px;
+      padding: 3px 8px;
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 11px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      min-height: 1.6em;
+    }
+    #preview-total:empty { display: none; }
+    #preview-total .ptot-label {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 0 4px;
+      letter-spacing: 0.04em;
+      font-size: 10px;
+    }
+    #preview-total .ptot-amt {
+      font-family: 'Chicago', 'Geneva', monospace;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    #preview-total .ptot-formula {
+      color: var(--platinum-lo);
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      margin-left: auto;
+    }
+    #preview-total .ptot-bust {
+      color: var(--platinum-lo);
+      font-style: italic;
+    }
+
+    /* ----- Sort bar ----- */
+    #sort-bar {
+      display: flex; gap: 4px; align-items: center;
+      margin: 4px 0 4px;
+      padding: 0 2px;
+      font-size: 11px;
+    }
+    #sort-bar .sort-label {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 11px;
+      color: var(--ink);
+    }
+    .sort-btn {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 11px;
+      padding: 1px 8px;
+      background: var(--paper);
+      color: var(--ink);
+      border: 1px solid var(--ink);
+      border-radius: 0;
+      cursor: default;
+      /* outset 3D */
+      box-shadow:
+        inset  1px  1px 0 var(--platinum-hi),
+        inset -1px -1px 0 var(--platinum-lo);
+    }
+    .sort-btn:active {
+      transform: translate(1px, 1px);
+      box-shadow: none;
+    }
+    .sort-btn.active {
+      background: var(--selection);
+      color: var(--selection-fg);
+      box-shadow:
+        inset  1px  1px 0 var(--platinum-lo),
+        inset -1px -1px 0 var(--ink);
+    }
+
+    /* ----- Two side-by-side hands ----- */
+    #hands-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 0 0 8px;
+    }
+    .hand-side {
+      background: var(--paper-shade);
+      border: 1px solid var(--ink);
+      padding: 8px 8px 10px;
+      overflow-x: auto;
+    }
+    .hand-label {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 11px;
+      margin-bottom: 6px;
+      text-align: center;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 1px 4px;
+      letter-spacing: 0.08em;
+    }
+    .hand-row {
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 250px;
+      flex-wrap: nowrap;
+    }
+
+    /* ----- Hand-empty state ----- */
+    .hand-empty {
+      color: var(--platinum-lo);
+      align-self: center;
+      margin: 110px auto;
+      font-style: italic;
+      font-size: 11px;
+    }
+
+    /* ----- Cards ----- */
+    .card-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      position: relative;
+      user-select: none;
+    }
+    .card {
+      font-family: 'Courier New', monospace; font-weight: bold;
+      width: 92px; height: 198px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      transition: transform 0.16s ease-out, filter 0.16s ease, box-shadow 0.16s ease;
+      border: 1px solid var(--ink);
+      padding: 0;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+      background-color: #1a1f18; /* CRT off-black behind the phosphor */
+      box-shadow: 1px 1px 0 var(--platinum-lo);
+      position: relative;
+      /* Light CRT cast — keep suits legible: only mild desaturation + a soft
+         green-tinted contrast bump. */
+      filter:
+        saturate(0.85)
+        contrast(1.06)
+        brightness(0.98);
+      isolation: isolate;
+    }
+    .card.fish { background-image: url('../assets/images/fishcard.png'); }
+    .card.fox  { background-image: url('../assets/images/foxcard.png'); }
+    .card.owl  { background-image: url('../assets/images/owlcard.png'); }
+    .card.wild[data-wild="bee"]   { background-image: url('../assets/images/beecard.png'); }
+    .card.wild[data-wild="child"] { background-image: url('../assets/images/childcard.png'); }
+    /* Lighter CRT scanlines — soft horizontal lines + gentle vignette only. */
+    .card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          rgba(0,0,0,0.18) 0 1px,
+          transparent 1px 3px
+        ),
+        radial-gradient(
+          ellipse at center,
+          transparent 65%,
+          rgba(0,0,0,0.22) 100%
+        );
+      mix-blend-mode: multiply;
+      z-index: 1;
+    }
+    /* Per-suit rank text — restored colors with a tight phosphor glow. */
+    .card-rank {
+      line-height: 1;
+      font-size: 2.4em;
+      position: relative;
+      z-index: 2; /* above scanlines */
+      text-shadow:
+        0 0 2px rgba(255, 255, 220, 0.85),
+        0 0 6px rgba(255, 240, 180, 0.40);
+    }
+    .card.fish .card-rank { color: #0a2f5f; }
+    .card.fox  .card-rank { color: #4a2200; }
+    .card.owl  .card-rank { color: #2a1262; }
+    .card.wild .card-rank { display: none; }
+
+    /* held = pixel-offset down (button press look) + black border thickening */
+    .card.held {
+      transform: translateY(-6px);
+      box-shadow:
+        0 0 0 2px var(--ink),
+        2px 2px 0 var(--ink);
+    }
+
+    /* winner = marching ants (animated dashed border via gradient stripes) */
+    .card.winner::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, var(--ink) 50%, transparent 50%) repeat-x  top    / 8px 2px,
+        linear-gradient(90deg, var(--ink) 50%, transparent 50%) repeat-x  bottom / 8px 2px,
+        linear-gradient(0deg,  var(--ink) 50%, transparent 50%) repeat-y  left   / 2px 8px,
+        linear-gradient(0deg,  var(--ink) 50%, transparent 50%) repeat-y  right  / 2px 8px;
+      animation: marchAnts 0.5s linear infinite;
+    }
+    @keyframes marchAnts {
+      to {
+        background-position:
+          8px top,
+         -8px bottom,
+          left  8px,
+          right -8px;
+      }
+    }
+    /* off-hand cards = secondary state on losing side cards after score.
+       Kept clearly readable — winners get marching ants for the contrast. */
+    .card.off-hand:not(.held) {
+      filter: saturate(0.75) brightness(0.95) contrast(0.98);
+      opacity: 0.88;
+    }
+
+    /* swap-pick = click-to-pair: first-tap highlight in SWAP phase. Mac
+       selection invert + a steady glow so it reads as "armed for swap". */
+    .card.swap-pick {
+      transform: translateY(-6px);
+      filter: brightness(1.05) contrast(1.05);
+      box-shadow:
+        0 0 0 3px var(--selection, #000),
+        2px 2px 0 var(--ink);
+      animation: swapPickPulse 0.9s steps(2, end) infinite;
+      z-index: 3;
+    }
+    @keyframes swapPickPulse {
+      0%, 49%   { outline: 2px dashed var(--paper); outline-offset: -2px; }
+      50%, 100% { outline: 2px dashed var(--ink);   outline-offset: -2px; }
+    }
+
+    /* drag visuals */
+    .card-wrap.dragging .card {
+      opacity: 0.35;
+      transform: scale(0.95);
+    }
+    .card-wrap.drag-over .card {
+      box-shadow:
+        0 0 0 2px var(--ink),
+        0 0 0 4px var(--platinum-hi),
+        0 0 0 5px var(--ink);
+      transform: translateY(-4px);
+    }
+
+    /* entrance: snappy step (less smooth, more Mac-like) */
+    .card.deal-in {
+      animation: cardDealIn 0.32s steps(6, end) both;
+      animation-delay: calc(var(--idx, 0) * 38ms);
+    }
+    @keyframes cardDealIn {
+      from { transform: translateY(-180px); opacity: 0; }
+      40%  { opacity: 1; }
+      to   { transform: translateY(0); opacity: 1; }
+    }
+    .card.flip-in {
+      animation: cardFlipIn 0.28s steps(5, end) both;
+      animation-delay: calc(var(--idx, 0) * 30ms);
+    }
+    @keyframes cardFlipIn {
+      from { transform: scaleX(0.1); opacity: 0; }
+      50%  { opacity: 1; }
+      to   { transform: scaleX(1); opacity: 1; }
+    }
+    .card.swap-pop { animation: swapInvert 0.24s steps(3, end); }
+    @keyframes swapInvert {
+      0%   { filter: none; }
+      33%  { filter: invert(1); }
+      66%  { filter: none; }
+      100% { filter: none; }
+    }
+
+    /* ----- Hold badge (under the card) ----- */
+    .hold-badge {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      color: var(--platinum-lo);
+      padding: 0 4px;
+      border: 1px solid transparent;
+      min-height: 1em;
+    }
+    .hold-badge.on {
+      color: var(--selection-fg);
+      background: var(--selection);
+      border-color: var(--ink);
+    }
+    /* ----- Controls (button row at bottom of window) ----- */
+    .controls {
+      margin: 0; padding: 6px 8px;
+      display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+      background: var(--paper-shade);
+      border: 1px solid var(--ink);
+    }
+    .controls button {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 11px;
+      padding: 2px 14px;
+      background: var(--paper);
+      color: var(--ink);
+      border: 1px solid var(--ink);
+      border-radius: 0;
+      cursor: default;
+      box-shadow:
+        inset  1px  1px 0 var(--platinum-hi),
+        inset -1px -1px 0 var(--platinum-lo);
+    }
+    .controls button:hover:not(:disabled) {
+      background: var(--paper-shade);
+    }
+    .controls button:active:not(:disabled) {
+      transform: translate(1px, 1px);
+      box-shadow:
+        inset  1px  1px 0 var(--platinum-lo),
+        inset -1px -1px 0 var(--platinum-hi);
+    }
+    .controls button:disabled {
+      color: var(--platinum-lo);
+      cursor: default;
+    }
+    .controls button:disabled::after {
+      /* classic Mac disabled = dotted overlay */
+      content: '';
+    }
+    /* Primary button (Deal) — Mac "default" button: bold thick black border */
+    .controls #btn-deal:not(:disabled) {
+      border: 2px solid var(--ink);
+      padding: 1px 13px;
+      font-weight: bold;
+    }
+    #swap-counter {
+      font-family: 'Chicago', 'Geneva', monospace;
+      font-size: 10px;
+      padding: 1px 6px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      letter-spacing: 0.04em;
+    }
+    #flash {
+      font-family: 'Chicago', 'Geneva', sans-serif;
+      font-size: 11px;
+      min-height: 1em;
+      margin-left: auto;
+      color: var(--ink);
+    }
+
+    /* ----- Status flash classes (driven by JS) ----- */
+    #status.win {
+      animation: statusBlink 0.6s steps(2, end) 3;
+    }
+    #status.bigwin {
+      animation: statusBlink 0.4s steps(2, end) 6;
+      font-weight: bold;
+    }
+    #status.lose {
+      color: var(--platinum-lo);
+      font-style: italic;
+    }
+    @keyframes statusBlink {
+      0%, 50%   { background: var(--paper-shade); color: var(--ink); }
+      51%, 100% { background: var(--ink); color: var(--paper); }
+    }
+
+    /* Big-win paytable flash */
+    .pt-row.matched.bigwin-flash { animation: rowFlash 0.45s steps(2, end) 5; }
+    @keyframes rowFlash {
+      0%, 50%   { background: var(--ink); color: var(--paper); }
+      51%, 100% { background: var(--paper); color: var(--ink); }
+    }
+
+    /* Wallet bump on credit */
+    #bet-balance.bump {
+      display: inline-block;
+      animation: balanceBump 0.4s steps(2, end);
+    }
+    @keyframes balanceBump {
+      0%, 49% { transform: translateY(-2px); }
+      50%,100%{ transform: translateY(0); }
+    }
+
+    /* Screen-shake for bigwin */
+    main.shake { animation: shake 0.35s steps(2, end) 3; }
+    @keyframes shake {
+      0%   { transform: translateX(0); }
+      25%  { transform: translateX(-2px); }
+      50%  { transform: translateX(2px); }
+      75%  { transform: translateX(-1px); }
+      100% { transform: translateX(0); }
+    }
+
+    /* ----- Stub windows below the main play area ----- */
+    #extra-windows {
+      max-width: 1080px;
+      margin: 12px auto 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .mac-window {
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+    .mac-titlebar {
+      position: relative;
+      height: 19px;
+      border-bottom: 1px solid var(--ink);
+      background-color: var(--paper);
+      background-image: repeating-linear-gradient(
+        0deg,
+        var(--ink) 0 1px,
+        transparent 1px 3px
+      );
+      display: flex;
+      align-items: center;
+    }
+    .mac-titlebar .close-box {
+      width: 11px; height: 11px;
+      margin: 0 6px;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+    }
+    .mac-titlebar .title {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--paper);
+      padding: 0 8px;
+      font-family: 'Chicago', 'Charcoal', 'Geneva', sans-serif;
+      font-weight: bold;
+      font-size: 12px;
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+    .mac-titlebar .zoom-box {
+      width: 11px; height: 11px;
+      margin-right: 6px;
+      margin-left: auto;
+      background: var(--paper);
+      border: 1px solid var(--ink);
+      position: relative;
+    }
+    .mac-titlebar .zoom-box::after {
+      content: '';
+      position: absolute;
+      inset: 1px;
+      border: 1px solid var(--ink);
+    }
+    .window-body { padding: 10px 12px 12px; }
+    .stub-window .window-body { min-height: 140px; }
+    .stub-empty {
+      display: block;
+      text-align: center;
+      color: var(--platinum-lo);
+      font-family: 'Geneva', sans-serif;
+      font-size: 11px;
+      font-style: italic;
+      padding: 38px 0;
+    }
+    @media (max-width: 720px) {
+      #extra-windows { grid-template-columns: 1fr; }
+    }
+
+    /* ----- Footer (about-this-app strip) ----- */
+    #appfooter {
+      max-width: 1080px;
+      margin: 6px auto 0;
+      font-size: 10px;
+      color: var(--ink);
+      text-align: center;
+      opacity: 0.7;
+      font-family: 'Chicago', 'Geneva', monospace;
+      text-shadow: 1px 1px 0 var(--platinum-hi);
+    }
+  </style>
+</head>
+<body>
+  <div id="menu-bar">
+    <span class="apple">◆</span>
+    <span class="menu">File</span>
+    <span class="menu">Edit</span>
+    <span class="menu">Game</span>
+    <span class="menu">Help</span>
+    <span class="clock" id="menubar-clock">—</span>
+  </div>
+  <main>
+    <div id="titlebar">
+      <div class="close-box" title="Close"></div>
+      <div class="title">Shareware Poker</div>
+      <div class="zoom-box" title="Zoom"></div>
+    </div>
+    <div id="window-body">
+      <div id="window-header">
+        <div class="app-title">Shareware Poker</div>
+        <span class="app-version">v1.0.3 — © 1993 Fortuna Softwerks</span>
+        <a class="back-link" href="../index.html">Quit to Finder</a>
+      </div>
+
+      <details id="rules-accordion">
+        <summary>About Shareware Poker…</summary>
+        <div class="rules-body">
+          <h3>The Deck</h3>
+          <p>38 cards: ranks 1–6 in three suits, two copies of every (rank, suit) pair,
+             plus two wild cards. Wilds substitute for any rank in any suit; the
+             classifier picks the highest-paying legal interpretation.</p>
+
+          <h3>How to Play</h3>
+          <ol>
+            <li>Place a bet, click <b>Deal</b>. Ten cards are dealt: five into the
+                <b>Left</b> hand, five into the <b>Right</b>. <b>All ten start
+                marked DISCARD by default.</b></li>
+            <li><b>Click</b> any card to mark it <b>HOLD</b> (click again to
+                un-mark). Click <b>Draw</b> — un-held cards in both hands are
+                replaced. You get exactly <b>one draw</b>.</li>
+            <li>After the draw you have <b>one swap</b>: <b>click</b> a card to
+                arm it, then click any second card to exchange their slots —
+                including across the LEFT/RIGHT line. (Drag-and-drop also
+                works.) Same-side reorders are free.</li>
+            <li>Click <b>Score</b> when ready. Both hands are scored against the
+                paytable.</li>
+          </ol>
+
+          <h3>Suggest Button</h3>
+          <p>The <b>Suggest</b> button applies the best play for you. In the
+             hold phase it picks which cards to keep through the draw; in the
+             swap phase it performs the optimal cross-side swap. It costs
+             <b>50% of the potential winnings</b> it unlocks (minimum 1 coin),
+             charged from your bank.</p>
+
+          <h3>Winning</h3>
+          <p><b>You must hit a paying hand on BOTH sides.</b> The floor is
+             <b>Two Pair</b>; anything weaker pays nothing on that side, and a
+             single empty side voids the whole round.</p>
+          <p>When both sides qualify, the payout formula is
+             <b>(left × + right × − 2) × bet</b>. The −2 is the house's share.
+             That means <b>any pair of floor hands (Two Pair / Straight / Three
+             of a Kind) on both sides busts</b> — the house tax eats them.
+             You need one side at Flush or better to scrape breakeven, and
+             profit kicks in beyond that. Matching Royal Flushes on both
+             sides return 18× the bet.</p>
+
+          <h3>Hand Rankings</h3>
+          <p>Standard 5-card poker. Royal Flush is the top straight flush (2-6 same suit).
+             Five of a Kind is only reachable through a wild. Pair and high-card hands
+             don't pay.</p>
+        </div>
+      </details>
+
+      <div id="bet-panel">
+        <div class="bet-row">
+          <span class="bet-label">Wager:</span>
+          <input id="bet-amount" type="number" min="1" step="1" value="10" />
+          <span style="color: var(--platinum-lo); font-size: 10px;">coins per deal</span>
+        </div>
+        <div class="bet-balance">Bank: <b id="bet-balance">…</b></div>
+      </div>
+
+      <div id="paytable"></div>
+
+      <div id="status"></div>
+      <div id="preview-row">
+        <div id="preview-left"  class="preview-cell"></div>
+        <div id="preview-right" class="preview-cell"></div>
+      </div>
+      <div id="preview-total"></div>
+
+      <div id="sort-bar">
+        <span class="sort-label">Arrange:</span>
+        <button id="sort-rank" class="sort-btn active">By Rank</button>
+        <button id="sort-suit" class="sort-btn">By Suit</button>
+      </div>
+      <div id="hands-row">
+        <div class="hand-side">
+          <div class="hand-label">LEFT HAND</div>
+          <div id="hand-left" class="hand-row"></div>
+        </div>
+        <div class="hand-side">
+          <div class="hand-label">RIGHT HAND</div>
+          <div id="hand-right" class="hand-row"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-deal">Deal</button>
+        <button id="btn-draw">Draw</button>
+        <button id="btn-suggest" title="Apply best play; costs 50% of potential winnings">Suggest</button>
+        <span id="swap-counter">Swap remaining: 1 / 1</span>
+        <button id="btn-new">Reset</button>
+        <button id="btn-mute" title="Toggle sound">Sound: On</button>
+        <span id="flash"></span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Stub windows below the main play area; user will fill later. -->
+  <section id="extra-windows" aria-label="Additional windows">
+    <aside class="mac-window stub-window">
+      <div class="mac-titlebar">
+        <div class="close-box" title="Close"></div>
+        <div class="title">Untitled-1</div>
+        <div class="zoom-box" title="Zoom"></div>
+      </div>
+      <div class="window-body stub-body"><span class="stub-empty">— empty document —</span></div>
+    </aside>
+    <aside class="mac-window stub-window">
+      <div class="mac-titlebar">
+        <div class="close-box" title="Close"></div>
+        <div class="title">Untitled-2</div>
+        <div class="zoom-box" title="Zoom"></div>
+      </div>
+      <div class="window-body stub-body"><span class="stub-empty">— empty document —</span></div>
+    </aside>
+    <aside class="mac-window stub-window">
+      <div class="mac-titlebar">
+        <div class="close-box" title="Close"></div>
+        <div class="title">Untitled-3</div>
+        <div class="zoom-box" title="Zoom"></div>
+      </div>
+      <div class="window-body stub-body"><span class="stub-empty">— empty document —</span></div>
+    </aside>
+  </section>
+
+  <div id="appfooter">Shareware Poker 1.0.3 · © 1993 Fortuna Softwerks · For System 7 or later</div>
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/foresthoard/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script>
+    // tiny live clock in the menu bar (decorative)
+    (function () {
+      const el = document.getElementById('menubar-clock');
+      function tick() {
+        if (!el) return;
+        const d = new Date();
+        let h = d.getHours();
+        const m = String(d.getMinutes()).padStart(2, '0');
+        const am = h < 12 ? 'AM' : 'PM';
+        h = ((h + 11) % 12) + 1;
+        el.textContent = `${h}:${m} ${am}`;
+      }
+      tick(); setInterval(tick, 30000);
+    })();
+  </script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

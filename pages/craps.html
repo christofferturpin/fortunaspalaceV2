@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  CRAPS — three dice that pay out in mini-golf (Stroke of Luck)           │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A three-row dice board. Each die has two red faces in fixed slots:   │
+  │    die 1 red on 1/2, die 2 red on 3/4, die 3 red on 5/6. Player picks   │
+  │    one bet from each row (top=ball count on sum, middle=value mult on   │
+  │    color/run, bottom=flat bonus on doubles). Roll: three dice tumble,   │
+  │    settle. Top miss → instant loss. Top hit → the putt-putt overlay     │
+  │    opens with N balls of perBall=ceil(wager·valueMult) each. Sink with  │
+  │    aim+power; each sink banks the per-ball pay. Bottom bonus applies    │
+  │    flat % of wager on top of putt winnings. A pixel nurse decoration    │
+  │    sits in the corner.                                                  │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, craps/sfx.js, craps/putt.js, │
+  │      craps/jackpot.js, craps/page.js, header.js                          │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │    DOM ids: #balance, #cp-die-1/2/3, .cp-spot[data-bet][data-row],       │
+  │      #cp-wager, #cp-wager-max, #cp-pick-top/middle/bottom, #cp-readout,  │
+  │      #cp-roll, #cp-clear, #cp-jackpot-banner, #cp-jackpot-amount,        │
+  │      #cp-putt-overlay, #cp-putt-canvas, #cp-putt-ball, #cp-putt-mult,    │
+  │      #cp-putt-payout, #cp-putt-won, #cp-putt-prompt,                     │
+  │      #cp-putt-power-fill, #cp-putt-close                                 │
+  │    flow: page.js init → bind spots/wager/roll/clear → onRoll:            │
+  │      Wallet.spend(wager) + Child.recordPlay → setInterval(tumble,70) +   │
+  │      settleTimes[820,980,1140]→renderDie + diceLand → settleRoll:        │
+  │      jackpot trigger [1,1,1]||[6,6,6] → CrapsJackpot.claim+Wallet.add;   │
+  │      top hit?{ballCount,valueMult,perBall=ceil(wager·mult),bonusCoins}   │
+  │      → CrapsPutt.show({...,onComplete(totalWon)→Wallet.add}); top miss   │
+  │      → CrapsJackpot.add(ceil(bal·1%),min 1) + SFX.loss                   │
+  │    storage R/W: sinnerbox (Wallet), wendys_palace_child (R/W via         │
+  │      Child.recordPlay), wendys_palace_craps_jackpot (R/W via             │
+  │      CrapsJackpot), wendys_palace_intro_seen (R),                        │
+  │      wendys_palace_death (R)                                             │
+  │    routes out: ../index.html (back), guard-routes to splash/death/child  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stroke of Luck</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/craps/craps.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body>
+  <header>
+    <h1>Stroke of Luck</h1>
+    <p class="cp-subtitle">Three dice. Three picks. A win earns you putts.</p>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+    </div>
+  </header>
+
+  <main>
+    <details class="cp-rules">
+      <summary>How it works</summary>
+      <div class="cp-rules-body">
+        <p>Three dice are rolled. Each die has two red faces and four black faces:</p>
+        <ul class="cp-rules-list">
+          <li><strong>Die 1</strong> — red on <span class="cp-pip cp-pip-red">1</span> <span class="cp-pip cp-pip-red">2</span>, black on 3-6</li>
+          <li><strong>Die 2</strong> — red on <span class="cp-pip cp-pip-red">3</span> <span class="cp-pip cp-pip-red">4</span>, black on 1, 2, 5, 6</li>
+          <li><strong>Die 3</strong> — red on <span class="cp-pip cp-pip-red">5</span> <span class="cp-pip cp-pip-red">6</span>, black on 1-4</li>
+        </ul>
+        <p>Pick <strong>one from each of the three rows</strong>, then roll. A top-row hit opens a putt-putt course where every ball you sink pays out; a top-row miss loses the wager outright.</p>
+        <ul class="cp-rules-list">
+          <li><strong>Top row</strong> — number of <strong>balls</strong> you get on the course (miss → no game).</li>
+          <li><strong>Middle row</strong> — per-ball <strong>value multiplier</strong> on a hit (×1.5 / ×2 / ×3). On a middle miss every sunk ball just pays back the wager.</li>
+          <li><strong>Bottom row</strong> — flat <strong>% of wager</strong> bonus on a hit. Pct = (100 − hit%) / 2, so the rarer pick pays more (No Doubles +22%, Doubles +28%).</li>
+        </ul>
+        <p>Per sunk ball = <em>wager × (middle hit ? middle.mult : 1)</em>. Missed balls pay nothing. Cost of a roll is just the wager. Bottom-row bonus is added on top of putt winnings.</p>
+
+        <p>If you miss the same course <strong>9 times in a row</strong>, the next ball gets a fresh layout — same ball budget, new hallway.</p>
+
+        <h4>The Jackpot</h4>
+        <p>Every losing roll drops <strong>1%</strong> of your Tribute (at least one coin) into the jackpot. It accrues across sessions and survives death. To claim it, roll <strong>1-1-1</strong> or <strong>6-6-6</strong> — the pot pays out on top of whatever the roll resolves to, even if your top bet missed.</p>
+
+        <table class="cp-paytable">
+          <thead><tr><th>Bet</th><th>Row</th><th>Condition</th><th>Chance</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td>Mid</td>        <td>Top</td>    <td>Sum 8-15</td>                <td>79.2%</td><td>3 balls</td></tr>
+            <tr><td>Low</td>        <td>Top</td>    <td>Sum 3-7</td>                 <td>16.2%</td><td>5 balls</td></tr>
+            <tr><td>High</td>       <td>Top</td>    <td>Sum 16-18</td>               <td>4.6%</td> <td>11 balls</td></tr>
+            <tr><td>All Black</td>  <td>Middle</td> <td>No red faces</td>            <td>29.6%</td><td>×1.5 value</td></tr>
+            <tr><td>Run</td>        <td>Middle</td> <td>3 consecutive, any order</td><td>11.1%</td><td>×2 value</td></tr>
+            <tr><td>All Red</td>    <td>Middle</td> <td>All red faces</td>           <td>3.7%</td> <td>×3 value</td></tr>
+            <tr><td>No Doubles</td> <td>Bottom</td> <td>All 3 dice different</td>    <td>55.6%</td><td>+22% of wager</td></tr>
+            <tr><td>Doubles</td>    <td>Bottom</td> <td>Two or more match</td>       <td>44.4%</td><td>+28% of wager</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <div class="cp-jackpot-banner" id="cp-jackpot-banner">
+      <span class="cp-jackpot-label">⚕ Jackpot ⚕</span>
+      <span class="cp-jackpot-amount" id="cp-jackpot-amount">0</span>
+      <span class="cp-jackpot-suffix">coin</span>
+    </div>
+
+    <section class="cp-wager-row">
+      <label class="cp-wager-label" for="cp-wager">Wager</label>
+      <input id="cp-wager" type="number" min="1" value="5" inputmode="numeric" autocomplete="off">
+      <button id="cp-wager-max" class="cp-btn" type="button">MAX</button>
+      <span class="cp-wager-hint">Your wager. Cost = wager. Each sunk ball pays wager × value mult.</span>
+    </section>
+
+    <section class="cp-table">
+      <div class="cp-row">
+        <div class="cp-row-label">Top · sum bet · balls on the course</div>
+        <div class="cp-row-spots">
+          <div class="cp-spot cp-spot-low"  data-bet="low"  data-row="top" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">LOW</div>
+            <div class="cp-spot-cond">Sum 3-7</div>
+            <div class="cp-spot-mult">5 balls</div>
+          </div>
+          <div class="cp-spot cp-spot-mid"  data-bet="mid"  data-row="top" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">MID</div>
+            <div class="cp-spot-cond">Sum 8-15</div>
+            <div class="cp-spot-mult">3 balls</div>
+          </div>
+          <div class="cp-spot cp-spot-high" data-bet="high" data-row="top" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">HIGH</div>
+            <div class="cp-spot-cond">Sum 16-18</div>
+            <div class="cp-spot-mult">11 balls</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cp-row">
+        <div class="cp-row-label">Middle · color bet · per-ball value multiplier on hit</div>
+        <div class="cp-row-spots">
+          <div class="cp-spot cp-spot-black" data-bet="black" data-row="middle" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">ALL BLACK</div>
+            <div class="cp-spot-cond">No red faces</div>
+            <div class="cp-spot-mult">×1.5 value</div>
+          </div>
+          <div class="cp-spot cp-spot-run"   data-bet="run"   data-row="middle" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">RUN</div>
+            <div class="cp-spot-cond">3 consecutive</div>
+            <div class="cp-spot-mult">×2 value</div>
+          </div>
+          <div class="cp-spot cp-spot-red"   data-bet="red"   data-row="middle" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">ALL RED</div>
+            <div class="cp-spot-cond">All red faces</div>
+            <div class="cp-spot-mult">×3 value</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cp-row">
+        <div class="cp-row-label">Bottom · doubles bet · flat % of wager on hit</div>
+        <div class="cp-row-spots cp-row-spots-2">
+          <div class="cp-spot cp-spot-nodoubles" data-bet="nodoubles" data-row="bottom" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">NO DOUBLES</div>
+            <div class="cp-spot-cond">All 3 dice different</div>
+            <div class="cp-spot-mult">+22%</div>
+          </div>
+          <div class="cp-spot cp-spot-doubles"   data-bet="doubles"   data-row="bottom" tabindex="0" role="button" aria-pressed="false">
+            <div class="cp-spot-chip" aria-hidden="true"></div>
+            <div class="cp-spot-name">DOUBLES</div>
+            <div class="cp-spot-cond">Two or more match</div>
+            <div class="cp-spot-mult">+28%</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="cp-picks-banner">
+      <div class="cp-pick-slot">
+        <span class="cp-pick-label">Top</span>
+        <span class="cp-pick-value" id="cp-pick-top">—</span>
+      </div>
+      <span class="cp-pick-sep">·</span>
+      <div class="cp-pick-slot">
+        <span class="cp-pick-label">Middle</span>
+        <span class="cp-pick-value" id="cp-pick-middle">—</span>
+      </div>
+      <span class="cp-pick-sep">·</span>
+      <div class="cp-pick-slot">
+        <span class="cp-pick-label">Bottom</span>
+        <span class="cp-pick-value" id="cp-pick-bottom">—</span>
+      </div>
+    </div>
+
+    <section class="cp-tray" aria-label="Dice tray">
+      <div class="cp-die" id="cp-die-1" data-die="1"></div>
+      <div class="cp-die" id="cp-die-2" data-die="2"></div>
+      <div class="cp-die" id="cp-die-3" data-die="3"></div>
+    </section>
+
+    <div class="cp-readout" id="cp-readout">Pick one from each row. Then roll.</div>
+
+    <div class="cp-controls">
+      <button id="cp-roll" class="cp-btn cp-btn-roll" type="button" disabled>ROLL</button>
+      <button id="cp-clear" class="cp-btn" type="button">Clear picks</button>
+    </div>
+  </main>
+
+  <aside class="cp-nurse" aria-hidden="true">
+    <div class="cp-nurse-tape" aria-hidden="true"></div>
+    <div class="cp-nurse-card">
+      <svg class="cp-nurse-sprite" viewBox="0 0 16 24" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
+        <!-- Hat -->
+        <rect x="5" y="0" width="6" height="1" fill="#f4ecd6"/>
+        <rect x="4" y="1" width="2" height="1" fill="#f4ecd6"/>
+        <rect x="7" y="1" width="2" height="1" fill="#b8001f"/>
+        <rect x="10" y="1" width="2" height="1" fill="#f4ecd6"/>
+        <rect x="4" y="2" width="1" height="1" fill="#f4ecd6"/>
+        <rect x="6" y="2" width="4" height="1" fill="#b8001f"/>
+        <rect x="11" y="2" width="1" height="1" fill="#f4ecd6"/>
+        <rect x="4" y="3" width="1" height="1" fill="#f4ecd6"/>
+        <rect x="7" y="3" width="2" height="1" fill="#b8001f"/>
+        <rect x="11" y="3" width="1" height="1" fill="#f4ecd6"/>
+        <rect x="4" y="4" width="8" height="1" fill="#f4ecd6"/>
+        <!-- Hair -->
+        <rect x="5" y="5" width="6" height="1" fill="#6e4226"/>
+        <!-- Face -->
+        <rect x="4" y="6" width="1" height="1" fill="#6e4226"/>
+        <rect x="5" y="6" width="6" height="1" fill="#f0c8a8"/>
+        <rect x="11" y="6" width="1" height="1" fill="#6e4226"/>
+        <rect x="4" y="7" width="1" height="1" fill="#6e4226"/>
+        <rect x="5" y="7" width="1" height="1" fill="#f0c8a8"/>
+        <rect x="6" y="7" width="1" height="1" fill="#2a2018"/>
+        <rect x="7" y="7" width="2" height="1" fill="#f0c8a8"/>
+        <rect x="9" y="7" width="1" height="1" fill="#2a2018"/>
+        <rect x="10" y="7" width="1" height="1" fill="#f0c8a8"/>
+        <rect x="11" y="7" width="1" height="1" fill="#6e4226"/>
+        <rect x="4" y="8" width="1" height="1" fill="#6e4226"/>
+        <rect x="5" y="8" width="2" height="1" fill="#f0c8a8"/>
+        <rect x="7" y="8" width="2" height="1" fill="#b8001f"/>
+        <rect x="9" y="8" width="2" height="1" fill="#f0c8a8"/>
+        <rect x="11" y="8" width="1" height="1" fill="#6e4226"/>
+        <rect x="5" y="9" width="6" height="1" fill="#f0c8a8"/>
+        <rect x="6" y="10" width="4" height="1" fill="#f0c8a8"/>
+        <!-- Dress collar with V-neck + cross -->
+        <rect x="3" y="11" width="10" height="1" fill="#f4ecd6"/>
+        <rect x="2" y="12" width="1" height="1" fill="#f4ecd6"/>
+        <rect x="4" y="12" width="2" height="1" fill="#f4ecd6"/>
+        <rect x="6" y="12" width="2" height="1" fill="#b8001f"/>
+        <rect x="8" y="12" width="2" height="1" fill="#f4ecd6"/>
+        <rect x="11" y="12" width="1" height="1" fill="#f4ecd6"/>
+        <rect x="2" y="13" width="1" height="1" fill="#f4ecd6"/>
+        <rect x="5" y="13" width="1" height="1" fill="#f4ecd6"/>
+        <rect x="6" y="13" width="2" height="1" fill="#b8001f"/>
+        <rect x="8" y="13" width="2" height="1" fill="#f4ecd6"/>
+        <rect x="11" y="13" width="1" height="1" fill="#f4ecd6"/>
+        <!-- Bust/torso -->
+        <rect x="2" y="14" width="12" height="1" fill="#f4ecd6"/>
+        <rect x="1" y="15" width="14" height="1" fill="#f4ecd6"/>
+        <rect x="1" y="16" width="14" height="1" fill="#f4ecd6"/>
+        <!-- Waist cinch -->
+        <rect x="2" y="17" width="12" height="1" fill="#f4ecd6"/>
+        <rect x="3" y="18" width="10" height="1" fill="#f4ecd6"/>
+        <!-- Hip + skirt -->
+        <rect x="2" y="19" width="12" height="1" fill="#f4ecd6"/>
+        <rect x="1" y="20" width="14" height="1" fill="#f4ecd6"/>
+        <rect x="1" y="21" width="14" height="1" fill="#f4ecd6"/>
+        <!-- Legs -->
+        <rect x="5" y="22" width="2" height="1" fill="#f0c8a8"/>
+        <rect x="9" y="22" width="2" height="1" fill="#f0c8a8"/>
+        <!-- Heels -->
+        <rect x="4" y="23" width="3" height="1" fill="#b8001f"/>
+        <rect x="9" y="23" width="3" height="1" fill="#b8001f"/>
+      </svg>
+      <div class="cp-nurse-caption">CRITICAL CARE</div>
+    </div>
+  </aside>
+
+  <div id="cp-putt-overlay" class="cp-putt-overlay" hidden aria-hidden="true" role="dialog" aria-label="Putt-putt round">
+    <div class="cp-putt-card">
+      <div class="cp-putt-hud">
+        <div class="cp-putt-hud-item">
+          <span class="cp-putt-hud-label">Ball</span>
+          <span class="cp-putt-hud-value" id="cp-putt-ball">— / —</span>
+        </div>
+        <div class="cp-putt-hud-item">
+          <span class="cp-putt-hud-label">Bonus</span>
+          <span class="cp-putt-hud-value" id="cp-putt-stroke">—</span>
+        </div>
+        <div class="cp-putt-hud-item">
+          <span class="cp-putt-hud-label">Mult</span>
+          <span class="cp-putt-hud-value" id="cp-putt-mult">×—</span>
+        </div>
+        <div class="cp-putt-hud-item">
+          <span class="cp-putt-hud-label">Per sink</span>
+          <span class="cp-putt-hud-value" id="cp-putt-payout">—</span>
+        </div>
+        <div class="cp-putt-hud-item">
+          <span class="cp-putt-hud-label">Won</span>
+          <span class="cp-putt-hud-value cp-putt-won" id="cp-putt-won">0c</span>
+        </div>
+      </div>
+      <canvas id="cp-putt-canvas" width="600" height="400" aria-label="Putt-putt course"></canvas>
+      <div class="cp-putt-prompt" id="cp-putt-prompt">Aim — move cursor, click to lock direction.</div>
+      <div id="cp-putt-power" class="cp-putt-power">
+        <div id="cp-putt-power-fill" class="cp-putt-power-fill"></div>
+      </div>
+      <div class="cp-putt-actions">
+        <button id="cp-putt-close" class="cp-btn" type="button" hidden>Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/craps/sfx.js"></script>
+  <script src="../js/craps/putt.js"></script>
+  <script src="../js/craps/jackpot.js"></script>
+  <script src="../js/craps/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

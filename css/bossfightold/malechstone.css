@@ -1,0 +1,235 @@
+/*
+  BOSSFIGHT/MALECHSTONE — boss-2 theme: wings in wings, missiles, map fragments
+  ─────────────────────────────────────────────────────────────────────────
+  Visual brief: a fluorescent surveillance-room palette — sickly olive-brown
+  walls, military phosphor yellow displays, arterial red callouts. The
+  background reads as a fragmented aerial map (concentric rectangles broken
+  by missile-strike gaps). Six layered feather-wing silhouettes drift
+  slowly across the field. Card backs carry a hex-grid target-reticle. The
+  table felt is the colour of dried sand. Cold, administrative cruelty —
+  the boss's line, "Shouldn't YOUR CHILD be reasoning by now?", sits over
+  this exact register.
+
+  Loads on top of poker-base.css (which provides all structural CSS via
+  vars). Scoped to .bf-theme-malechstone.
+
+  Sections:
+    1. Palette overrides for poker-base vars
+    2. Page background — fragmented map + drifting wings
+    3. Header title — stencil flavour
+    4. Card back — hex-grid reticle
+    5. Boss-specific decorations (missile streaks, watermark)
+  Owns selectors: .bf-theme-malechstone (and ::before / ::after on body and
+    .bf-card-back), .bf-mal-wing, .bf-mal-missile
+  CSS vars (override): all --bf-* from poker-base.css
+  Consumed by: pages/bossfight-malechstone.html
+  External deps: poker-base.css
+*/
+
+/* ─── 1. Palette ─── */
+.bf-theme-malechstone {
+  --bf-bg:           #0e0d08;
+  --bf-bg-grade:     #2a2820;
+  --bf-fg:           #d8d2b8;
+  --bf-fg-dim:       #8a8470;
+  --bf-accent:       #d4d488;   /* military phosphor yellow */
+  --bf-accent-deep:  #8a8a3a;
+  --bf-felt:         #2e2814;   /* dried sand felt */
+  --bf-felt-edge:    #5a4a28;
+  --bf-card-face:    #ede5c8;
+  --bf-card-back:    #1a2438;   /* deep tactical blue */
+  --bf-suit-black:   #0a0a0a;
+  --bf-suit-red:     #8a0010;   /* arterial */
+  --bf-button:       #1a1810;
+  --bf-button-hi:    #3a3624;
+  --bf-button-text:  #d8d2b8;
+  --bf-danger:       #8a0010;
+  --bf-frame:        #2a2820;
+  --bf-frame-light:  #5a5440;
+}
+
+/* ─── 2. Page background — fragmented map ─── */
+.bf-theme-malechstone {
+  background:
+    /* central glow under the table */
+    radial-gradient(ellipse at 50% 38%, rgba(212, 212, 136, 0.10) 0%, transparent 60%),
+    /* fragmented map gridlines — vertical */
+    repeating-linear-gradient(90deg,
+      transparent 0 110px,
+      rgba(212, 212, 136, 0.06) 110px 111px),
+    /* fragmented map gridlines — horizontal, offset */
+    repeating-linear-gradient(0deg,
+      transparent 0 78px,
+      rgba(212, 212, 136, 0.05) 78px 79px),
+    /* coarser broken zones */
+    repeating-linear-gradient(45deg,
+      transparent 0 220px,
+      rgba(138, 0, 16, 0.06) 220px 222px),
+    /* base gradient */
+    radial-gradient(ellipse at 50% 100%, var(--bf-bg-grade), var(--bf-bg)) fixed,
+    var(--bf-bg);
+}
+
+/* Drift overlay — repeating wing silhouettes (encoded as SVG data URI) */
+.bf-theme-malechstone::before {
+  content: '';
+  position: fixed;
+  inset: -10%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.12;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'><g fill='%23d4d488' opacity='0.9'><path d='M40 200 Q120 150 220 180 Q280 200 340 230 Q260 240 180 240 Q100 240 40 200 Z'/><path d='M360 360 Q420 320 480 340 Q540 360 580 400 Q500 410 440 410 Q380 400 360 360 Z'/><path d='M100 460 Q180 420 280 440 Q330 460 360 490 Q280 500 200 500 Q140 500 100 460 Z'/></g></svg>");
+  background-size: 600px 600px;
+  background-repeat: repeat;
+  animation: bf-mal-wings-drift 240s linear infinite;
+}
+@keyframes bf-mal-wings-drift {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(-600px, -600px); }
+}
+
+/* Faint missile-streak diagonals — fixed, no animation */
+.bf-theme-malechstone::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(118deg, transparent 49.85%, rgba(212, 212, 136, 0.2) 49.92%, transparent 49.99%),
+    linear-gradient(122deg, transparent 24.86%, rgba(212, 212, 136, 0.16) 24.92%, transparent 24.98%),
+    linear-gradient(110deg, transparent 74.84%, rgba(138, 0, 16, 0.18) 74.92%, transparent 74.99%);
+  background-size: 100% 100%;
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+
+/* ─── 3. Title — stencil flavour ─── */
+.bf-theme-malechstone .bf-title {
+  font-family: 'Special Elite', 'VT323', 'Courier New', monospace;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--bf-accent);
+  text-shadow:
+    0 0 4px rgba(212, 212, 136, 0.6),
+    0 0 18px rgba(212, 212, 136, 0.3),
+    2px 0 0 rgba(138, 0, 16, 0.35);
+}
+.bf-theme-malechstone .bf-vs {
+  color: var(--bf-danger);
+  letter-spacing: 0.08em;
+}
+
+/* ─── 4. Card back — hex-grid target reticle ─── */
+.bf-theme-malechstone .bf-card-back {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(212, 212, 136, 0.3) 0%, transparent 36%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 28'><g fill='none' stroke='%23d4d488' stroke-width='0.7' opacity='0.55'><path d='M8 2 L24 2 L32 14 L24 26 L8 26 L0 14 Z'/><path d='M24 -12 L40 -12 L48 0 L40 12 L24 12 L16 0 Z'/><path d='M-8 -12 L8 -12 L16 0 L8 12 L-8 12 L-16 0 Z'/><path d='M24 16 L40 16 L48 28 L40 40 L24 40 L16 28 Z'/><path d='M-8 16 L8 16 L16 28 L8 40 L-8 40 L-16 28 Z'/></g></svg>"),
+    var(--bf-card-back);
+  background-size: cover, 16px 14px, cover;
+}
+.bf-theme-malechstone .bf-card-back .bf-card-eye {
+  background: transparent;
+  box-shadow: none;
+  border: 1px solid var(--bf-accent);
+  width: 28%; height: 28%;
+  border-radius: 50%;
+}
+.bf-theme-malechstone .bf-card-back .bf-card-eye::after {
+  background: var(--bf-danger);
+  inset: 30% 30%;
+  box-shadow: 0 0 6px rgba(138, 0, 16, 0.6);
+}
+.bf-theme-malechstone .bf-card-back .bf-card-eye::before {
+  /* crosshair lines */
+  content: '';
+  position: absolute;
+  inset: -40% 50%;
+  border-left: 1px solid var(--bf-accent);
+  pointer-events: none;
+}
+
+/* ─── 5. Seat tweaks — case-file feel ─── */
+.bf-theme-malechstone .bf-seat {
+  background:
+    linear-gradient(180deg, rgba(212, 212, 136, 0.04), transparent 70%),
+    linear-gradient(180deg, var(--bf-bg-grade), var(--bf-bg));
+}
+.bf-theme-malechstone .bf-seat-chavez {
+  border-color: var(--bf-danger);
+}
+.bf-theme-malechstone .bf-seat-chavez::before {
+  content: 'FILE · MA-08-26';
+  position: absolute;
+  top: -10px;
+  left: 14px;
+  font-family: 'Special Elite', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--bf-accent);
+  background: var(--bf-bg);
+  padding: 2px 6px;
+  border: 1px solid var(--bf-accent-deep);
+}
+.bf-theme-malechstone .bf-seat-name { color: var(--bf-accent); }
+
+/* Felt — faint Gaza-fragment overlay over the felt */
+.bf-theme-malechstone .bf-felt {
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0 32px,
+      rgba(138, 0, 16, 0.05) 32px 33px),
+    repeating-linear-gradient(0deg,
+      transparent 0 24px,
+      rgba(212, 212, 136, 0.05) 24px 25px),
+    radial-gradient(ellipse at 50% 50%, var(--bf-felt) 0%, var(--bf-bg) 90%);
+}
+.bf-theme-malechstone .bf-turn-status { color: var(--bf-accent); }
+
+/* End splash — official-document framing */
+.bf-theme-malechstone .bf-end-card {
+  border-style: double;
+  border-width: 3px;
+}
+.bf-theme-malechstone .bf-end-title {
+  font-family: 'Special Elite', monospace;
+  letter-spacing: 0.2em;
+}
+
+/* ─── 6. Avatar decoration — yarmulke ────────────────────────────────────
+   A dark dome sits on top of the kaomoji eyes, drawn as a CSS shape.
+   Made deliberately oversized + outlined so it reads against the dark
+   olive page palette (an unmarked dark dome on a dark page disappears).
+   Center seam + visible hem line + cream outline + soft yellow halo so
+   the silhouette pops at small avatar sizes. */
+.bf-theme-malechstone .bf-boss-avatar {
+  padding-top: 1.05em;   /* room for the bigger hat */
+}
+.bf-theme-malechstone .bf-boss-avatar::before {
+  content: '';
+  position: absolute;
+  top: -0.15em;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2.6em;
+  height: 1.05em;
+  background:
+    /* center seam — characteristic kippah stitch line */
+    linear-gradient(90deg,
+      transparent 49.5%,
+      rgba(255, 255, 200, 0.22) 49.5%,
+      rgba(255, 255, 200, 0.22) 50.5%,
+      transparent 50.5%),
+    /* dome body — bumped lighter so it contrasts the dark page */
+    linear-gradient(180deg, #4a4830 0%, #1a1808 100%);
+  border: 1.5px solid #8a8848;
+  border-radius: 1.4em 1.4em 0.1em 0.1em;
+  box-shadow:
+    inset -0.08em 0.06em 0.16em rgba(0, 0, 0, 0.65),
+    inset 0.05em -0.04em 0.12em rgba(212, 212, 136, 0.40),
+    inset 0 -0.14em 0 rgba(138, 136, 72, 0.55),  /* hem along the bottom */
+    0 1px 0 rgba(0, 0, 0, 0.8),
+    0 0 8px rgba(0, 0, 0, 0.75),
+    0 0 14px rgba(212, 212, 136, 0.30);
+  pointer-events: none;
+}

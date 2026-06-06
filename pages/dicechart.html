@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  DICE CHART — fill the ledger 3..18 from 3d6 + 1 red modifier die        │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A solitaire ledger of ports. Each voyage starts by staking coins      │
+  │    (BEGIN RUN spends the wager and ticks the child once). Press ROLL    │
+  │    to throw three white d6s and one red modifier die. The red die has   │
+  │    six faces:                                                            │
+  │      2× "+"     — combine any 2 or 3 whites with all + signs             │
+  │      2× "−"     — combine any 2 or 3 whites with at least one − sign     │
+  │      1× "+N"    — sum any 2 or 3 whites, then add 1, 2, or 3             │
+  │      1× "−N"    — sum any 2 or 3 whites, then subtract 1, 2, or 3        │
+  │    Each roll lights up the chart cells (3..18) the dice can reach.       │
+  │    You MUST ink one of them — clicking a glowing port records the        │
+  │    expression under that port's Roman numeral and scores its payout.     │
+  │    If the dice reach no unfilled port, the run STRANDS and the wager     │
+  │    is forfeit. Click any die to HOLD its value into the next throw.      │
+  │    CASH OUT pays out floor(score × wager / 5) coins (so wager 5 = score  │
+  │    is literal coin payout). Completing all 16 cells auto-pays the same   │
+  │    formula. NEW GAME begins a fresh run at the current wager.            │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../js/wallet.js, ../js/bet-input.js, ../js/expenses.js,        │
+  │      ../js/child.js, ../js/dicechart/page.js, ../js/header.js,           │
+  │      ../js/game-intro.js                                                 │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat <= 0 → child-died.html                               │
+  │      child.lockedUntil > now → child.html                                │
+  │    DOM ids: #balance, #debug-reset, #dc-rolls, #dc-filled, #dc-score,    │
+  │      #dc-payout, #dc-wager, #dc-max, #dc-cells, #dc-dice, #dc-roll,      │
+  │      #dc-cashout, #dc-new, #dc-chips, #dc-banner                         │
+  │    flow: page.js init → bind ROLL/CASH/NEW/MAX/wager → render (idle).    │
+  │      NEW (begin)→Wallet.spend(wager); Child.recordPlay(); resetBoard;    │
+  │      gameOver=F; render. ROLL → 3d6+1d6red (rerolls non-held);           │
+  │      click die → toggleHold; click glowing cell → fillCell (score+=      │
+  │      CELL_PAYOUTS[v]); checkStranded → endRun(stranded, no payout);      │
+  │      complete (16 inked) → endRun(complete, payout=floor(score·wager/5));│
+  │      CASH OUT → endRun(cashout, same payout formula).                    │
+  │    storage R/W: sinnerbox (Wallet via wallet.js),                        │
+  │      wendys_palace_child (R/W via Child.recordPlay),                     │
+  │      wendys_palace_intro_seen (R), wendys_palace_death (R)               │
+  │    routes out: ../index.html (lobby), guard-routes to splash/death/child │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dice Chart</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil)location.replace('child.html');}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/dicechart.css">
+  <link rel="stylesheet" href="../css/bet-input.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body>
+  <header>
+    <h1>Dice Chart</h1>
+    <p class="dc-subtitle">3 white · 1 red · fill 3 through 18</p>
+    <div class="coins-bar">
+      <span class="coins-label">coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <main class="dc-board">
+    <div id="dc-banner" hidden aria-live="polite"></div>
+
+    <aside class="dc-side">
+      <div class="dc-readouts">
+        <div class="dc-readout">
+          <span class="dc-readout-label">Rolls</span>
+          <span class="dc-readout-value" id="dc-rolls">0</span>
+        </div>
+        <div class="dc-readout">
+          <span class="dc-readout-label">Filled</span>
+          <span class="dc-readout-value" id="dc-filled">0 / 16</span>
+        </div>
+        <div class="dc-readout">
+          <span class="dc-readout-label">Score</span>
+          <span class="dc-readout-value" id="dc-score">0</span>
+        </div>
+        <div class="dc-readout">
+          <span class="dc-readout-label">Payout</span>
+          <span class="dc-readout-value" id="dc-payout">0</span>
+        </div>
+      </div>
+
+      <div class="dc-wager-strip">
+        <label class="dc-wager-label" for="dc-wager">Wager</label>
+        <input type="number" id="dc-wager" min="1" value="5" inputmode="numeric"
+               autocomplete="off" data-bet-input>
+        <button id="dc-max" class="dc-mini-btn" type="button" title="Wager full balance">MAX</button>
+      </div>
+
+      <div id="dc-dice" aria-label="The dice tray — click a die to hold it"></div>
+
+      <div class="dc-actions">
+        <button id="dc-roll"    class="dc-btn dc-btn-primary" type="button">ROLL</button>
+        <button id="dc-cashout" class="dc-btn dc-btn-gold" type="button">CASH OUT</button>
+        <button id="dc-new"     class="dc-btn" type="button">BEGIN RUN</button>
+      </div>
+
+      <div id="dc-chips" aria-live="polite"></div>
+    </aside>
+
+    <div id="dc-cells" aria-label="Ledger cells 3 through 18"></div>
+  </main>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/bet-input.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/dicechart/page.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

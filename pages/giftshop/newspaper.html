@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — FOLDED NEWSPAPER & DECODER RING (50,000 coins)              │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item disguised as a folded local-paper front page (The Oak Ridger,    │
+  │    2004) with two cereal-box decoder wheels tucked beside it. Above     │
+  │    the fold: a brief wire-service lead in plain Garamond, names         │
+  │    withheld. Below the fold, the full TBI interview summary sits in    │
+  │    typewriter type, encoded by a two-group shift cipher: vowels rotate │
+  │    inside {A E I O U} by VKEY=3, consonants rotate inside {B C D F G  │
+  │    H J K L M N P Q R S T V W X Y Z} by CKEY=11. Two stacked wheels    │
+  │    in the side panel (small 5-letter VOWELS, large 21-letter          │
+  │    CONSONANTS); each has an outer fixed ring, a draggable inner ring  │
+  │    (pointer events) + ◀/▶ buttons, and a pointer that names the      │
+  │    current substitution. Document re-renders via one textContent      │
+  │    assignment per tick. When both shifts match their keys the         │
+  │    document decodes in place, both wheels pulse green, the stamp      │
+  │    flips to DECODED, and a soft beep fires.                          │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../../js/child.js (for the kaomoji cosmetic toggle)          │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death │
+  │    DOM: .np-room > .np-layout (.np-paper + .np-rig); .np-paper has    │
+  │      .np-masthead, .np-headline, .np-lead, .np-divider, .np-doc-wrap  │
+  │      > pre.np-doc#np-doc + .np-doc-stamp ; .np-rig sticky panel       │
+  │      stacks two .np-ring (vowel/cons) each w/ outer + inner letter    │
+  │      rings, .np-key pointer, sub-label "X → Y", +/- buttons + status. │
+  │    flow: PLAIN=template ; CIPHER=encode(PLAIN, VKEY=3, CKEY=11) at    │
+  │      boot ; render(): #np-doc.textContent = decode(CIPHER, vShift,    │
+  │      cShift) — single string assignment per tick (cheap)              │
+  │      ; setVShift(n)/setCShift(n): wrap mod 5/21, update ring          │
+  │      transform + render + checkSolved (v===VKEY && c===CKEY →         │
+  │      .solved everywhere, beep once)                                    │
+  │      ; per-wheel drag: pointerdown→track angle, pointermove→update    │
+  │      shift from delta, snap on pointerup                              │
+  │    storage R/W: writes wendys_palace_child.cosmetics.newspaper via    │
+  │      Child.setCosmetic; ownership tracked in wendys_palace_giftshop,   │
+  │      key='newspaper', by giftshopindex.html                            │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)            │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Oak Ridger — Folded Edition</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,700;1,400&family=Special+Elite&family=Limelight&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 50% 35%, #1a140e 0%, #0a0604 70%, #050302 100%);
+      color: #d8c8a4;
+      font-family: 'EB Garamond', serif;
+      overflow-x: hidden;
+    }
+    .np-room {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 50px 18px 60px;
+      gap: 26px;
+    }
+
+    /* ────────── newspaper ────────── */
+    .np-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 720px) 220px;
+      gap: 30px;
+      width: min(1000px, 96vw);
+      align-items: start;
+    }
+    @media (max-width: 880px) {
+      .np-layout { grid-template-columns: 1fr; }
+    }
+
+    .np-paper {
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.025) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, #f0e6c8 0%, #e0d4a8 100%);
+      color: #1a0e08;
+      padding: 36px 38px 44px;
+      box-shadow:
+        0 30px 60px rgba(0,0,0,0.55),
+        0 6px 0 #c4ac80,
+        0 12px 0 #8a7048,
+        0 18px 30px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    /* simulate vertical fold + slight yellowing at edges */
+    .np-paper::before {
+      content: '';
+      position: absolute;
+      top: 14px; bottom: 14px; left: 50%;
+      width: 1px;
+      background: linear-gradient(180deg, transparent 0%, rgba(80, 40, 8, 0.28) 50%, transparent 100%);
+      pointer-events: none;
+    }
+    .np-paper::after {
+      content: '';
+      position: absolute; inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 50% 0%, transparent 70%, rgba(80, 50, 20, 0.18) 100%);
+    }
+
+    .np-masthead {
+      text-align: center;
+      border-top: 3px double #1a0e08;
+      border-bottom: 3px double #1a0e08;
+      padding: 10px 0 12px;
+      margin-bottom: 16px;
+    }
+    .np-title {
+      font-family: 'Playfair Display', serif;
+      font-weight: 900;
+      font-size: 44px;
+      letter-spacing: 0.04em;
+      color: #1a0e08;
+      line-height: 1;
+    }
+    .np-tag {
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.34em;
+      color: #4a2818;
+      margin-top: 6px;
+    }
+
+    .np-headline {
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .np-headline h1 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: 0.005em;
+      color: #1a0e08;
+      margin: 4px 0;
+    }
+    .np-headline h2 {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-weight: 400;
+      font-size: 16px;
+      color: #3a2008;
+      letter-spacing: 0.04em;
+    }
+    .np-byline {
+      text-align: center;
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      color: rgba(40, 20, 8, 0.65);
+      margin-bottom: 16px;
+    }
+    .np-lead {
+      font-family: 'EB Garamond', serif;
+      font-size: 17px;
+      line-height: 1.65;
+      color: #1a0e08;
+      column-count: 2;
+      column-gap: 30px;
+      text-align: justify;
+      margin-bottom: 26px;
+    }
+    .np-lead p { margin: 0 0 10px; }
+    .np-lead p:first-child::first-letter {
+      font-family: 'Playfair Display', serif;
+      font-weight: 900;
+      font-size: 42px;
+      float: left;
+      line-height: 0.9;
+      padding: 4px 7px 0 0;
+      color: #2a1408;
+    }
+
+    .np-divider {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 26px 0 18px;
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      color: #5a2818;
+      text-transform: uppercase;
+    }
+    .np-divider .bar {
+      flex: 1 1 auto;
+      height: 0;
+      border-top: 2px solid #5a2818;
+    }
+    .np-divider .small {
+      font-style: italic;
+      font-family: 'EB Garamond', serif;
+      letter-spacing: 0.06em;
+      color: rgba(50, 28, 14, 0.7);
+      text-transform: none;
+    }
+
+    /* ────────── TBI document (encoded / decoded) ────────── */
+    .np-doc-wrap {
+      position: relative;
+      padding: 18px 22px 22px;
+      background: rgba(255, 240, 200, 0.45);
+      border: 1px solid rgba(80, 40, 8, 0.4);
+      box-shadow: inset 0 0 0 1px rgba(40, 20, 8, 0.18);
+    }
+    .np-doc-wrap.solved {
+      background: rgba(220, 250, 220, 0.55);
+      border-color: rgba(40, 100, 40, 0.45);
+      box-shadow:
+        inset 0 0 0 1px rgba(40, 100, 40, 0.3),
+        0 0 28px rgba(80, 200, 80, 0.18);
+    }
+    .np-doc {
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      color: rgba(60, 30, 10, 0.85);
+      white-space: pre-wrap;
+      word-break: break-word;
+      transition: color 0.4s ease, letter-spacing 0.4s ease;
+    }
+    .np-doc-wrap.solved .np-doc {
+      color: #1a0e08;
+      letter-spacing: 0.005em;
+    }
+    .np-doc-stamp {
+      position: absolute;
+      top: 8px; right: 12px;
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      color: rgba(160, 30, 30, 0.75);
+      border: 1px solid rgba(160, 30, 30, 0.5);
+      padding: 2px 8px;
+      transform: rotate(-3deg);
+      pointer-events: none;
+      transition: color 0.3s ease, border-color 0.3s ease, transform 0.4s ease;
+    }
+    .np-doc-wrap.solved .np-doc-stamp {
+      color: rgba(40, 120, 40, 0.85);
+      border-color: rgba(40, 120, 40, 0.55);
+      transform: rotate(-1deg);
+    }
+
+    /* ────────── decoder ring panel ────────── */
+    .np-rig {
+      position: sticky;
+      top: 30px;
+      align-self: start;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 14px 16px;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(40, 30, 22, 0.7) 0%, rgba(20, 14, 10, 0.85) 80%);
+      border: 1px solid rgba(120, 80, 40, 0.4);
+      border-radius: 8px;
+      color: #d8c8a4;
+    }
+    .np-rig-label {
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      color: rgba(220, 200, 160, 0.75);
+      text-transform: uppercase;
+    }
+    .np-wheel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .np-wheel-label {
+      font-family: 'Special Elite', monospace;
+      font-size: 9px;
+      letter-spacing: 0.32em;
+      color: rgba(220, 200, 160, 0.75);
+      text-transform: uppercase;
+    }
+    .np-ring {
+      position: relative;
+      width: var(--ring-size, 184px);
+      height: var(--ring-size, 184px);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 30% 30%, #d8a868 0%, #b08848 40%, #6a4828 100%);
+      box-shadow:
+        0 6px 14px rgba(0,0,0,0.6),
+        inset 0 0 0 2px #4a2810,
+        inset 0 2px 4px rgba(255, 220, 160, 0.25),
+        inset 0 -3px 6px rgba(0,0,0,0.45);
+      touch-action: none;
+      user-select: none;
+    }
+    .np-ring-outer, .np-ring-inner {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .np-ring-inner {
+      inset: var(--ring-inset, 32px);
+      background:
+        radial-gradient(circle at 40% 30%, #3a2818 0%, #1a0e08 70%);
+      box-shadow:
+        inset 0 0 0 2px #2a1808,
+        inset 0 2px 4px rgba(0,0,0,0.6),
+        0 2px 4px rgba(0,0,0,0.3);
+      cursor: grab;
+      pointer-events: auto;
+      transition: transform 0.32s cubic-bezier(.3,.7,.4,1);
+    }
+    .np-ring-inner.dragging {
+      transition: none;
+      cursor: grabbing;
+    }
+    .np-ring-letter {
+      position: absolute;
+      left: 50%; top: 50%;
+      width: 18px;
+      height: 18px;
+      margin-left: -9px;
+      margin-top: -9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Special Elite', monospace;
+      font-size: 11px;
+      line-height: 1;
+    }
+    .np-ring-outer .np-ring-letter { color: #1a0e08; }
+    .np-ring-inner .np-ring-letter { color: #e8d4a4; }
+
+    /* top pointer */
+    .np-key {
+      position: absolute;
+      left: 50%; top: -10px;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 14px solid #d04040;
+      filter: drop-shadow(0 0 6px rgba(220, 60, 60, 0.6));
+      pointer-events: none;
+    }
+    .np-ring.solved {
+      box-shadow:
+        0 6px 14px rgba(0,0,0,0.6),
+        inset 0 0 0 2px #4a2810,
+        inset 0 2px 4px rgba(255, 220, 160, 0.25),
+        0 0 38px 6px rgba(60, 220, 100, 0.6);
+      animation: np-ringpulse 1.6s ease-in-out infinite;
+    }
+    @keyframes np-ringpulse {
+      0%, 100% { filter: brightness(1.0); }
+      50% { filter: brightness(1.15); }
+    }
+
+    .np-ctrls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .np-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(40, 30, 22, 0.85);
+      color: #e8d4a4;
+      border: 1px solid rgba(120, 80, 40, 0.5);
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .np-btn:hover { background: rgba(80, 60, 40, 0.9); }
+    .np-shift {
+      font-family: 'Special Elite', monospace;
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      color: rgba(220, 200, 160, 0.85);
+      min-width: 110px;
+      text-align: center;
+    }
+    .np-status {
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      padding: 4px 10px;
+      border: 1px solid rgba(160, 30, 30, 0.65);
+      color: rgba(220, 100, 100, 0.85);
+      border-radius: 2px;
+      text-transform: uppercase;
+      transition: color 0.3s, border-color 0.3s, background 0.3s;
+    }
+    .np-status.solved {
+      color: rgba(120, 240, 140, 0.95);
+      border-color: rgba(60, 200, 80, 0.7);
+      background: rgba(40, 120, 40, 0.18);
+    }
+
+    .kc-bay {
+      display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 6px;
+    }
+    .kc-preview {
+      font-family: 'Special Elite', monospace; font-size: 22px; letter-spacing: 0.04em;
+      color: #d8c8a4; background: rgba(20,14,10,0.6);
+      border: 1px solid rgba(201,161,74,0.35); border-radius: 4px;
+      padding: 10px 18px; min-width: 160px; text-align: center;
+      white-space: pre; line-height: 1.1;
+    }
+    .kc-toggle {
+      font-family: 'Special Elite', monospace; font-size: 14px;
+      letter-spacing: 0.26em; text-transform: uppercase; color: #d8c8a4;
+      padding: 12px 26px; background: rgba(20,14,10,0.6);
+      border: 1px solid rgba(201,161,74,0.5); border-radius: 4px;
+      cursor: pointer; min-width: 260px;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .kc-toggle:hover { background: rgba(201,161,74,0.18); border-color: #c9a14a; }
+    .kc-toggle.on { background: rgba(201,161,74,0.22); border-color: #d4b46a; color: #f0d890; }
+
+    .np-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #d8c8a4;
+      text-decoration: none;
+      border: 1px solid rgba(201, 161, 74, 0.45);
+      border-radius: 3px;
+      background: rgba(20, 14, 10, 0.6);
+    }
+    .np-back:hover {
+      background: rgba(201, 161, 74, 0.18);
+      border-color: #c9a14a;
+    }
+  </style>
+</head>
+<body>
+  <div class="np-room">
+    <div class="np-layout">
+      <article class="np-paper">
+        <header class="np-masthead">
+          <div class="np-title">The Oak Ridger</div>
+          <div class="np-tag">ANDERSON COUNTY · TENNESSEE · WEDNESDAY 2004 · FIFTY CENTS</div>
+        </header>
+
+        <div class="np-headline">
+          <h1>Local Woman Dead After Domestic Incident</h1>
+          <h2>Husband in Custody · TBI Investigating · Child Safe With Family</h2>
+        </div>
+        <div class="np-byline">By Staff</div>
+
+        <div class="np-lead">
+          <p>Anderson County Sheriff's deputies responded to a residence on the south end of Oak Ridge late Tuesday evening and took the homeowner into custody following the death of his wife. The case has been referred to the Tennessee Bureau of Investigation. Names are being withheld pending notification of family.</p>
+          <p>A minor child was reported to be in the care of relatives at the time of the incident and was not present at the residence. Sheriff's deputies and DCS personnel responded jointly. The District Attorney's office has been advised. An autopsy is scheduled.</p>
+        </div>
+
+        <div class="np-divider">
+          <span class="bar"></span>
+          <span>Exclusive · Investigative File</span>
+          <span class="bar"></span>
+        </div>
+
+        <div class="np-doc-wrap" id="np-doc-wrap">
+          <span class="np-doc-stamp" id="np-doc-stamp">CIPHERED</span>
+          <pre class="np-doc" id="np-doc"></pre>
+        </div>
+      </article>
+
+      <aside class="np-rig">
+        <div class="np-rig-label">Decoder</div>
+
+        <div class="np-wheel">
+          <div class="np-wheel-label">Vowels</div>
+          <div class="np-ring" id="np-ring-v" style="--ring-size:130px; --ring-inset:24px;">
+            <div class="np-ring-outer" id="np-ring-v-outer"></div>
+            <div class="np-ring-inner" id="np-ring-v-inner"></div>
+            <div class="np-key"></div>
+          </div>
+          <div class="np-shift" id="np-shift-v">A → A</div>
+          <div class="np-ctrls">
+            <button class="np-btn" data-w="v" data-d="-1" type="button" aria-label="vowel left">◀</button>
+            <button class="np-btn" data-w="v" data-d="1"  type="button" aria-label="vowel right">▶</button>
+          </div>
+        </div>
+
+        <div class="np-wheel">
+          <div class="np-wheel-label">Consonants</div>
+          <div class="np-ring" id="np-ring-c" style="--ring-size:178px; --ring-inset:30px;">
+            <div class="np-ring-outer" id="np-ring-c-outer"></div>
+            <div class="np-ring-inner" id="np-ring-c-inner"></div>
+            <div class="np-key"></div>
+          </div>
+          <div class="np-shift" id="np-shift-c">B → B</div>
+          <div class="np-ctrls">
+            <button class="np-btn" data-w="c" data-d="-1" type="button" aria-label="cons left">◀</button>
+            <button class="np-btn" data-w="c" data-d="1"  type="button" aria-label="cons right">▶</button>
+          </div>
+        </div>
+
+        <div class="np-status" id="np-status">CIPHERED</div>
+      </aside>
+    </div>
+
+    <div class="kc-bay">
+      <div class="kc-preview" id="kc-preview" aria-hidden="true">(o_o)</div>
+      <button class="kc-toggle" type="button" aria-pressed="false">Fold it around them</button>
+    </div>
+
+    <a class="np-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+
+  <script src="../../js/child.js"></script>
+  <script>
+    (function () {
+      const ID = 'newspaper';
+      const OFF = 'Fold it around them';
+      const ON  = 'Unwrap them';
+      const btn  = document.querySelector('.kc-toggle');
+      const prev = document.getElementById('kc-preview');
+      if (!btn || !window.Child) return;
+      function refresh() {
+        const on = Child.getCosmetic(ID);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.textContent = on ? ON : OFF;
+      }
+      let pi = 0;
+      function tick() {
+        if (!prev) return;
+        const d = Child.describeFace();
+        prev.textContent = d.frames[pi % d.frames.length];
+        pi++;
+      }
+      btn.addEventListener('click', () => Child.setCosmetic(ID, !Child.getCosmetic(ID)));
+      Child.onChange(refresh);
+      refresh();
+      tick();
+      setInterval(tick, 420);
+    })();
+  </script>
+
+  <script>
+  /*
+    CODE (terse, AI-readable):
+    PLAIN = template literal (full TBI summary, verbatim)
+    SHIFT_KEY = 7 (the hidden cipher shift)
+    CIPHER = encode(PLAIN, SHIFT_KEY) at boot
+    state.shift = displayShift ∈ [0, 25]
+    encode/decodeChar(c, k): only A-Z/a-z; rotate ((c - base ± k) mod 26)
+    doc rendered as one .np-char span per character (built once from CIPHER)
+    setShift(n): wrap next ∈ [0,25]; delta = shortest direction (-13..13);
+      state.spin += delta * 360 ; state.shift = next ; render()
+    render(): inner ring rotates rotate(-shift * TURN deg);
+      shiftLbl = `A → ${LET[shift]}`; paintChars() updates each .np-char
+      textContent (decoded) + transform rotateY(state.spin deg) so all
+      letters coin-flip together in sync with the wheel direction;
+      solved = (shift === SHIFT_KEY) → toggle .solved everywhere + beep once
+    init: render outer A-Z fixed and inner A-Z (will be rotated by setShift);
+      bind +/- ; bind pointerdown/move/up on inner ring (drag-rotate snap
+      to nearest letter); setShift(0)
+  */
+  (function(){
+    var VKEY = 3;                       // vowel-wheel hidden shift
+    var CKEY = 11;                      // consonant-wheel hidden shift
+    var VOWELS     = 'AEIOU';
+    var CONSONANTS = 'BCDFGHJKLMNPQRSTVWXYZ';
+    // letter → group + index in that group, precomputed
+    var GROUP_OF = {};
+    for (var v = 0; v < VOWELS.length;     v++) GROUP_OF[VOWELS[v]]     = { g: 'v', i: v };
+    for (var c = 0; c < CONSONANTS.length; c++) GROUP_OF[CONSONANTS[c]] = { g: 'c', i: c };
+
+    var PLAIN = `TENNESSEE BUREAU OF INVESTIGATION
+INTERVIEW SUMMARY & PRELIMINARY MENTAL STATUS OBSERVATIONS
+Case No.: 04-ANDR-1147
+Subject: STONECIPHER, Claude Eldon (DOB 03/14/1967)
+Date of Interview: [redacted] 2004, 22:18 hrs
+Location: Anderson County Sheriff's Office, Interview Room B
+Interviewing Officers: Det. R. Whitlow (TBI), Det. M. Carrigan (ACSO)
+Prepared by: Det. R. Whitlow
+Reviewed by: Sgt. D. Pickens
+
+1. CIRCUMSTANCES OF INTERVIEW
+Subject was taken into custody at approximately 19:42 hrs at the residence located at [redacted], Oak Ridge, TN, following a 911 call placed by Samantha Chavez (sister of subject) at 19:11 hrs. Responding deputies located the decedent, Margaret H. Stonecipher (DOB 08/22/1969), in the kitchen of the residence. Subject was seated on the front porch, smoking, and offered no resistance. A claw hammer recovered from the kitchen floor adjacent to the decedent has been logged as evidence (see Item 14).
+Subject was read his rights at the scene at 19:46 hrs and again upon arrival at the station at 20:51 hrs. Subject declined counsel at the time of interview and signed the waiver. Counsel has since been retained (att. Briggs, of Briggs & Patterson, Knoxville).
+The minor daughter, F. Stonecipher (age 9), was not present at the residence during the incident. Per subject's own account, corroborated by S. Chavez, the minor had been transported to the Chavez residence in Spring City earlier that evening, prior to the subject's return to the family home. The minor has remained in the temporary custody of Samantha and Leopold Chavez and is, per DCS field notes attached, in stable condition and not believed to have witnessed the death. DCS has indicated the Chavezes are likely to be approved as the kinship placement pending the standard review.
+
+2. SUBJECT PRESENTATION
+Subject is a white male, 5'11", approx. 185 lbs, brown hair, brown eyes, construction tan, no visible intoxication at time of interview though officers at the scene reported the odor of alcohol on his breath and a partially consumed bottle of Old Crow on the kitchen counter. Subject presented as alert and oriented to person, place, and time. Speech was clear, not pressured, not slowed. Eye contact intermittent. Affect was flat to subdued.
+Subject exhibited no signs of acute psychosis, dissociation, or delusional content during the interview. He did not appear to be presently under the influence of any substance to a degree that would impair his capacity to waive his rights, in this officer's lay opinion. (A blood draw was conducted at 21:14 hrs; results pending.)
+Subject's hands were observed to have several superficial lacerations across the palms and the dorsal aspect of the right forearm, photographed and treated by EMS prior to transport. Subject declined further medical attention.
+
+3. SUBSTANCE OF SUBJECT'S STATEMENT
+Subject's account was provided in a generally linear fashion, with occasional digressions onto subjects this officer judged to be tangential (the decedent's family of origin, the decedent's employment history, a fishing trip the subject had taken with the minor child in the summer of 2003). Subject was redirected gently and complied each time.
+Subject described the decedent's "spells" — his word — as a "thing that came and went" over a period of approximately four years prior to the incident. Subject referenced two prior hospitalizations of the decedent (Ridgeview, 2003 and Covenant early 2004; records requested). Subject described the decedent's belief, recurring during these episodes, that subject had been "replaced" or "swapped out" by an entity the decedent variously identified as a doppelganger, a demon, or, on one occasion, "the fairies." Subject stated this belief had previously resulted in two incidents of attempted poisoning, one of which had previously been reported to law enforcement. Subject expressed regret for not having reported these incidents and stated, more than once, "I should've done something different. I kept thinking she'd come back to herself."
+
+Subject's account of the evening in question is summarized as follows. He received a phone call from the minor child at approximately 17:30 hrs, during which the child reported that her mother had entered her bedroom holding a knife and had stated an intent to harm her, believing her also to have been "replaced." The child reported having dissuaded the decedent by reference to a physical scar (a healed laceration above the left ear, sustained in an unrelated incident in 2002; ref. Methodist Hospital records, on file). Subject left his place of employment, drove home, retrieved the child without incident, and transported her to the Chavez residence in Spring City. Subject states the decedent did not attempt to prevent the child's removal and was, at that time, "sitting at the table like nothing happened."
+
+Subject states he then returned to the family home. He states he intended only to "talk to her" and to have her hospitalized. He states the decedent met him at the door with a kitchen knife (recovered, Item 11) and "wasn't right at all." A physical altercation ensued. Subject states the decedent inflicted the lacerations to his hands and forearm during this altercation. Subject states he "grabbed"" a hammer "from the table" and struck the decedent an unspecified number of times. Medical examiner has identified at least six impacts (prelim. report attached).
+Subject placed the 911 call himself at 19:08 hrs, three minutes prior to Ms. Chavez's call from Spring City. (Ms. Chavez has stated she was on the phone with the subject at the time he placed the 911 call; he had called her first.) Subject remained at the residence and complied fully with responding deputies.
+
+Subject's narrative was internally consistent and consistent with the physical evidence at the scene, with the exception of the hammer, which warrants further inquiry given that (a) the hammer in question is not of a type typically used in general home work but specific framing work which Claude did not do and (b) the hammer was seemingly not heavily used prior to the murder.
+Subject did not at any point during the approximately two hours of interview attempt to characterize the death of the decedent as anything other than a thing he had done. He did not, in this officer's hearing, use the word "accident." He used the word "self-defense" once, in the context of the lacerations, and did not return to it. When asked, near the conclusion of the interview, whether he understood the seriousness of his situation, subject replied, "I feel like understood what was going to happen when I got in the truck."
+
+Subject became briefly tearful on one occasion: when asked whether the minor child had been told what had occurred (she had not, as of the time of interview).
+
+Subject did not, in the judgment of the interviewing officers, present as a person in the grip of acute mental illness, nor as a person whose account of events should be taken at face value in every particular. The interviewing officers note, for the record, the apparent care with which the subject ensured the minor child's removal from the residence prior to the events in question, and decline to offer a view as to what this care indicates regarding the subject's state of mind in the hours preceding the death.
+
+5. CUSTODY OF MINOR CHILD
+The minor, F., was interviewed briefly at the Chavez residence at 21:40 hrs by Det. Carrigan, in the presence of Mrs. Chavez and a DCS caseworker (M. Malechstone). The minor was alert, composed, and able to give a clear account of the knife incident earlier in the evening. She was not asked about, and did not appear to have been informed of, her mother's death; this officer recommends this disclosure be made by Mr. and Mrs. Chavez at their discretion, with DCS support.
+The minor expressed a clear preference to remain with her aunt and uncle. Mrs. Chavez stated to Det. Carrigan that the family "will figure it out" and that the child "has a room here already, she's been here plenty." Mr. Chavez, who was present but largely silent during the interview, stated only, "She stays with us." DCS has provisionally approved the placement pending the standard 72-hour review and home study.
+
+6. RECOMMENDATIONS
+a. Formal psychiatric evaluation of the subject prior to arraignment (Form MH-21 attached).
+b. Continued retention of decedent's medical records, including Ridgeview admissions and treating clinicians.
+c. Investigative follow-up regarding the hammer and toolbox account.
+d. Coordination with DCS regarding kinship placement of the minor child.
+e. Recommendation regarding charging decision; Charge first degree, accept plea for second; Matter referred to the District Attorney's office.
+
+Submitted [redacted] 2004
+R. Whitlow, Detective, TBI`;
+
+    function shiftChar(ch, vk, ck) {
+      var code = ch.charCodeAt(0);
+      var lower = code >= 97 && code <= 122;
+      var upper = code >= 65 && code <= 90;
+      if (!lower && !upper) return ch;
+      var U = lower ? String.fromCharCode(code - 32) : ch;
+      var g = GROUP_OF[U];
+      if (!g) return ch;
+      var out;
+      if (g.g === 'v') {
+        out = VOWELS[((g.i + vk) % 5 + 5) % 5];
+      } else {
+        out = CONSONANTS[((g.i + ck) % 21 + 21) % 21];
+      }
+      return lower ? out.toLowerCase() : out;
+    }
+    function rotate(text, vk, ck) {
+      var out = '';
+      for (var i = 0; i < text.length; i++) out += shiftChar(text[i], vk, ck);
+      return out;
+    }
+    var CIPHER = rotate(PLAIN, VKEY, CKEY);
+
+    // DOM
+    var docEl    = document.getElementById('np-doc');
+    var docWrap  = document.getElementById('np-doc-wrap');
+    var stampEl  = document.getElementById('np-doc-stamp');
+    var statusEl = document.getElementById('np-status');
+
+    // wheel descriptors
+    var WHEELS = {
+      v: {
+        letters: VOWELS,
+        size:    5,
+        turn:    360 / 5,
+        outerR:  54,
+        innerR:  34,
+        ringEl:   document.getElementById('np-ring-v'),
+        innerEl:  document.getElementById('np-ring-v-inner'),
+        outerEl:  document.getElementById('np-ring-v-outer'),
+        labelEl:  document.getElementById('np-shift-v')
+      },
+      c: {
+        letters: CONSONANTS,
+        size:    21,
+        turn:    360 / 21,
+        outerR:  76,
+        innerR:  50,
+        ringEl:   document.getElementById('np-ring-c'),
+        innerEl:  document.getElementById('np-ring-c-inner'),
+        outerEl:  document.getElementById('np-ring-c-outer'),
+        labelEl:  document.getElementById('np-shift-c')
+      }
+    };
+
+    function placeLetter(parent, ch, idx, radius, turn) {
+      var el = document.createElement('span');
+      el.className = 'np-ring-letter';
+      el.textContent = ch;
+      var deg = idx * turn;
+      el.style.transform = 'rotate(' + deg + 'deg) translateY(-' + radius + 'px) rotate(' + (-deg) + 'deg)';
+      parent.appendChild(el);
+    }
+    function buildWheel(w) {
+      for (var i = 0; i < w.size; i++) {
+        placeLetter(w.outerEl, w.letters[i], i, w.outerR, w.turn);
+        placeLetter(w.innerEl, w.letters[i], i, w.innerR, w.turn);
+      }
+    }
+    buildWheel(WHEELS.v);
+    buildWheel(WHEELS.c);
+
+    // ── audio: short "click/lock" tone played once on solve ──
+    var actx = null;
+    function audio() {
+      if (!actx) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
+      if (actx && actx.state === 'suspended') actx.resume();
+      return actx;
+    }
+    function solveBeep() {
+      var c = audio(); if (!c) return;
+      var t = c.currentTime;
+      var osc = c.createOscillator(); osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, t);
+      osc.frequency.exponentialRampToValueAtTime(880, t + 0.18);
+      var g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.26);
+      osc.connect(g).connect(c.destination);
+      osc.start(t); osc.stop(t + 0.3);
+    }
+
+    var state = { v: 0, c: 0, solved: false };
+
+    function render() {
+      // doc — one textContent assignment per tick
+      docEl.textContent = rotate(CIPHER, -state.v, -state.c);
+
+      // ring transforms + readouts
+      WHEELS.v.innerEl.style.transform = 'rotate(' + (-state.v * WHEELS.v.turn) + 'deg)';
+      WHEELS.c.innerEl.style.transform = 'rotate(' + (-state.c * WHEELS.c.turn) + 'deg)';
+      WHEELS.v.labelEl.textContent = 'A → ' + VOWELS[state.v];
+      WHEELS.c.labelEl.textContent = 'B → ' + CONSONANTS[state.c];
+
+      var solved = (state.v === VKEY && state.c === CKEY);
+      if (solved && !state.solved) {
+        state.solved = true;
+        docWrap.classList.add('solved');
+        WHEELS.v.ringEl.classList.add('solved');
+        WHEELS.c.ringEl.classList.add('solved');
+        statusEl.classList.add('solved');
+        statusEl.textContent = 'DECODED';
+        stampEl.textContent  = 'DECODED';
+        solveBeep();
+      } else if (!solved && state.solved) {
+        state.solved = false;
+        docWrap.classList.remove('solved');
+        WHEELS.v.ringEl.classList.remove('solved');
+        WHEELS.c.ringEl.classList.remove('solved');
+        statusEl.classList.remove('solved');
+        statusEl.textContent = 'CIPHERED';
+        stampEl.textContent  = 'CIPHERED';
+      }
+    }
+
+    function setShift(group, n) {
+      var w = WHEELS[group];
+      var next = ((n % w.size) + w.size) % w.size;
+      if (next === state[group]) return;
+      state[group] = next;
+      render();
+    }
+
+    // ── buttons ──
+    document.querySelectorAll('.np-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var g = btn.dataset.w;
+        var d = parseInt(btn.dataset.d, 10) || 0;
+        setShift(g, state[g] + d);
+      });
+    });
+
+    // ── drag-rotate each inner ring ──
+    function angleFromCenter(cx, cy, x, y) {
+      var dx = x - cx, dy = y - cy;
+      var rad = Math.atan2(dx, -dy);
+      return rad * 180 / Math.PI;
+    }
+    function bindDrag(group) {
+      var w = WHEELS[group];
+      var drag = null;
+      w.innerEl.addEventListener('pointerdown', function(e){
+        e.preventDefault();
+        var rect = w.ringEl.getBoundingClientRect();
+        drag = {
+          cx: rect.left + rect.width / 2,
+          cy: rect.top  + rect.height / 2,
+          startAngle: 0,
+          startShift: state[group],
+          pointerId: e.pointerId
+        };
+        drag.startAngle = angleFromCenter(drag.cx, drag.cy, e.clientX, e.clientY);
+        w.innerEl.classList.add('dragging');
+        try { w.innerEl.setPointerCapture(e.pointerId); } catch(err) {}
+      });
+      w.innerEl.addEventListener('pointermove', function(e){
+        if (!drag) return;
+        var a = angleFromCenter(drag.cx, drag.cy, e.clientX, e.clientY);
+        var delta = a - drag.startAngle;
+        setShift(group, drag.startShift + Math.round(delta / w.turn));
+      });
+      function end(e){
+        if (!drag) return;
+        w.innerEl.classList.remove('dragging');
+        try { w.innerEl.releasePointerCapture(drag.pointerId); } catch(err) {}
+        drag = null;
+      }
+      w.innerEl.addEventListener('pointerup', end);
+      w.innerEl.addEventListener('pointercancel', end);
+    }
+    bindDrag('v');
+    bindDrag('c');
+
+    render();
+  })();
+  </script>
+</body>
+</html>

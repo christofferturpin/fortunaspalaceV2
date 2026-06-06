@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  GIFT SHOP — FOOTPRINT (Hospital Keepsake Card, 6,400 coins)            │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Item page for the hospital footprint card from Methodist Medical      │
+  │    Center · Oak Ridge — a single inked baby foot, name line left blank.  │
+  │    Prose tells of the first child, who died at four months in the        │
+  │    bassinet on Feb 17, 2021. The card is sold blank because the player   │
+  │    has never been able to say his name.                                  │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: (none — self-contained <style>, no <script src>)              │
+  │    inline route-guards: !intro_seen → ../splash.html; death → ../death  │
+  │    DOM: .fp-scene > .fp-card (.fp-banner, .fp-foot, .fp-fields w/       │
+  │      .fp-blank name slot), .fp-prose                                    │
+  │    flow: static page; no JS, no animations                              │
+  │    storage R/W: none on this page (ownership tracked in                 │
+  │      wendys_palace_giftshop, key='footprint', by giftshopindex.html)    │
+  │    routes out: giftshopindex.html (← Back to the Gift Shop)             │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Footprint Card</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('../splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('../death.html');return;}}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Special+Elite&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at center, #f0e8e0 0%, #d8d0c8 60%, #b0a8a0 100%);
+      color: #2a2420;
+      font-family: 'Cormorant Garamond', serif;
+    }
+    .fp-scene {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 70px 22px;
+      gap: 36px;
+    }
+
+    .fp-card {
+      width: min(420px, 92vw);
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.018) 0 1px, transparent 1px 4px),
+        #fbf6ed;
+      padding: 36px 32px 26px;
+      box-shadow:
+        0 30px 60px rgba(0,0,0,0.25),
+        0 0 0 1px rgba(120, 100, 80, 0.18);
+      position: relative;
+    }
+    .fp-card::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      border: 1px solid rgba(160, 140, 110, 0.5);
+      pointer-events: none;
+    }
+
+    .fp-banner {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 500;
+      font-size: 22px;
+      letter-spacing: 0.04em;
+      color: #4a3828;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .fp-rule {
+      width: 60%;
+      margin: 0 auto 14px;
+      height: 1px;
+      background: rgba(120, 100, 80, 0.4);
+    }
+    .fp-hospital {
+      font-family: 'Special Elite', monospace;
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      color: #6a5840;
+      text-align: center;
+      margin-bottom: 22px;
+    }
+
+    .fp-foot {
+      width: 100px;
+      height: 160px;
+      margin: 0 auto 24px;
+      background:
+        radial-gradient(ellipse 26px 18px at 50% 6%, #1a0a04 0%, transparent 60%),
+        radial-gradient(ellipse 9px 9px at 30% 22%, #1a0a04 0%, transparent 60%),
+        radial-gradient(ellipse 10px 10px at 50% 18%, #1a0a04 0%, transparent 60%),
+        radial-gradient(ellipse 9px 9px at 70% 22%, #1a0a04 0%, transparent 60%),
+        radial-gradient(ellipse 7px 7px at 85% 30%, #1a0a04 0%, transparent 60%),
+        radial-gradient(ellipse 36px 64px at 50% 66%, #1a0a04 0%, transparent 60%);
+      filter: blur(0.4px) contrast(1.05);
+      opacity: 0.85;
+    }
+
+    .fp-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 24px;
+      padding-top: 16px;
+      border-top: 1px dashed rgba(120, 100, 80, 0.45);
+    }
+    .fp-field {
+      font-family: 'Special Elite', monospace;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      color: #4a3828;
+    }
+    .fp-field-label {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: #8a7858;
+      margin-bottom: 2px;
+    }
+    .fp-field-value {
+      border-bottom: 1px solid rgba(120, 100, 80, 0.5);
+      min-height: 18px;
+      padding: 1px 0 2px;
+    }
+    .fp-field-value.fp-blank {
+      color: transparent;
+    }
+
+    .fp-prose {
+      max-width: 560px;
+      font-size: 18px;
+      line-height: 1.65;
+      color: #1a1410;
+      text-align: center;
+      font-style: italic;
+    }
+    .fp-prose p { margin: 0 0 14px; }
+    .fp-prose p:last-child { margin: 0; }
+    .fp-prose .em {
+      font-style: normal;
+      color: #4a1818;
+    }
+    .fp-prose .small {
+      font-style: normal;
+      font-family: 'Special Elite', monospace;
+      font-size: 14px;
+      letter-spacing: 0.06em;
+      color: rgba(42, 24, 16, 0.7);
+      padding-top: 10px;
+      margin-top: 10px;
+      border-top: 1px dashed rgba(120, 100, 80, 0.4);
+      display: block;
+    }
+
+    .fp-back {
+      display: inline-block;
+      padding: 9px 22px;
+      font-family: 'Special Elite', monospace;
+      font-size: 13px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #2a1818;
+      text-decoration: none;
+      border: 1px solid rgba(80, 50, 30, 0.6);
+      border-radius: 3px;
+      background: rgba(251, 246, 237, 0.8);
+    }
+    .fp-back:hover {
+      background: rgba(160, 120, 80, 0.18);
+      border-color: #6a4828;
+    }
+  </style>
+</head>
+<body>
+  <div class="fp-scene">
+    <div class="fp-card">
+      <div class="fp-banner">Welcome, Little One</div>
+      <div class="fp-rule"></div>
+      <div class="fp-hospital">METHODIST MEDICAL CENTER · OAK RIDGE, TN</div>
+
+      <div class="fp-foot"></div>
+
+      <div class="fp-fields">
+        <div class="fp-field">
+          <span class="fp-field-label">Name</span>
+          <span class="fp-field-value fp-blank">·</span>
+        </div>
+        <div class="fp-field">
+          <span class="fp-field-label">Date</span>
+          <span class="fp-field-value">10 · 14 · 2020</span>
+        </div>
+        <div class="fp-field">
+          <span class="fp-field-label">Length</span>
+          <span class="fp-field-value">20 in.</span>
+        </div>
+        <div class="fp-field">
+          <span class="fp-field-label">Weight</span>
+          <span class="fp-field-value">7 lb 4 oz</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="fp-prose">
+      <p>You will not say his name.</p>
+      <p>You have not said it since the funeral. You have not said it at the gas station, in the car, in the bathtub in the dark.</p>
+      <p>You said it to the nurse who handed you the form on the morning of February 17, 2021, when she asked who the child was, because the form required it.</p>
+      <p class="em">He was four months old. He was sleeping in the bassinet beside the bed. You woke up at six and you looked at him and you knew before you touched him.</p>
+      <p>The pediatrician said it was nobody's fault. The pediatrician said it happens. The pediatrician said you had not done anything wrong.</p>
+      <span class="small">The card is yours. The name line is blank because you have never been able to fill it in. The shop sells it that way because they understand a kind of mother who does not want the name where everyone can see it.</span>
+    </div>
+
+    <a class="fp-back" href="giftshopindex.html">← Back to the Gift Shop</a>
+  </div>
+</body>
+</html>

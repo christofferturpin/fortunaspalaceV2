@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  DEBUG · BOSS HUB v2 — themed preview + launcher (rebuild WIP)           │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Hidden control panel — typed-URL-only, no lobby link. Five boss       │
+  │    preview cards, each rendered in that boss's own color palette         │
+  │    (extracted from css/bossfight/<slug>.css). Card shows the boss's      │
+  │    name, epithet, a stylized mini-table swatch in their colors, design   │
+  │    notes, current localStorage flag, and three action buttons:           │
+  │      • Open boss page  — sets wendys_palace_boss_<slug>.active=true and  │
+  │        navigates to pages/bossfight-<slug>.html (themed stub for now —   │
+  │        new poker engine to be wired in later).                           │
+  │      • Mark beaten     — push slug into wendys_palace_bosses_beaten +    │
+  │        write boss record complete:true, won:true.                        │
+  │      • Reset           — wipe this boss's record and remove from beaten. │
+  │    Header has Clear-ALL-boss-state (red, confirms) and back-to-lobby.    │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    css: ../css/base.css + inline <style> (theme vars piped into          │
+  │      .boss-card via inline style="--card-*: …")                          │
+  │    inline route-guards: NONE (always reachable)                          │
+  │    DOM ids: #debug-clear-bosses, #debug-back,                            │
+  │      .boss-card[data-slug][data-page], .btn-fight, .btn-beaten,          │
+  │      .btn-reset, [data-flag-readout], [data-beaten-pill]                 │
+  │    boss roster (data-slug → page):                                       │
+  │      chavez            → bossfight-chavez.html         (stub themed)     │
+  │      malechstone       → bossfight-malechstone.html    (stub themed)     │
+  │      zashiki-warashi   → bossfight-zashiki-warashi.html (stub themed)    │
+  │      nahual            → bossfight-nahual.html         (stub themed)     │
+  │      fortuna           → bossfight-fortuna.html        (stub themed)     │
+  │    storage R/W:                                                          │
+  │      R/W: wendys_palace_boss_<slug> {active, complete, won, snapshot?}   │
+  │      R/W: wendys_palace_bosses_beaten (string[] of slugs)                │
+  │      W:   wendys_palace_player_poker_dossier (cleared by Clear-ALL)      │
+  │    routes out: index.html, bossfight-<slug>.html (themed stubs)          │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DEBUG · Boss Hub — Fortuna's Palace</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <style>
+    body.debug-bosses-body {
+      background: var(--bg-void);
+      color: var(--bone);
+      font-family: var(--font-ui);
+      padding: 24px 32px 64px;
+      min-height: 100vh;
+    }
+
+    .debug-header {
+      border-bottom: 1px solid var(--iron-light);
+      padding-bottom: 16px;
+      margin-bottom: 28px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 18px;
+    }
+    .debug-header h1 {
+      font-family: var(--font-title);
+      color: var(--sulfur);
+      letter-spacing: 0.18em;
+      font-size: 28px;
+      margin: 0;
+      text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
+    }
+    .debug-header .debug-note {
+      color: var(--bone-dim);
+      font-style: italic;
+      margin: 0;
+      flex: 1 1 320px;
+    }
+    .debug-header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .debug-btn {
+      font-family: var(--font-ui);
+      font-size: 14px;
+      color: var(--bone);
+      background: var(--iron);
+      border: 1px solid var(--iron-light);
+      padding: 6px 14px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .debug-btn:hover {
+      background: var(--bg-warm);
+      border-color: var(--sulfur-dim);
+      color: var(--sulfur);
+    }
+    .debug-btn-danger { border-color: var(--blood-dim); color: var(--blood); }
+    .debug-btn-danger:hover { background: var(--blood-dim); color: var(--bone); border-color: var(--blood); }
+
+    /* ── Boss-kill tokens row ──
+       One SVG token per boss. Greyscale-desaturated + dimmed when the
+       boss isn't in wendys_palace_bosses_beaten; full color + a soft
+       accent glow once earned. Persists across sessions because the
+       beaten list lives in localStorage. */
+    .boss-tokens {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 14px 18px;
+      margin-bottom: 22px;
+      background: rgba(10, 4, 5, 0.55);
+      border: 1px solid var(--iron-light);
+      border-radius: 4px;
+    }
+    .boss-tokens .tokens-label {
+      font-family: var(--font-ui);
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      color: var(--bone-dim);
+      text-transform: uppercase;
+      margin-right: 8px;
+    }
+    .boss-tokens .token {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid var(--iron-light);
+      opacity: 0.32;
+      filter: grayscale(0.85) brightness(0.7);
+      transition: opacity 240ms ease, filter 240ms ease, box-shadow 240ms ease;
+    }
+    .boss-tokens .token svg {
+      width: 30px;
+      height: 30px;
+      display: block;
+    }
+    .boss-tokens .token.is-earned {
+      opacity: 1;
+      filter: none;
+      box-shadow:
+        0 0 0 1px rgba(212, 175, 55, 0.5),
+        0 0 14px rgba(212, 175, 55, 0.4);
+      border-color: var(--sulfur);
+    }
+
+    /* ───── Themed boss cards ───── */
+    /* Each .boss-card receives its theme as inline CSS vars on the element:
+         --card-bg, --card-bg-grade, --card-fg, --card-fg-dim, --card-accent,
+         --card-accent-deep, --card-felt, --card-felt-edge, --card-suit-red.
+       The card paints itself in those colors so the preview is honest to
+       the in-game theme without needing to load each boss's full CSS file
+       on this page. */
+
+    .boss-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+      gap: 22px;
+    }
+
+    .boss-card {
+      background:
+        linear-gradient(180deg, var(--card-bg-grade, #1a1a1a) 0%,
+                                var(--card-bg, #0a0a0a) 100%);
+      border: 1px solid var(--card-accent-deep, #444);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55),
+                  inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+      color: var(--card-fg, #ddd);
+      padding: 18px 20px 16px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .boss-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at top right,
+          color-mix(in srgb, var(--card-accent) 14%, transparent) 0%,
+          transparent 60%);
+    }
+
+    .boss-card-head {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+      position: relative;
+    }
+    .boss-card-num {
+      font-family: var(--font-title);
+      font-size: 26px;
+      color: var(--card-accent, #d4af37);
+      line-height: 1;
+      min-width: 1.2em;
+      text-shadow: 0 0 8px color-mix(in srgb, var(--card-accent) 35%, transparent);
+    }
+    .boss-card-name {
+      font-family: var(--font-title);
+      font-size: 20px;
+      color: var(--card-fg, #fff);
+      letter-spacing: 0.08em;
+      margin: 0;
+    }
+    .boss-card-epithet {
+      color: var(--card-fg-dim, #999);
+      font-style: italic;
+      font-size: 13px;
+      letter-spacing: 0.03em;
+      font-family: var(--font-body);
+      margin-left: 6px;
+    }
+
+    .boss-card-pill {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      padding: 2px 7px;
+      border: 1px solid currentColor;
+      text-transform: uppercase;
+      margin-left: auto;
+      color: var(--card-accent, #d4af37);
+      opacity: 0.8;
+    }
+    .boss-card-pill-beaten {
+      color: var(--sulfur);
+      border-color: var(--sulfur);
+      margin-left: 6px;
+    }
+    .boss-card-pill-beaten[hidden] { display: none; }
+
+    /* Mini-table swatch — a stylized poker felt strip showing the boss's
+       theme in action: felt color, accent border, two flipped cards (back
+       in card-back color) and two face-up rectangles in card-face color. */
+    .boss-card-mini {
+      background:
+        radial-gradient(ellipse at center,
+          var(--card-felt, #1a3a26) 0%,
+          var(--card-felt-edge, #0a1a12) 110%);
+      border: 1px solid var(--card-felt-edge, #0a1a12);
+      box-shadow:
+        inset 0 0 16px rgba(0, 0, 0, 0.55),
+        inset 0 0 0 1px color-mix(in srgb, var(--card-accent) 30%, transparent);
+      padding: 14px 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      min-height: 70px;
+    }
+    .boss-card-mini-card {
+      width: 28px;
+      height: 40px;
+      border-radius: 3px;
+      background: var(--card-face, #ede5c8);
+      border: 1px solid var(--card-accent-deep, #444);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Times New Roman', serif;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--card-suit-red, #9b1d20);
+      position: relative;
+    }
+    .boss-card-mini-card.is-black { color: var(--card-suit-black, #0a0a0a); }
+    .boss-card-mini-card.is-back {
+      background: var(--card-back, #1a2438);
+      color: transparent;
+      background-image:
+        repeating-linear-gradient(
+          45deg,
+          color-mix(in srgb, var(--card-accent) 18%, transparent) 0,
+          color-mix(in srgb, var(--card-accent) 18%, transparent) 2px,
+          transparent 2px, transparent 6px);
+    }
+    .boss-card-mini-spacer {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--card-accent) 28%, transparent);
+      box-shadow:
+        0 0 0 1px var(--card-accent, #d4af37),
+        0 0 10px color-mix(in srgb, var(--card-accent) 45%, transparent);
+    }
+
+    /* Color swatch row — five chips showing the boss's palette */
+    .boss-card-swatches {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .boss-card-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+    }
+    .boss-card-swatches-label {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--card-fg-dim, #888);
+      text-transform: uppercase;
+      margin-right: 6px;
+    }
+
+    .boss-card-notes {
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--card-fg, #ddd);
+      margin: 0;
+    }
+    .boss-card-notes em { color: var(--card-fg-dim, #999); }
+    .boss-card-notes .quote {
+      display: block;
+      padding: 6px 10px;
+      margin: 6px 0;
+      border-left: 2px solid var(--card-accent, #d4af37);
+      background: rgba(0, 0, 0, 0.30);
+      font-style: italic;
+      color: var(--card-fg-dim, #aaa);
+      font-size: 13px;
+    }
+
+    .boss-card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px dashed color-mix(in srgb, var(--card-accent) 30%, transparent);
+    }
+    .card-btn {
+      font-family: var(--font-ui);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 11px;
+      cursor: pointer;
+      border: 1px solid var(--card-accent-deep, #555);
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--card-fg, #ddd);
+      text-decoration: none;
+    }
+    .card-btn:hover {
+      background: color-mix(in srgb, var(--card-accent) 20%, transparent);
+      border-color: var(--card-accent, #d4af37);
+      color: var(--card-accent, #d4af37);
+    }
+    .card-btn-fight {
+      border-color: var(--card-accent, #d4af37);
+      color: var(--card-accent, #d4af37);
+    }
+    .card-btn-fight:hover {
+      background: var(--card-accent, #d4af37);
+      color: var(--card-bg, #0a0a0a);
+    }
+
+    .boss-card-state {
+      font-size: 11px;
+      color: var(--card-fg-dim, #888);
+      margin-left: auto;
+    }
+    .boss-card-state code {
+      color: var(--card-accent, #d4af37);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 1px 5px;
+      border: 1px solid color-mix(in srgb, var(--card-accent) 40%, transparent);
+      font-family: var(--font-ui);
+    }
+  </style>
+</head>
+<body class="debug-bosses-body">
+  <header class="debug-header">
+    <h1>DEBUG · BOSS HUB</h1>
+    <p class="debug-note">Hidden page. Bossfight system parked in <code>/bossfightold</code>. Stubs themed; gameplay rebuild WIP.</p>
+    <div class="debug-header-actions">
+      <button id="debug-clear-bosses" class="debug-btn debug-btn-danger" type="button">Clear ALL boss state</button>
+      <a id="debug-back" class="debug-btn" href="index.html">← lobby</a>
+    </div>
+  </header>
+
+  <!-- ── Boss-kill tokens row ────────────────────────────────────────
+       One token per boss; lit when the boss's slug is in
+       wendys_palace_bosses_beaten, dimmed otherwise. Persisted, so
+       dying in another fight doesn't unset them. The threshold-trigger
+       system (boss-fight auto-launching when player wallet hits the
+       letter-then-fight ladder) is still WIP — when that lands, each
+       boss-encounter writes wendys_palace_boss_<slug>.encountered=true
+       and the threshold check skips encountered bosses so they only
+       fire once even after a death.
+  -->
+  <section class="boss-tokens" aria-label="Boss-kill tokens">
+    <span class="tokens-label">Tokens</span>
+    <div class="token" data-token-slug="chavez" title="Agent Gabriel">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <!-- halo + cross — Christian angel -->
+        <circle cx="16" cy="16" r="10" fill="none" stroke="#c9a14a" stroke-width="1.5"/>
+        <path d="M16 8 L16 24 M11 12 L21 12" stroke="#c9a14a" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="token" data-token-slug="malechstone" title="Agent Malechstone">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <!-- little missile, body + nosecone + fins + exhaust -->
+        <rect x="6" y="14" width="14" height="4" fill="#d4d488"/>
+        <polygon points="20,13 28,16 20,19" fill="#8a0010"/>
+        <polygon points="6,14 4,11 10,14" fill="#d4d488"/>
+        <polygon points="6,18 4,21 10,18" fill="#d4d488"/>
+        <circle cx="4" cy="16" r="2.6" fill="#ff8800"/>
+        <circle cx="2.5" cy="16" r="1.5" fill="#ffe580"/>
+      </svg>
+    </div>
+    <div class="token" data-token-slug="zashiki-warashi" title="Agent Zashiki-Warashi">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <!-- round black soot with caution-yellow glow -->
+        <circle cx="16" cy="16" r="11" fill="#ffd700" opacity="0.32"/>
+        <circle cx="16" cy="16" r="9"  fill="#ffd700" opacity="0.55"/>
+        <circle cx="16" cy="16" r="7"  fill="#0a0a08" stroke="#ffd700" stroke-width="1.4"/>
+      </svg>
+    </div>
+    <div class="token" data-token-slug="nahual" title="Agent Nahual">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <!-- stylized jaguar head: jade silhouette w/ rosettes, fangs -->
+        <path d="M16 6
+                 C10 6 6 10 6 16
+                 C6 20 8 22 9 24
+                 L11 23 L12 26 L14 24
+                 L16 25 L18 24 L20 26 L21 23 L23 24
+                 C24 22 26 20 26 16
+                 C26 10 22 6 16 6 Z"
+              fill="#5fa080" stroke="#0a1810" stroke-width="0.8"/>
+        <!-- rosettes -->
+        <circle cx="11" cy="13" r="1.2" fill="#0a1810"/>
+        <circle cx="21" cy="13" r="1.2" fill="#0a1810"/>
+        <circle cx="13" cy="18" r="0.9" fill="#0a1810"/>
+        <circle cx="19" cy="18" r="0.9" fill="#0a1810"/>
+        <!-- eyes -->
+        <circle cx="12.5" cy="14.5" r="1.5" fill="#ffd700"/>
+        <circle cx="19.5" cy="14.5" r="1.5" fill="#ffd700"/>
+        <circle cx="12.5" cy="14.5" r="0.7" fill="#0a1810"/>
+        <circle cx="19.5" cy="14.5" r="0.7" fill="#0a1810"/>
+        <!-- nose + fangs -->
+        <path d="M16 19 L14.5 21 L17.5 21 Z" fill="#0a1810"/>
+        <path d="M15 21 L14.8 23 M17 21 L17.2 23" stroke="#fff" stroke-width="0.7"/>
+      </svg>
+    </div>
+    <div class="token" data-token-slug="fortuna" title="Fortuna">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <!-- gold rose on plum — final boss; only lit if fortuna ever in beaten list -->
+        <circle cx="16" cy="16" r="11" fill="#1f1a2e" stroke="#c8a040" stroke-width="1.5"/>
+        <path d="M16 10
+                 c-3 0 -4 3 -2 5
+                 c-3 -1 -5 2 -3 4
+                 c-1 2 1 4 3 3
+                 c0 3 4 3 4 0
+                 c2 1 4 -1 3 -3
+                 c2 -2 0 -5 -3 -4
+                 c2 -2 1 -5 -2 -5 Z" fill="#c8a040"/>
+      </svg>
+    </div>
+  </section>
+
+  <main class="boss-grid">
+
+    <!-- 1 — Gabriel (slug stays 'chavez' for localStorage compat; parchment / ivory / lapis / seraph red) -->
+    <article class="boss-card"
+      data-slug="chavez"
+      data-page="bossfight-chavez.html"
+      style="
+        --card-bg:          #f6efe0;
+        --card-bg-grade:    #fff5d0;
+        --card-fg:          #1a1410;
+        --card-fg-dim:      #8a6e1e;
+        --card-accent:      #c9a14a;
+        --card-accent-deep: #8a6e1e;
+        --card-felt:        #ece3cf;
+        --card-felt-edge:   #c9a14a;
+        --card-face:        #fff8df;
+        --card-back:        #2a4870;
+        --card-suit-black:  #1a1410;
+        --card-suit-red:    #9b1d20;
+      ">
+      <div class="boss-card-head">
+        <span class="boss-card-num">1</span>
+        <h2 class="boss-card-name">Agent Gabriel<span class="boss-card-epithet">A Christian Angel</span></h2>
+        <span class="boss-card-pill">Built</span>
+        <span class="boss-card-pill boss-card-pill-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-card-mini" aria-hidden="true">
+        <div class="boss-card-mini-card">A</div>
+        <div class="boss-card-mini-card is-black">K</div>
+        <div class="boss-card-mini-spacer"></div>
+        <div class="boss-card-mini-card is-back"></div>
+        <div class="boss-card-mini-card is-back"></div>
+      </div>
+      <div class="boss-card-swatches">
+        <span class="boss-card-swatches-label">Palette</span>
+        <span class="boss-card-swatch" style="background:#f6efe0" title="parchment"></span>
+        <span class="boss-card-swatch" style="background:#c9a14a" title="halo gold"></span>
+        <span class="boss-card-swatch" style="background:#2a4870" title="lapis"></span>
+        <span class="boss-card-swatch" style="background:#9b1d20" title="seraph red"></span>
+        <span class="boss-card-swatch" style="background:#1a1410" title="ink"></span>
+      </div>
+      <p class="boss-card-notes">
+        Eyes within eyes · wheels within wheels. Biblically-accurate ophanim
+        drift behind the felt. Heads-up no-limit Hold'em (player 100, Gabriel 50).
+      </p>
+      <div class="boss-card-actions">
+        <button class="card-btn card-btn-fight btn-fight" type="button">Open boss page</button>
+        <button class="card-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="card-btn btn-reset" type="button">Reset</button>
+        <span class="boss-card-state">flag · <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+    <!-- 2 — Malechstone (military phosphor on dried sand) -->
+    <article class="boss-card"
+      data-slug="malechstone"
+      data-page="bossfight-malechstone.html"
+      style="
+        --card-bg:          #0e0d08;
+        --card-bg-grade:    #2a2820;
+        --card-fg:          #d8d2b8;
+        --card-fg-dim:      #8a8470;
+        --card-accent:      #d4d488;
+        --card-accent-deep: #8a8a3a;
+        --card-felt:        #2e2814;
+        --card-felt-edge:   #5a4a28;
+        --card-face:        #ede5c8;
+        --card-back:        #1a2438;
+        --card-suit-black:  #0a0a0a;
+        --card-suit-red:    #8a0010;
+      ">
+      <div class="boss-card-head">
+        <span class="boss-card-num">2</span>
+        <h2 class="boss-card-name">Agent Malechstone<span class="boss-card-epithet">Wings in wings</span></h2>
+        <span class="boss-card-pill">Stub</span>
+        <span class="boss-card-pill boss-card-pill-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-card-mini" aria-hidden="true">
+        <div class="boss-card-mini-card is-black">Q</div>
+        <div class="boss-card-mini-card">J</div>
+        <div class="boss-card-mini-spacer"></div>
+        <div class="boss-card-mini-card is-back"></div>
+        <div class="boss-card-mini-card is-back"></div>
+      </div>
+      <div class="boss-card-swatches">
+        <span class="boss-card-swatches-label">Palette</span>
+        <span class="boss-card-swatch" style="background:#0e0d08" title="black ops"></span>
+        <span class="boss-card-swatch" style="background:#d4d488" title="phosphor"></span>
+        <span class="boss-card-swatch" style="background:#2e2814" title="dried felt"></span>
+        <span class="boss-card-swatch" style="background:#1a2438" title="tac blue"></span>
+        <span class="boss-card-swatch" style="background:#8a0010" title="arterial"></span>
+      </div>
+      <p class="boss-card-notes">
+        <span class="quote">"Frankly, you're a danger to the neighborhood. Shouldn't YOUR CHILD be reasoning by now?"</span>
+        Wings and missiles. Barely — you gotta LOOK at a map of Gaza.
+      </p>
+      <div class="boss-card-actions">
+        <button class="card-btn card-btn-fight btn-fight" type="button">Open boss page</button>
+        <button class="card-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="card-btn btn-reset" type="button">Reset</button>
+        <span class="boss-card-state">flag · <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+    <!-- 3 — Zashiki-Warashi (badge gold on jungle moss) -->
+    <article class="boss-card"
+      data-slug="zashiki-warashi"
+      data-page="bossfight-zashiki-warashi.html"
+      style="
+        --card-bg:          #14180e;
+        --card-bg-grade:    #1a2018;
+        --card-fg:          #d4d0b8;
+        --card-fg-dim:      #7a8068;
+        --card-accent:      #c4a040;
+        --card-accent-deep: #7a6020;
+        --card-felt:        #1a241a;
+        --card-felt-edge:   #3a4838;
+        --card-face:        #ede4c4;
+        --card-back:        #14233a;
+        --card-suit-black:  #0a0a0a;
+        --card-suit-red:    #8a1a1a;
+      ">
+      <div class="boss-card-head">
+        <span class="boss-card-num">3</span>
+        <h2 class="boss-card-name">Zashiki-Warashi<span class="boss-card-epithet">FBI badges on soot</span></h2>
+        <span class="boss-card-pill">Stub</span>
+        <span class="boss-card-pill boss-card-pill-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-card-mini" aria-hidden="true">
+        <div class="boss-card-mini-card is-black">7</div>
+        <div class="boss-card-mini-card">3</div>
+        <div class="boss-card-mini-spacer"></div>
+        <div class="boss-card-mini-card is-back"></div>
+        <div class="boss-card-mini-card is-back"></div>
+      </div>
+      <div class="boss-card-swatches">
+        <span class="boss-card-swatches-label">Palette</span>
+        <span class="boss-card-swatch" style="background:#14180e" title="soot"></span>
+        <span class="boss-card-swatch" style="background:#c4a040" title="badge gold"></span>
+        <span class="boss-card-swatch" style="background:#1a241a" title="moss felt"></span>
+        <span class="boss-card-swatch" style="background:#ede4c4" title="manila"></span>
+        <span class="boss-card-swatch" style="background:#8a1a1a" title="federal red"></span>
+      </div>
+      <p class="boss-card-notes">
+        <span class="quote">"Home life is sub-optimal. Potential for creating larger disturbances within society later."</span>
+        Fucked-up Miyazaki riff — soot dudes with FBI badges.
+      </p>
+      <div class="boss-card-actions">
+        <button class="card-btn card-btn-fight btn-fight" type="button">Open boss page</button>
+        <button class="card-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="card-btn btn-reset" type="button">Reset</button>
+        <span class="boss-card-state">flag · <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+    <!-- 4 — Nahual (jade on obsidian) -->
+    <article class="boss-card"
+      data-slug="nahual"
+      data-page="bossfight-nahual.html"
+      style="
+        --card-bg:          #060a08;
+        --card-bg-grade:    #0e1a14;
+        --card-fg:          #d8d4c0;
+        --card-fg-dim:      #7a8470;
+        --card-accent:      #5fa080;
+        --card-accent-deep: #2e5a40;
+        --card-felt:        #0a1810;
+        --card-felt-edge:   #2e4a34;
+        --card-face:        #e8e0c8;
+        --card-back:        #0a0c08;
+        --card-suit-black:  #0a0a0a;
+        --card-suit-red:    #b04020;
+      ">
+      <div class="boss-card-head">
+        <span class="boss-card-num">4</span>
+        <h2 class="boss-card-name">Nahual<span class="boss-card-epithet">— TBD —</span></h2>
+        <span class="boss-card-pill">Stub</span>
+        <span class="boss-card-pill boss-card-pill-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-card-mini" aria-hidden="true">
+        <div class="boss-card-mini-card">A</div>
+        <div class="boss-card-mini-card is-black">T</div>
+        <div class="boss-card-mini-spacer"></div>
+        <div class="boss-card-mini-card is-back"></div>
+        <div class="boss-card-mini-card is-back"></div>
+      </div>
+      <div class="boss-card-swatches">
+        <span class="boss-card-swatches-label">Palette</span>
+        <span class="boss-card-swatch" style="background:#060a08" title="obsidian"></span>
+        <span class="boss-card-swatch" style="background:#5fa080" title="jade"></span>
+        <span class="boss-card-swatch" style="background:#0a1810" title="jungle felt"></span>
+        <span class="boss-card-swatch" style="background:#e8e0c8" title="codex"></span>
+        <span class="boss-card-swatch" style="background:#b04020" title="cochineal"></span>
+      </div>
+      <p class="boss-card-notes">
+        <em>(no character notes yet — Mesoamerican shapeshifter placeholder;
+        jungle obsidian + jade aesthetic.)</em>
+      </p>
+      <div class="boss-card-actions">
+        <button class="card-btn card-btn-fight btn-fight" type="button">Open boss page</button>
+        <button class="card-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="card-btn btn-reset" type="button">Reset</button>
+        <span class="boss-card-state">flag · <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+    <!-- 5 — Fortuna (gold leaf on plum) -->
+    <article class="boss-card"
+      data-slug="fortuna"
+      data-page="bossfight-fortuna.html"
+      style="
+        --card-bg:          #1a1224;
+        --card-bg-grade:    #2a1c3a;
+        --card-fg:          #f0e6c8;
+        --card-fg-dim:      #b8a484;
+        --card-accent:      #c8a040;
+        --card-accent-deep: #7a5f1c;
+        --card-felt:        #1f1a2e;
+        --card-felt-edge:   #5a3a52;
+        --card-face:        #f4ecd4;
+        --card-back:        #2a1830;
+        --card-suit-black:  #1a0a0a;
+        --card-suit-red:    #a83040;
+      ">
+      <div class="boss-card-head">
+        <span class="boss-card-num">5</span>
+        <h2 class="boss-card-name">Fortuna<span class="boss-card-epithet">Goddess · not a PC</span></h2>
+        <span class="boss-card-pill">Stub</span>
+        <span class="boss-card-pill boss-card-pill-beaten" data-beaten-pill hidden>Beaten</span>
+      </div>
+      <div class="boss-card-mini" aria-hidden="true">
+        <div class="boss-card-mini-card is-black">K</div>
+        <div class="boss-card-mini-card">Q</div>
+        <div class="boss-card-mini-spacer"></div>
+        <div class="boss-card-mini-card is-back"></div>
+        <div class="boss-card-mini-card is-back"></div>
+      </div>
+      <div class="boss-card-swatches">
+        <span class="boss-card-swatches-label">Palette</span>
+        <span class="boss-card-swatch" style="background:#1a1224" title="plum"></span>
+        <span class="boss-card-swatch" style="background:#c8a040" title="gold leaf"></span>
+        <span class="boss-card-swatch" style="background:#1f1a2e" title="velvet felt"></span>
+        <span class="boss-card-swatch" style="background:#f4ecd4" title="card stock"></span>
+        <span class="boss-card-swatch" style="background:#a83040" title="rose madder"></span>
+      </div>
+      <p class="boss-card-notes">
+        Render like a Virginia Frances Sterrett drawing. The Palace itself.
+        Final boss — the wheel that's been turning the whole time.
+      </p>
+      <div class="boss-card-actions">
+        <button class="card-btn card-btn-fight btn-fight" type="button">Open boss page</button>
+        <button class="card-btn btn-beaten" type="button">Mark beaten</button>
+        <button class="card-btn btn-reset" type="button">Reset</button>
+        <span class="boss-card-state">flag · <code data-flag-readout>—</code></span>
+      </div>
+    </article>
+
+  </main>
+
+  <script src="../js/bossfight/intro.js"></script>
+  <script>
+    /* Debug boss hub controller — read-only on load; mutates localStorage only
+       on button click. Schema unchanged from the parked system:
+         wendys_palace_boss_<slug>     = { active, complete, won, snapshot? }
+         wendys_palace_bosses_beaten   = string[] of slugs */
+    (function () {
+      var BEATEN_KEY = 'wendys_palace_bosses_beaten';
+      function flagKey(slug) { return 'wendys_palace_boss_' + slug; }
+
+      function readJSON(key, fallback) {
+        try {
+          var raw = localStorage.getItem(key);
+          if (raw == null) return fallback;
+          return JSON.parse(raw);
+        } catch (e) { return fallback; }
+      }
+      function writeJSON(key, val) {
+        try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+      }
+      function getBeaten() {
+        var b = readJSON(BEATEN_KEY, []);
+        return Array.isArray(b) ? b : [];
+      }
+      function setBeaten(arr) { writeJSON(BEATEN_KEY, arr); }
+
+      function describeFlag(rec, beaten) {
+        if (beaten) return 'BEATEN';
+        if (!rec || typeof rec !== 'object') return 'unset';
+        var parts = [];
+        if (rec.active)   parts.push('active');
+        if (rec.complete) parts.push('complete');
+        if (rec.won)      parts.push('won');
+        return parts.length ? parts.join('+') : 'idle';
+      }
+
+      function refreshCard(card) {
+        var slug = card.getAttribute('data-slug');
+        var rec  = readJSON(flagKey(slug), null);
+        var beatenList = getBeaten();
+        var isBeaten   = beatenList.indexOf(slug) >= 0;
+        var pill   = card.querySelector('[data-beaten-pill]');
+        if (pill) pill.hidden = !isBeaten;
+        var out = card.querySelector('[data-flag-readout]');
+        if (out) out.textContent = describeFlag(rec, isBeaten);
+      }
+      function refreshAll() {
+        document.querySelectorAll('.boss-card').forEach(refreshCard);
+        refreshTokens();
+      }
+      // Light each token if its slug is in the beaten list.
+      function refreshTokens() {
+        var beaten = getBeaten();
+        document.querySelectorAll('.boss-tokens .token').forEach(function (t) {
+          var slug = t.getAttribute('data-token-slug');
+          t.classList.toggle('is-earned', beaten.indexOf(slug) >= 0);
+        });
+      }
+
+      function triggerFight(card) {
+        var slug = card.getAttribute('data-slug');
+        var page = card.getAttribute('data-page');
+        // Mark this boss as encountered once — the threshold-trigger
+        // wiring (boss auto-launching at wallet milestones) will check
+        // this flag to ensure each boss only fires once even if the
+        // player dies in another fight. Already-beaten bosses also stay
+        // encountered, so re-launching from the hub doesn't undo it.
+        var existing = readJSON(flagKey(slug), {}) || {};
+        existing.active = true;
+        existing.complete = false;
+        existing.won = false;
+        existing.encountered = true;
+        writeJSON(flagKey(slug), existing);
+        // Route through the shared intro overlay so the debug launch
+        // matches the real trigger flow ("Your head... starts... to...
+        // pound!" red-text reveal + page pixelation, then navigation).
+        if (window.BossIntro && typeof window.BossIntro.run === 'function') {
+          window.BossIntro.run(page);
+        } else {
+          location.href = page;
+        }
+      }
+
+      function markBeaten(card) {
+        var slug = card.getAttribute('data-slug');
+        writeJSON(flagKey(slug), { active: false, complete: true, won: true });
+        var b = getBeaten();
+        if (b.indexOf(slug) < 0) b.push(slug);
+        setBeaten(b);
+        refreshCard(card);
+      }
+
+      function resetBoss(card) {
+        var slug = card.getAttribute('data-slug');
+        try { localStorage.removeItem(flagKey(slug)); } catch (e) {}
+        var b = getBeaten().filter(function (s) { return s !== slug; });
+        setBeaten(b);
+        refreshCard(card);
+      }
+
+      function clearAll() {
+        if (!confirm('Clear ALL boss state (records + beaten list + player dossier)?')) return;
+        document.querySelectorAll('.boss-card').forEach(function (card) {
+          var slug = card.getAttribute('data-slug');
+          try { localStorage.removeItem(flagKey(slug)); } catch (e) {}
+        });
+        try { localStorage.removeItem(BEATEN_KEY); } catch (e) {}
+        // Also wipe the shared player poker dossier — the cross-boss profile
+        // the AI uses to read your tendencies. Fresh slate after clear.
+        try { localStorage.removeItem('wendys_palace_player_poker_dossier'); } catch (e) {}
+        refreshAll();
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.boss-card').forEach(function (card) {
+          var fight  = card.querySelector('.btn-fight');
+          var beaten = card.querySelector('.btn-beaten');
+          var reset  = card.querySelector('.btn-reset');
+          if (fight)  fight.addEventListener('click',  function () { triggerFight(card); });
+          if (beaten) beaten.addEventListener('click', function () { markBeaten(card); });
+          if (reset)  reset.addEventListener('click',  function () { resetBoss(card); });
+        });
+        var clr = document.getElementById('debug-clear-bosses');
+        if (clr) clr.addEventListener('click', clearAll);
+        refreshAll();
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1028 @@
+/*
+  VAN GO — 9×9 bottle-cap Go on an old pizza box. Theme: the chrome is the
+  interior of a cheap cargo van — dingy white painted sheet-metal panels
+  with rust freckles bleeding through chipped paint, dirt-scuff stripes
+  from gear dragged past, chrome Phillips-head screws at the corners,
+  and a duct-tape patch over a tear. Buttons are dirty-white plastic
+  toggles with stencil-black text. The instrument cluster (status row,
+  status line, wager input, pay summary) is a dark recess sunk into the
+  white panel — amber LCD readouts inside. DEAL stays a chrome-rimmed
+  red START button; FOLD is a dark-red warning; READ THE BOARD is a
+  rocker switch with an amber indicator lamp. The pizza-box face (drawn
+  by drawBoard() in page.js) and the bottle caps stay paper-and-painted-
+  tin — discrete physical objects on the milk-crate stool inside.
+
+  Typography (Econoline-van-chrome): --font-title = Audiowide (wide
+  rounded chrome display, for h1/result-headline/BUMP flash); --font-
+  stencil = Black Ops One (military stencil, for section titles, diff
+  placards, button labels); --font-body = Special Elite (typewriter,
+  scrappy); --font-ui = VT323 inherited (amber LCDs).
+
+  Behind everything (z-order: bottom): ../assets/images/mountainscroll.png is
+  tiled across the body, scaled to viewport height (auto 100vh), animated
+  rightward via @keyframes vg-mountain-scroll (one full tile-width = 750vh
+  per 90s for seamless looping). image-rendering: pixelated gives it the
+  chunky nearest-neighbor look; img+canvas reset to auto so caps and the
+  pizza-box face stay smooth. Reads as the view out the open back doors.
+  ─────────────────────────────────────────────────────────────────────────
+  Sections:
+    1. Vars (rust palette + cap brand swatches + bone text)
+    2. Body — dim shop with rust-stained walls, pitted-metal grain
+    3. Header / subtitle (stenciled paint on rusted panel)
+    4. Rules disclosure (riveted maintenance panel)
+    5. Floor layout
+    6. Board column — status row, canvas wrap (pizza-box rim), status,
+       result panel (rusted enamel sign)
+    7. Side panel — rusted iron sheet with corner rivets
+    8. Buttons (pressed-steel rusty plates; DEAL = red bottle cap pressed
+       into the panel; toggle-on glows like a filament behind the plate)
+    9. Responsive
+  Owns selectors: .go-body, .go-title, .go-subtitle, .go-rules*, .go-floor,
+    .go-board-wrap, .go-status-row, .go-status-cell, .go-status-cell-wide,
+    .go-status-label, .go-status-val, .go-est-dame, .go-canvas-wrap,
+    .go-status, .go-result, .go-result-headline, .go-result-reason,
+    .go-result-breakdown, .go-result-pay, .go-panel, .go-section-title,
+    .go-setup, .go-diff-row, .go-label, .go-knob-wrap, .go-knob,
+    .go-knob-tick (×4), .go-knob-body, .go-knob-pointer, .go-knob-marks,
+    .go-knob-mark, .go-knob-mark-num, .go-knob-mark-name, .go-knob-mark-pay,
+    .go-wager-row, .go-pay-summary, .go-actions, .go-btn, .go-btn-small,
+    .go-btn-begin, .go-btn-resign, .go-btn-toggle, .go-btn-toggle-on,
+    .go-seq-row (sequencer-row variant of .go-wager-row; #go-bpm + #go-pieces
+    inputs share the #go-wager LCD look),
+    .go-bump-flash, body.go-bumping
+  Consumed by: pages/go.html
+  External deps: base.css
+*/
+
+/* Econoline-van-chrome typography — Audiowide for the big chrome display
+   (titles, BUMP flash, result headlines), Black Ops One for stencil labels
+   (section titles, button labels, difficulty placards). Special Elite kept
+   from base.css for typewriter body text; VT323 for the amber LCDs. */
+@import url('https://fonts.googleapis.com/css2?family=Audiowide&family=Black+Ops+One&family=Permanent+Marker&display=swap');
+
+:root {
+  /* Font overrides (scope: this page only; base.css definitions in turn
+     override at lower specificity since this file loads after). */
+  --font-title:   'Audiowide', 'Limelight', 'Special Elite', sans-serif;
+  --font-stencil: 'Black Ops One', 'Special Elite', 'Courier New', monospace;
+  --font-body:    'Special Elite', 'Courier New', monospace;
+
+  /* ── Busted Econoline van interior ────────────────────────────────── */
+
+  /* Painted sheet-metal panels — slightly yellowed, scuffed, dirty cream */
+  --vg-white:        #d8cebc;        /* main panel face */
+  --vg-white-lt:     #ece4d2;        /* highlight stripe */
+  --vg-white-shade:  #a8a094;        /* under-shadow */
+  --vg-white-dirty:  #b6ab98;        /* worn-down areas */
+  --vg-paint-edge:   #6a6258;        /* darker frame line */
+
+  /* Stenciled labels / dark text on white surfaces */
+  --vg-stencil:      #1a1612;
+  --vg-stencil-mid:  #3a3530;
+
+  /* Dashboard recess (instrument cluster stays dark inside white frame) */
+  --vg-dash:         #1a1612;
+  --vg-dash-dk:      #0a0606;
+
+  /* Chrome trim (worn pot-metal, not bright) */
+  --vg-chrome:       #a8a098;
+  --vg-chrome-lt:    #d0c8c0;
+  --vg-chrome-dk:    #5a544c;
+  --vg-chrome-shine: rgba(232, 224, 212, 0.85);
+
+  /* Dashboard amber glow (instrument cluster / LED readouts) */
+  --vg-amber:        #ffa838;
+  --vg-amber-dim:    #6a3a08;
+  --vg-amber-glow:   rgba(255, 168, 56, 0.45);
+
+  /* Repairs */
+  --vg-tape-grey:    #4a4640;          /* duct tape */
+  --vg-tape-edge:    #2a2622;
+
+  /* Rust — vans rust around seams, door bottoms, wheel-well openings */
+  --vg-rust:         #8c4818;
+  --vg-rust-deep:    #5a2a10;
+  --vg-rust-bright:  #c8682c;
+  --vg-rust-bleed:   rgba(140, 72, 24, 0.45);
+
+  /* Overhead dome bulb */
+  --vg-bulb:         #ffd078;
+  --vg-bulb-dim:     #8a5018;
+
+  /* Pizza-box rim (the only non-van frame — the box itself) */
+  --vg-box-tan:      #8a6438;
+  --vg-box-shade:    #6a4a26;
+  --vg-box-crease:   #4a3018;
+
+  /* Bottle caps — brand swatches (also used by the JS overlay tints) */
+  --vg-cap-red:      #b41822;
+  --vg-cap-red-lt:   #e84a55;
+  --vg-cap-red-dk:   #5a0010;
+  --vg-cap-pale:     #cabc88;
+  --vg-cap-pale-lt:  #f0e8c8;
+  --vg-cap-pale-dk:  #6a5e38;
+  --vg-cap-blue:     #1c2860;
+
+  /* Bone / readout text (for the dark dashboard strip) */
+  --vg-bone:         #c8b89c;
+  --vg-bone-deep:    #98886c;
+  --vg-bone-dim:     #6a5e48;
+}
+
+/* Mountain lives on a dedicated html::before so it's isolated from body
+   overlays and animation works reliably. background-attachment: fixed on
+   body broke the position animation in practice. The scroll duration is
+   driven by --vg-mountain-duration so the difficulty knob can speed it
+   up at higher ranks (JS writes the property on documentElement). */
+html {
+  background-color: #050302;
+  min-height: 100vh;
+  --vg-mountain-duration: 90s;
+}
+
+html::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: #050302;
+  background-image: url('../../assets/images/mountainscroll.png');
+  background-repeat: repeat-x;
+  background-size: auto 100vh;
+  background-position: 0 50%;
+  image-rendering: pixelated;
+  animation: vg-mountain-scroll var(--vg-mountain-duration, 90s) linear infinite;
+}
+
+body.go-body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 22px 16px 64px;
+  color: var(--vg-bone);
+  font-family: var(--font-ui);
+  background: transparent;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Pitted-metal grain + rust-fleck noise — multiplied over the mountain
+   so the parallax view feels like it's behind dirty glass. */
+body.go-body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(rgba(0, 0, 0, 0.32) 1px, transparent 1px),
+    radial-gradient(rgba(180, 90, 40, 0.06) 1px, transparent 2px);
+  background-size: 4px 4px, 13px 13px;
+  background-position: 0 0, 2px 3px;
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+/* Van-interior lighting overlay — was on body's background; moved here so
+   it tints the mountain underneath without participating in the scroll.
+   Translucent so the mountain still reads through. */
+body.go-body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 50% 22% at 50% 8%, rgba(255, 176, 80, 0.10) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 36% at 8% 92%, rgba(140, 60, 24, 0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 36% at 92% 64%, rgba(140, 60, 24, 0.16) 0%, transparent 60%),
+    /* Dimmer linear tint so the scrolling mountain reads clearly. */
+    linear-gradient(180deg, rgba(24, 18, 12, 0.22) 0%, rgba(16, 10, 6, 0.18) 45%, rgba(6, 4, 3, 0.30) 100%);
+}
+
+/* Restore smooth scaling for in-page images and the board canvas — only
+   the body's tiled mountain wants nearest-neighbor. */
+body.go-body img,
+body.go-body canvas {
+  image-rendering: auto;
+}
+
+/* Tile width at this background-size = (3000/400) × 100vh = 750vh.
+   Animating background-position from 0 to +750vh advances exactly one
+   tile, so the loop is seamless. Positive direction = content drifts
+   left → right across the viewport. */
+@keyframes vg-mountain-scroll {
+  from { background-position: 0     50%; }
+  to   { background-position: 750vh 50%; }
+}
+
+/* ===== Bump system — full-page flash overlay + body shake ===== */
+
+/* #go-bump-flash is appended once on page load; JS toggles textContent +
+   .show to fire a brief, dramatic overlay before the bump and at impact. */
+.go-bump-flash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 999;
+  font-family: var(--font-title);
+  font-size: clamp(3rem, 10vw, 8.5rem);
+  letter-spacing: 0.10em;
+  color: var(--vg-amber);
+  text-shadow:
+    0 0 18px rgba(255, 168, 56, 0.85),
+    0 0 4px #000,
+    0 4px 0 rgba(0, 0, 0, 0.55);
+  opacity: 0;
+}
+.go-bump-flash.show {
+  animation: vg-bump-flash 1.05s ease-out forwards;
+}
+@keyframes vg-bump-flash {
+  0%   { opacity: 0; transform: scale(0.65); }
+  12%  { opacity: 1; transform: scale(1.16); }
+  22%  { opacity: 1; transform: scale(0.98); }
+  78%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.04); }
+}
+/* Impact text is even bigger and more saturated red-orange. */
+.go-bump-flash.go-bump-flash-impact {
+  color: var(--vg-cap-red-lt);
+  font-size: clamp(4rem, 14vw, 11rem);
+  text-shadow:
+    0 0 22px rgba(232, 74, 85, 0.9),
+    0 0 6px #000,
+    0 6px 0 rgba(0, 0, 0, 0.7);
+}
+
+/* Body shake — fires when the bump impact lands. html::before (mountain)
+   sits outside body so it stays put: the cabin shakes around the view. */
+body.go-bumping {
+  animation: vg-bump-shake 0.62s cubic-bezier(.36,.07,.19,.97) both;
+}
+@keyframes vg-bump-shake {
+  0%, 100% { transform: translate(0, 0); }
+  8%   { transform: translate(-9px, -5px); }
+  16%  { transform: translate( 8px,  6px); }
+  24%  { transform: translate(-7px,  3px); }
+  32%  { transform: translate( 6px, -5px); }
+  40%  { transform: translate(-5px,  4px); }
+  48%  { transform: translate( 4px, -3px); }
+  56%  { transform: translate(-3px,  3px); }
+  64%  { transform: translate( 3px, -2px); }
+  72%  { transform: translate(-2px,  1px); }
+  84%  { transform: translate( 1px, -1px); }
+}
+
+/* ===== Header ===== */
+
+.go-title {
+  font-family: var(--font-title);
+  letter-spacing: 0.10em;
+  /* Saturated bright magenta-red — punches against the dim background. */
+  color: #ff3a6e;
+  text-shadow:
+    0 0 26px rgba(255, 58, 110, 0.85),
+    0 0 10px rgba(255, 58, 110, 0.60),
+    0 0 3px rgba(255, 255, 255, 0.50),
+    0 2px 0 rgba(0, 0, 0, 0.55);
+}
+
+.go-subtitle {
+  margin: 4px 0 0;
+  /* Near-white so it pops cleanly against the dim van background. */
+  color: #faf4e6;
+  font-size: 0.9rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+/* ===== Rules disclosure — dingy white painted metal placard ===== */
+
+.go-rules {
+  position: relative;
+  max-width: 940px;
+  margin: 18px auto 14px;
+  padding: 6px 18px 6px 22px;
+  background:
+    /* faint rust freckles */
+    radial-gradient(circle 5px at 4% 30%, rgba(140, 72, 24, 0.45) 0%, transparent 80%),
+    radial-gradient(circle 4px at 96% 60%, rgba(140, 72, 24, 0.40) 0%, transparent 80%),
+    /* paint gradient — top lighter (clean), bottom dingier */
+    linear-gradient(180deg, var(--vg-white-lt) 0%, var(--vg-white) 60%, var(--vg-white-dirty) 100%);
+  border: 1px solid var(--vg-paint-edge);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.30),
+    0 4px 10px rgba(0, 0, 0, 0.45);
+}
+.go-rules summary {
+  cursor: pointer;
+  font-family: var(--font-title);
+  color: var(--vg-stencil);
+  letter-spacing: 0.18em;
+  padding: 4px 0;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+.go-rules-body {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--vg-stencil-mid);
+  padding: 6px 4px 10px;
+}
+.go-rules-body strong { color: var(--vg-stencil); }
+.go-rules-body em     { color: var(--vg-stencil); }
+.go-rules-body ul { margin: 8px 0; padding-left: 22px; }
+.go-rules-body li { margin-bottom: 4px; }
+.go-rules-pay {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.20);
+  border-left: 2px solid var(--vg-rust);
+  font-size: 0.92rem;
+  color: var(--vg-stencil-mid);
+}
+.go-rules-pay strong { color: var(--vg-stencil); }
+.go-rules-pay code {
+  font-family: var(--font-ui);
+  color: var(--vg-rust-deep);
+}
+
+
+
+/* ===== Floor layout ===== */
+
+.go-floor {
+  max-width: 940px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 22px;
+  align-items: start;
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== Board column ===== */
+
+.go-board-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Status row — instrument cluster sunk into the white dashboard. Dark
+   recessed face for the readouts; chrome trim across the top. */
+.go-status-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.5fr);
+  gap: 8px;
+  padding: 12px 14px 8px;
+  background: linear-gradient(180deg, var(--vg-dash) 0%, var(--vg-dash-dk) 100%);
+  border: 1px solid var(--vg-stencil);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.55);
+}
+/* Chrome trim strip across the top of the dashboard. */
+.go-status-row::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  height: 4px;
+  background: linear-gradient(180deg, var(--vg-chrome-lt) 0%, var(--vg-chrome) 45%, var(--vg-chrome-dk) 100%);
+  border-radius: 3px 3px 0 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.go-status-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  min-width: 0;
+}
+.go-status-cell-wide { align-items: center; }
+
+.go-status-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  color: var(--vg-bone-deep);
+  text-transform: uppercase;
+}
+.go-status-val {
+  /* Amber dashboard readout. VT323 for the LCD look. */
+  font-family: var(--font-ui);
+  font-size: 1.15rem;
+  color: var(--vg-amber);
+  letter-spacing: 0.10em;
+  text-shadow:
+    0 0 6px var(--vg-amber-glow),
+    0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.go-est-dame {
+  color: var(--vg-bone-deep);
+  font-size: 0.78rem;
+  letter-spacing: 0.10em;
+  margin-left: 4px;
+}
+
+/* The canvas-wrap stays as the pizza-box rim — the one non-rust surface. */
+.go-canvas-wrap {
+  padding: 8px;
+  background:
+    linear-gradient(180deg, var(--vg-box-tan) 0%, var(--vg-box-shade) 100%);
+  border: 1px solid var(--vg-box-crease);
+  border-radius: 5px;
+  box-shadow:
+    inset 0 0 0 1px rgba(40, 22, 8, 0.6),
+    inset 0 0 12px rgba(20, 10, 4, 0.45),
+    0 10px 28px rgba(0, 0, 0, 0.65),
+    0 2px 4px rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+.go-canvas-wrap::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 14px;
+  background: var(--vg-dash-dk);
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
+  pointer-events: none;
+}
+
+#go-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  cursor: crosshair;
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px rgba(40, 20, 6, 0.55),
+    inset 0 0 18px rgba(60, 30, 10, 0.35);
+}
+
+/* Status line — recessed LCD readout, amber glow, framed in white metal. */
+.go-status {
+  min-height: 1.6em;
+  padding: 8px 12px;
+  background:
+    linear-gradient(180deg, var(--vg-dash) 0%, var(--vg-dash-dk) 100%);
+  border: 1px solid var(--vg-stencil);
+  border-left: 3px solid var(--vg-chrome-dk);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  color: var(--vg-amber);
+  text-shadow: 0 0 4px var(--vg-amber-glow);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.7),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.go-status-warn {
+  border-left-color: var(--vg-cap-red-lt);
+  color: var(--vg-cap-red-lt);
+  text-shadow: 0 0 5px rgba(232, 74, 85, 0.45);
+}
+.go-status-soft {
+  border-left-color: var(--vg-bulb);
+  color: var(--vg-bulb);
+  text-shadow: 0 0 5px rgba(255, 208, 120, 0.45);
+}
+
+/* Result panel — white painted-metal placard with rust freckles. */
+.go-result:empty { display: none; }
+.go-result {
+  position: relative;
+  padding: 12px 18px;
+  background:
+    radial-gradient(circle 6px at 8% 22%, rgba(140, 72, 24, 0.50) 0%, transparent 80%),
+    radial-gradient(circle 5px at 92% 78%, rgba(140, 72, 24, 0.40) 0%, transparent 80%),
+    linear-gradient(180deg, var(--vg-white-lt) 0%, var(--vg-white) 60%, var(--vg-white-dirty) 100%);
+  border: 1px solid var(--vg-paint-edge);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.25),
+    0 4px 10px rgba(0, 0, 0, 0.45);
+  color: var(--vg-stencil-mid);
+}
+.go-result-win   { border-color: var(--vg-rust);          box-shadow: 0 0 14px var(--vg-rust-bleed), inset 0 1px 0 rgba(255, 255, 255, 0.30); }
+.go-result-lose  { border-color: var(--vg-cap-red-dk); }
+.go-result-draw  { border-color: var(--vg-chrome-dk); }
+
+.go-result-headline {
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  color: var(--vg-rust-deep);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+.go-result-lose .go-result-headline { color: var(--vg-cap-red-dk); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.30); }
+.go-result-draw .go-result-headline { color: var(--vg-stencil);    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.30); }
+.go-result-reason {
+  margin-top: 4px;
+  color: var(--vg-stencil-mid);
+}
+.go-result-breakdown {
+  margin-top: 8px;
+  font-family: var(--font-ui);
+  font-size: 0.92rem;
+  color: var(--vg-stencil);
+}
+.go-result-pay {
+  margin-top: 6px;
+  font-family: var(--font-ui);
+  color: var(--vg-stencil);
+}
+.go-result-pay.go-result-win  { color: var(--vg-rust-deep); }
+.go-result-pay.go-result-lose { color: var(--vg-cap-red-dk); }
+
+/* ===== Side panel — riveted iron sheet ===== */
+
+/* The side panel — dingy white painted sheet metal, screwed at corners,
+   with a rust streak down the right edge and a duct-tape patch up top. */
+.go-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 16px 18px;
+  background:
+    /* rust bleed creeping in from the bottom-right corner */
+    radial-gradient(ellipse 35% 24% at 100% 100%, var(--vg-rust-bleed) 0%, transparent 60%),
+    /* rust freckles where paint chipped */
+    radial-gradient(circle 6px at 14% 22%, rgba(140, 72, 24, 0.55) 0%, transparent 80%),
+    radial-gradient(circle 4px at 88% 11%, rgba(140, 72, 24, 0.50) 0%, transparent 80%),
+    radial-gradient(circle 8px at 6% 78%, rgba(140, 72, 24, 0.40) 0%, transparent 80%),
+    /* dirt scuff stripes — vertical wear marks from gear being dragged past */
+    repeating-linear-gradient(94deg,
+      transparent 0px, transparent 19px,
+      rgba(0, 0, 0, 0.05) 19px, rgba(0, 0, 0, 0.05) 20px,
+      transparent 20px, transparent 47px,
+      rgba(0, 0, 0, 0.03) 47px, rgba(0, 0, 0, 0.03) 48px),
+    /* general grime — soft horizontal banding */
+    linear-gradient(180deg,
+      var(--vg-white-lt) 0%,
+      var(--vg-white) 25%,
+      var(--vg-white-dirty) 75%,
+      var(--vg-white-shade) 100%);
+  border: 1px solid var(--vg-paint-edge);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.35),
+    0 6px 14px rgba(0, 0, 0, 0.55);
+}
+/* Corner screws — chrome Phillips heads. */
+.go-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image:
+    radial-gradient(circle at 9px 9px, var(--vg-chrome-lt) 0%, var(--vg-chrome) 35%, var(--vg-chrome-dk) 65%, var(--vg-stencil) 80%, transparent 88%),
+    radial-gradient(circle at calc(100% - 9px) 9px, var(--vg-chrome-lt) 0%, var(--vg-chrome) 35%, var(--vg-chrome-dk) 65%, var(--vg-stencil) 80%, transparent 88%),
+    radial-gradient(circle at 9px calc(100% - 9px), var(--vg-chrome-lt) 0%, var(--vg-chrome) 35%, var(--vg-chrome-dk) 65%, var(--vg-stencil) 80%, transparent 88%),
+    radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), var(--vg-chrome-lt) 0%, var(--vg-chrome) 35%, var(--vg-chrome-dk) 65%, var(--vg-stencil) 80%, transparent 88%);
+  background-size: 18px 18px;
+  background-position: 0 0, 100% 0, 0 100%, 100% 100%;
+  background-repeat: no-repeat;
+}
+/* Duct tape patch — a strip of grey gaffer slapped near the top edge. */
+.go-panel::after {
+  content: "";
+  position: absolute;
+  top: 22px;
+  right: -3px;
+  width: 84px;
+  height: 14px;
+  pointer-events: none;
+  background:
+    /* tape texture (thin lengthwise stripes) */
+    repeating-linear-gradient(90deg,
+      var(--vg-tape-grey) 0px, var(--vg-tape-grey) 1px,
+      rgba(0, 0, 0, 0.12) 1px, rgba(0, 0, 0, 0.12) 2px),
+    var(--vg-tape-grey);
+  border-top: 1px solid var(--vg-tape-edge);
+  border-bottom: 1px solid var(--vg-tape-edge);
+  transform: rotate(-2deg);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.55),
+    inset 0 0 4px rgba(0, 0, 0, 0.25);
+  opacity: 0.92;
+}
+
+.go-section-title {
+  margin: 0 0 8px;
+  font-family: var(--font-stencil);
+  font-size: 0.95rem;
+  letter-spacing: 0.14em;
+  color: var(--vg-stencil);
+  text-transform: uppercase;
+  border-bottom: 1px dashed var(--vg-paint-edge);
+  padding-bottom: 4px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+
+.go-setup, .go-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.go-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  color: var(--vg-stencil-mid);
+  text-transform: uppercase;
+}
+
+.go-diff-row { display: flex; flex-direction: column; gap: 8px; }
+
+/* ===== Difficulty knob — chrome dial on a dingy panel ============= */
+/* Structure:
+     .go-knob-wrap[data-level]       ← outer container, data-level drives rotation
+       .go-knob                      ← chrome disc with tick marks
+         .go-knob-tick-{1..4}        ← four ticks at -90/-30/+30/+90 deg
+         .go-knob-body               ← inner disc that ROTATES
+           .go-knob-pointer          ← black pointer line, rides on the body
+       .go-knob-marks                ← labels below
+         .go-knob-mark (×4)          ← clickable selectable */
+.go-knob-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px 4px;
+}
+
+.go-knob {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 28%, var(--vg-chrome-lt) 0%, var(--vg-chrome) 55%, var(--vg-chrome-dk) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.45),
+    inset 0 4px 8px rgba(255, 255, 255, 0.18),
+    0 5px 12px rgba(0, 0, 0, 0.55);
+  cursor: grab;
+  touch-action: none;            /* prevent page scroll while dragging the dial */
+  user-select: none;
+}
+.go-knob.go-knob-dragging,
+.go-knob:active {
+  cursor: grabbing;
+}
+/* While actively dragged, kill the snap-back easing so the dial tracks the
+   cursor 1:1. The CSS .go-knob-body transition handles the snap on release. */
+.go-knob.go-knob-dragging .go-knob-body {
+  transition: none;
+}
+
+/* Four short tick marks at -90 / -30 / +30 / +90 degrees, just outside
+   the rotating inner body. Math: each tick is centered on the knob; the
+   `rotate(α)` orients it radially and `translateY(-d)` pushes it outward
+   in the rotated frame, ending up on the perimeter at that angle. */
+.go-knob-tick {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 10px;
+  margin: -5px 0 0 -1.5px;
+  background: var(--vg-stencil);
+  border-radius: 2px;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+.go-knob-tick-1 { transform: rotate(-90deg) translateY(-46px); }
+.go-knob-tick-2 { transform: rotate(-30deg) translateY(-46px); }
+.go-knob-tick-3 { transform: rotate( 30deg) translateY(-46px); }
+.go-knob-tick-4 { transform: rotate( 90deg) translateY(-46px); }
+
+/* Inner disc — this is what rotates between positions. */
+.go-knob-body {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 28%, var(--vg-white-lt) 0%, var(--vg-white-dirty) 60%, var(--vg-white-shade) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.35s cubic-bezier(.6, .1, .3, 1.15);
+}
+
+/* Pointer line on the rotating disc, points "up" at rotate(0). */
+.go-knob-pointer {
+  position: absolute;
+  top: 6%;
+  left: 50%;
+  width: 5px;
+  height: 36%;
+  margin-left: -2.5px;
+  background: var(--vg-stencil);
+  border-radius: 3px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+/* The four positions correspond to the same angles as the tick marks. */
+.go-knob-wrap[data-level="1"] .go-knob-body { transform: rotate(-90deg); }
+.go-knob-wrap[data-level="2"] .go-knob-body { transform: rotate(-30deg); }
+.go-knob-wrap[data-level="3"] .go-knob-body { transform: rotate( 30deg); }
+.go-knob-wrap[data-level="4"] .go-knob-body { transform: rotate( 90deg); }
+
+/* Labels row beneath the knob — small clickable rank tags. */
+.go-knob-marks {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  width: 100%;
+}
+
+.go-knob-mark {
+  appearance: none;
+  background:
+    radial-gradient(ellipse 80% 50% at 30% 20%, rgba(255, 255, 255, 0.30) 0%, transparent 70%),
+    linear-gradient(180deg, var(--vg-white-lt) 0%, var(--vg-white) 60%, var(--vg-white-dirty) 100%);
+  color: var(--vg-stencil);
+  border: 1px solid var(--vg-paint-edge);
+  border-radius: 999px;
+  padding: 4px 2px 5px;
+  cursor: pointer;
+  font-family: var(--font-stencil);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.22);
+}
+.go-knob-mark:hover:not(:disabled) {
+  border-color: var(--vg-rust);
+  color: var(--vg-rust-deep);
+}
+.go-knob-mark:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.go-knob-mark[aria-checked="true"] {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 55%, rgba(255, 168, 56, 0.45) 0%, transparent 75%),
+    linear-gradient(180deg, var(--vg-white) 0%, var(--vg-white-dirty) 100%);
+  border-color: var(--vg-rust);
+  color: var(--vg-rust-deep);
+  box-shadow:
+    inset 0 0 10px rgba(255, 168, 56, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 10px rgba(255, 168, 56, 0.25);
+}
+.go-knob-mark-num {
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  color: var(--vg-stencil-mid);
+  line-height: 1;
+}
+.go-knob-mark[aria-checked="true"] .go-knob-mark-num { color: var(--vg-rust-deep); }
+.go-knob-mark-name {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+}
+.go-knob-mark-pay {
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  color: var(--vg-stencil-mid);
+  line-height: 1;
+}
+.go-knob-mark[aria-checked="true"] .go-knob-mark-pay { color: var(--vg-rust-deep); }
+.go-diff-name {
+  font-family: var(--font-stencil);
+  letter-spacing: 0.12em;
+  font-size: 0.86rem;
+}
+.go-diff-pay {
+  font-size: 0.78rem;
+  color: var(--vg-stencil-mid);
+}
+.go-diff-selected .go-diff-pay { color: var(--vg-rust-deep); }
+
+.go-wager-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Stake input — small dark LCD inset, amber digits. The sequencer's BPM
+   and tail-length inputs share the same LCD look so they read as part of
+   the dash. */
+#go-wager,
+#go-bpm,
+#go-pieces {
+  background: var(--vg-dash-dk);
+  color: var(--vg-amber);
+  border: 1px solid var(--vg-stencil);
+  border-radius: 2px;
+  padding: 6px 8px;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  width: 100%;
+  min-width: 0;
+  text-shadow: 0 0 4px var(--vg-amber-glow);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+#go-wager:disabled { opacity: 0.5; }
+
+/* Sequencer rows reuse .go-wager-row's 3-col grid but have no trailing
+   "max" button — let the input span the remaining width. */
+.go-seq-row > input {
+  grid-column: 2 / -1;
+}
+
+/* Tab/Pot summary — recessed dark band so the cost/win readouts pop. */
+.go-pay-summary {
+  padding: 8px 10px;
+  background:
+    linear-gradient(180deg, var(--vg-dash) 0%, var(--vg-dash-dk) 100%);
+  border: 1px solid var(--vg-stencil);
+  border-left: 3px solid var(--vg-rust);
+  border-radius: 2px;
+  font-family: var(--font-ui);
+  font-size: 0.92rem;
+  color: var(--vg-bone);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+.go-pay-cost { color: var(--vg-cap-red-lt); font-weight: 600; }
+.go-pay-win  { color: var(--vg-amber); font-weight: 600; }
+
+/* ===== Buttons — dirty-white plastic with stencil text ===== */
+
+.go-btn {
+  appearance: none;
+  background:
+    /* glossy plastic sheen */
+    radial-gradient(ellipse 80% 40% at 30% 20%, rgba(255, 255, 255, 0.35) 0%, transparent 70%),
+    linear-gradient(180deg, var(--vg-white-lt) 0%, var(--vg-white) 55%, var(--vg-white-dirty) 100%);
+  color: var(--vg-stencil);
+  border: 1px solid var(--vg-paint-edge);
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-family: var(--font-stencil);
+  letter-spacing: 0.12em;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.05s, box-shadow 0.05s;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.22),
+    0 2px 3px rgba(0, 0, 0, 0.40);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.30);
+}
+.go-btn:hover:not(:disabled) {
+  background:
+    radial-gradient(ellipse 80% 40% at 30% 20%, rgba(255, 255, 255, 0.45) 0%, transparent 70%),
+    linear-gradient(180deg, #f4ecda 0%, var(--vg-white-lt) 55%, var(--vg-white) 100%);
+  color: var(--vg-rust-deep);
+}
+.go-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.40),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.20),
+    0 0 0 rgba(0, 0, 0, 0);
+}
+.go-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+.go-btn-small {
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+}
+
+/* DEAL — chrome-rimmed red push button, still the most prominent. */
+.go-btn-begin {
+  background:
+    radial-gradient(circle at 30% 30%, var(--vg-cap-red-lt) 0%, var(--vg-cap-red) 55%, var(--vg-cap-red-dk) 100%);
+  border: 3px solid var(--vg-chrome);
+  border-color: var(--vg-chrome-lt) var(--vg-chrome-dk) var(--vg-chrome-dk) var(--vg-chrome);
+  border-radius: 999px;
+  color: #fff5e8;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+  padding: 12px 16px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.45),
+    0 0 12px rgba(180, 24, 34, 0.35),
+    0 3px 5px rgba(0, 0, 0, 0.55);
+}
+.go-btn-begin:hover:not(:disabled) {
+  filter: brightness(1.12);
+  color: #fff5e8;
+}
+
+/* FOLD — dark-red warning button against the white plastic family. */
+.go-btn-resign {
+  border: 1px solid var(--vg-cap-red-dk);
+  color: #ffe0e0;
+  background:
+    radial-gradient(ellipse 80% 40% at 30% 20%, rgba(255, 150, 150, 0.25) 0%, transparent 70%),
+    linear-gradient(180deg, #7a1820 0%, #2a060a 100%);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 150, 150, 0.25),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.45),
+    0 2px 3px rgba(0, 0, 0, 0.50);
+}
+.go-btn-resign:hover:not(:disabled) {
+  background:
+    radial-gradient(ellipse 80% 40% at 30% 20%, rgba(255, 170, 170, 0.30) 0%, transparent 70%),
+    linear-gradient(180deg, #9a2028 0%, #36080c 100%);
+  color: #ffb0b0;
+  border-color: var(--vg-cap-red-lt);
+}
+
+/* READ THE BOARD — rocker switch with an indicator lamp on the left. */
+.go-btn-toggle {
+  position: relative;
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+  padding: 8px 22px 8px 30px;
+}
+.go-btn-toggle::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--vg-dash-dk);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.75),
+    0 0 0 1px var(--vg-paint-edge);
+}
+.go-btn-toggle-on::before {
+  background: var(--vg-amber);
+  box-shadow:
+    0 0 8px rgba(255, 168, 56, 0.85),
+    0 0 0 1px var(--vg-amber-dim),
+    inset 0 0 2px rgba(255, 220, 150, 0.6);
+}
+.go-btn-toggle-on {
+  /* lamp lit — slight amber wash bleeds onto the plastic face */
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 50%, rgba(255, 168, 56, 0.30) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 40% at 30% 20%, rgba(255, 255, 255, 0.40) 0%, transparent 70%),
+    linear-gradient(180deg, var(--vg-white-lt) 0%, var(--vg-white) 100%);
+  color: var(--vg-rust-deep);
+  border-color: var(--vg-amber-dim);
+}
+.go-btn-toggle-on:hover:not(:disabled) {
+  color: var(--vg-stencil);
+}
+
+/* ===== Responsive ===== */
+
+@media (max-width: 880px) {
+  .go-floor {
+    grid-template-columns: 1fr;
+  }
+  .go-status-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .go-status-cell-wide {
+    grid-column: span 2;
+  }
+}

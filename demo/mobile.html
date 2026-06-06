@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  MOBILE GATE — terminal page; demo is desktop-only                       │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Landing page for every mobile / touch-only visitor to the demo. The   │
+  │    five entry pages (index + 4 games) each carry a head-level guard      │
+  │    that detects coarse pointer + no hover (with a UA-string fallback)    │
+  │    and redirects here. This page itself has NO guard, so it terminates   │
+  │    the redirect chain. Single black panel, gilded "find ye a computer"   │
+  │    line, gothic frame, no links out. Terminal page.                      │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: nothing (inline styles only)                                   │
+  │    NO route-guards (this is the redirect target — must not loop)         │
+  │    DOM ids: none                                                         │
+  │    flow: static; no scripts                                              │
+  │    storage R/W: none                                                     │
+  │    routes out: none (terminal page)                                      │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Find ye a computer</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse 60% 60% at 50% 50%, #1a0606 0%, #050202 80%),
+        #050202;
+      color: #d4af37;
+      font-family: 'IM Fell English', 'Cormorant Garamond', Georgia, serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .gate {
+      text-align: center;
+      padding: 36px 28px;
+      max-width: 480px;
+    }
+    .gate-flourish {
+      font-family: 'Cinzel', Georgia, serif;
+      color: rgba(212, 175, 55, 0.62);
+      font-size: 18px;
+      letter-spacing: 0.4em;
+      margin-bottom: 28px;
+    }
+    .gate-line {
+      font-style: italic;
+      font-size: clamp(28px, 8vw, 44px);
+      line-height: 1.25;
+      letter-spacing: 0.06em;
+      color: #d4af37;
+      text-shadow:
+        0 0 12px rgba(212, 175, 55, 0.35),
+        0 0 30px rgba(184, 0, 31, 0.18);
+      margin: 0 0 24px;
+    }
+    .gate-sub {
+      font-family: 'Special Elite', 'Courier New', monospace;
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(212, 175, 55, 0.52);
+      margin-top: 12px;
+    }
+    .gate-bar {
+      margin-top: 28px;
+      color: rgba(212, 175, 55, 0.62);
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 14px;
+      letter-spacing: 0.5em;
+    }
+  </style>
+</head>
+<body>
+  <main class="gate">
+    <div class="gate-flourish">✦ ✦ ✦</div>
+    <p class="gate-line">find ye a computer</p>
+    <p class="gate-sub">the palace is for desktops</p>
+    <div class="gate-bar">— — —</div>
+  </main>
+</body>
+</html>

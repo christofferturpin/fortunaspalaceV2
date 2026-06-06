@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  ROULETTE — Russian roulette, one chamber in six                         │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    A revolver against a tiled meat-locker backdrop (SVG: chain, bulb,    │
+  │    hooks, stains, vignette — pure dressing). The single interactive     │
+  │    element is the trigger button. Press it: the cylinder spins (rAF     │
+  │    rotation w/ easing + per-segment ratchet clicks), then resolves at   │
+  │    1/6 odds. Survive → +100 coins and the counter ticks up. Die → a    │
+  │    muzzle flash and gunshot fire, the blackout pane bursts white, and  │
+  │    the page writes wendys_palace_death and redirects to death.html.    │
+  │    Free to play; the cost is the chance of permadeath.                  │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: wallet.js, expenses.js, child.js, roulette.js, header.js       │
+  │    inline route-guards (top of <head>):                                  │
+  │      !wendys_palace_intro_seen → splash.html                             │
+  │      wendys_palace_death.dead → death.html                               │
+  │      any child stat<=0 → child-died.html                                 │
+  │      child.lockedUntil>now → child.html                                  │
+  │      sinnerbox.coins>100 → index.html (last-resort gate)                 │
+  │    DOM ids: #balance, #rr-stage, #rr-revolver, #rr-cylinder, #rr-flash,  │
+  │      #rr-trigger, #rr-result, #rr-counter, #rr-blackout                  │
+  │    flow: roulette.js init → bind trigger → pull(): Child.recordPlay →   │
+  │      spinCylinder(rAF, ratchetClick every 60°, lockInClick on end) →   │
+  │      decideFate: rnd<1/6 → doDie (markDead, fireFlash, gunshot,         │
+  │      blackout, setTimeout→location.replace('death.html')) else          │
+  │      doSurvive (emptyPinClick, Wallet.add(REWARD=100), counter++)       │
+  │    storage R/W: sinnerbox (Wallet R/W), wendys_palace_death (W on die), │
+  │      wendys_palace_intro_seen (R), wendys_palace_child (R)              │
+  │    routes out: ../index.html (back), death.html (on die),               │
+  │      guard-routes to splash/death/child                                  │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Russian Roulette</title>
+  <script>(function(){try{if(localStorage.getItem('wendys_palace_intro_seen')!=='1'){location.replace('splash.html');return;}var d=JSON.parse(localStorage.getItem('wendys_palace_death')||'{}');if(d.dead){location.replace('death.html');return;}var c=JSON.parse(localStorage.getItem('wendys_palace_child')||'{}');if(c.hunger<=0||c.wellness<=0||c.closeness<=0){location.replace('child-died.html');return;}if(c.lockedUntil&&Date.now()<c.lockedUntil){location.replace('child.html');return;}var w=JSON.parse(localStorage.getItem('sinnerbox')||'{}');if((+w.coins||0)>=100){location.replace('index.html');return;}}catch(e){}})();</script>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/roulette/roulette.css">
+  <link rel="stylesheet" href="../css/game-intro.css">
+</head>
+<body>
+  <div class="rr-locker" aria-hidden="true">
+    <div class="rr-tile-wall"></div>
+    <div class="rr-grout-floor"></div>
+    <div class="rr-grime"></div>
+    <div class="rr-stencil">REFRIGERATION&nbsp;UNIT&nbsp;7</div>
+
+    <svg class="rr-chain" viewBox="0 0 40 220" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="20" y1="0" x2="20" y2="220" stroke="#1a1614" stroke-width="2"/>
+      <g fill="none" stroke="#3a322c" stroke-width="2">
+        <ellipse cx="20" cy="14"  rx="5" ry="8"/>
+        <ellipse cx="20" cy="30"  rx="5" ry="8"/>
+        <ellipse cx="20" cy="46"  rx="5" ry="8"/>
+        <ellipse cx="20" cy="62"  rx="5" ry="8"/>
+        <ellipse cx="20" cy="78"  rx="5" ry="8"/>
+        <ellipse cx="20" cy="94"  rx="5" ry="8"/>
+        <ellipse cx="20" cy="110" rx="5" ry="8"/>
+        <ellipse cx="20" cy="126" rx="5" ry="8"/>
+        <ellipse cx="20" cy="142" rx="5" ry="8"/>
+        <ellipse cx="20" cy="158" rx="5" ry="8"/>
+      </g>
+    </svg>
+
+    <div class="rr-bulb-wrap">
+      <svg class="rr-bulb" viewBox="-30 -10 60 110" aria-hidden="true">
+        <line x1="0" y1="-10" x2="0" y2="6" stroke="#1a1614" stroke-width="2"/>
+        <rect x="-7" y="2" width="14" height="14" fill="#3a322c" stroke="#1a1614"/>
+        <ellipse cx="0" cy="46" rx="22" ry="36" fill="url(#bulbGlass)"/>
+        <ellipse cx="-7" cy="34" rx="5" ry="10" fill="rgba(255,240,200,0.45)"/>
+        <defs>
+          <radialGradient id="bulbGlass" cx="0.4" cy="0.35" r="0.7">
+            <stop offset="0%"  stop-color="#fff7d8"/>
+            <stop offset="35%" stop-color="#f4d27a"/>
+            <stop offset="75%" stop-color="#7a5a20"/>
+            <stop offset="100%" stop-color="#2a1a08"/>
+          </radialGradient>
+        </defs>
+      </svg>
+      <div class="rr-bulb-glow"></div>
+    </div>
+
+    <svg class="rr-hook rr-hook-left" viewBox="0 0 80 280" aria-hidden="true">
+      <line x1="40" y1="0" x2="40" y2="160" stroke="#1a1614" stroke-width="3"/>
+      <path d="M40 160 Q40 220 18 240 Q-4 258 16 270" fill="none" stroke="#5a4a3c" stroke-width="6" stroke-linecap="round"/>
+      <path d="M40 160 Q40 220 18 240 Q-4 258 16 270" fill="none" stroke="#8a6a4c" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <svg class="rr-hook rr-hook-right" viewBox="0 0 80 280" aria-hidden="true">
+      <line x1="40" y1="0" x2="40" y2="180" stroke="#1a1614" stroke-width="3"/>
+      <path d="M40 180 Q40 240 62 252 Q86 264 64 276" fill="none" stroke="#5a4a3c" stroke-width="6" stroke-linecap="round"/>
+      <path d="M40 180 Q40 240 62 252 Q86 264 64 276" fill="none" stroke="#8a6a4c" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+
+    <svg class="rr-stains" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g fill="#4a0010" opacity="0.55">
+        <path d="M120 480 q12 -28 28 -10 q22 22 -4 36 q-30 14 -34 -8 q-2 -10 10 -18 z"/>
+        <circle cx="148" cy="510" r="3"/>
+        <circle cx="160" cy="522" r="2"/>
+        <circle cx="138" cy="528" r="1.5"/>
+        <path d="M820 230 q14 -8 18 4 q6 16 -8 22 q-18 8 -22 -6 q-2 -8 6 -14 z"/>
+        <path d="M822 252 q-2 36 -8 60 q-2 8 -6 0 q-2 -28 6 -60 z"/>
+        <circle cx="846" cy="248" r="2.5"/>
+        <circle cx="856" cy="258" r="1.5"/>
+        <path d="M520 80 q22 -6 26 8 q4 14 -10 18 q-22 6 -26 -8 q-2 -10 10 -18 z"/>
+        <circle cx="500" cy="110" r="2"/>
+        <circle cx="488" cy="124" r="1.5"/>
+        <circle cx="476" cy="138" r="1"/>
+        <path d="M340 600 q-10 -22 12 -28 q26 -8 32 12 q6 18 -14 22 q-22 4 -30 -6 z"/>
+      </g>
+      <g fill="#2a0008" opacity="0.7">
+        <path d="M820 230 q14 -8 18 4 q6 16 -8 22 q-18 8 -22 -6 q-2 -8 6 -14 z"/>
+        <path d="M120 480 q12 -28 28 -10 q22 22 -4 36 q-30 14 -34 -8 q-2 -10 10 -18 z"/>
+      </g>
+    </svg>
+
+    <div class="rr-vignette"></div>
+  </div>
+
+  <header>
+    <h1>Russian Roulette</h1>
+    <p class="rr-subtitle">One in six.</p>
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="rr-status">Free to play. Survive to win 100 coins.</div>
+
+    <div class="rr-stage" id="rr-stage">
+      <div class="rr-stage-shadow"></div>
+      <svg class="rr-revolver" id="rr-revolver" viewBox="-220 -220 440 440" aria-hidden="true">
+        <defs>
+          <radialGradient id="cylBody" cx="0.32" cy="0.28" r="0.95">
+            <stop offset="0%"  stop-color="#605458"/>
+            <stop offset="32%" stop-color="#3a3236"/>
+            <stop offset="72%" stop-color="#1a1416"/>
+            <stop offset="100%" stop-color="#080606"/>
+          </radialGradient>
+          <radialGradient id="barrelBody" cx="0.32" cy="0.28" r="0.85">
+            <stop offset="0%"  stop-color="#52484c"/>
+            <stop offset="50%" stop-color="#221c1e"/>
+            <stop offset="100%" stop-color="#080606"/>
+          </radialGradient>
+          <radialGradient id="bore" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%"  stop-color="#000"/>
+            <stop offset="60%" stop-color="#000"/>
+            <stop offset="100%" stop-color="#1a0608"/>
+          </radialGradient>
+          <radialGradient id="chamberBore" cx="0.45" cy="0.4" r="0.6">
+            <stop offset="0%"  stop-color="#000"/>
+            <stop offset="70%" stop-color="#000"/>
+            <stop offset="100%" stop-color="#3a2a2a"/>
+          </radialGradient>
+          <radialGradient id="muzzleFlash" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%"  stop-color="#ffffff" stop-opacity="1"/>
+            <stop offset="20%" stop-color="#fff0a0" stop-opacity="0.95"/>
+            <stop offset="55%" stop-color="#ff6a10" stop-opacity="0.65"/>
+            <stop offset="100%" stop-color="#ff0000" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <ellipse cx="0" cy="18" rx="220" ry="200" fill="rgba(0,0,0,0.55)"/>
+
+        <g class="rr-cylinder" id="rr-cylinder">
+          <circle cx="0" cy="0" r="194" fill="url(#cylBody)"/>
+          <circle cx="0" cy="0" r="194" fill="none" stroke="#0a0808" stroke-width="3"/>
+          <circle cx="0" cy="0" r="180" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+          <circle cx="0" cy="0" r="166" fill="none" stroke="rgba(0,0,0,0.6)" stroke-width="1"/>
+          <g class="rr-chambers">
+            <g transform="translate(0,-122)">
+              <circle r="34" fill="#080606"/>
+              <circle r="29" fill="url(#chamberBore)"/>
+            </g>
+            <g transform="rotate(60) translate(0,-122)">
+              <circle r="34" fill="#080606"/>
+              <circle r="29" fill="url(#chamberBore)"/>
+            </g>
+            <g transform="rotate(120) translate(0,-122)">
+              <circle r="34" fill="#080606"/>
+              <circle r="29" fill="url(#chamberBore)"/>
+            </g>
+            <g transform="rotate(180) translate(0,-122)">
+              <circle r="34" fill="#080606"/>
+              <circle r="29" fill="url(#chamberBore)"/>
+            </g>
+            <g transform="rotate(240) translate(0,-122)">
+              <circle r="34" fill="#080606"/>
+              <circle r="29" fill="url(#chamberBore)"/>
+            </g>
+            <g transform="rotate(300) translate(0,-122)">
+              <circle r="34" fill="#080606"/>
+              <circle r="29" fill="url(#chamberBore)"/>
+            </g>
+          </g>
+          <circle cx="0" cy="0" r="16" fill="#1a1416"/>
+          <circle cx="0" cy="0" r="6"  fill="#000"/>
+        </g>
+
+        <rect x="-6" y="-208" width="12" height="20" fill="#0a0808" rx="1"/>
+
+        <g class="rr-barrel">
+          <circle cx="0" cy="0" r="84" fill="url(#barrelBody)"/>
+          <circle cx="0" cy="0" r="84" fill="none" stroke="#0a0808" stroke-width="2"/>
+          <circle cx="0" cy="0" r="62" fill="#000"/>
+          <circle cx="0" cy="0" r="56" fill="url(#bore)"/>
+          <ellipse cx="-26" cy="-26" rx="22" ry="6" fill="rgba(255,255,255,0.07)" transform="rotate(-30)"/>
+        </g>
+
+        <circle class="rr-flash" id="rr-flash" cx="0" cy="0" r="0" fill="url(#muzzleFlash)" pointer-events="none"/>
+      </svg>
+    </div>
+
+    <button class="rr-trigger" id="rr-trigger">Pull the Trigger</button>
+    <div class="rr-result" id="rr-result"></div>
+    <div class="rr-counter" id="rr-counter">Survived: 0</div>
+  </main>
+
+  <div class="rr-blackout" id="rr-blackout"></div>
+
+  <script src="../js/wallet.js"></script>
+  <script src="../js/expenses.js"></script>
+  <script src="../js/child.js"></script>
+  <script src="../js/roulette.js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/game-intro.js"></script>
+</body>
+</html>

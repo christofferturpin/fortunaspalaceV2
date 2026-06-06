@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<!--
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  TAROT.HTML — Fortuna's MySpace tarot, single page, slim shell           │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  For humans:                                                             │
+  │    Fortuna's MySpace circa 2001 — little goth, small house. One page,    │
+  │    top-to-bottom: profile widget, header, status, decks + spread (where  │
+  │    the action happens), two intermediary frames (fill as the readings    │
+  │    happen), and the mash result at the bottom (hidden until painted).    │
+  │    Click 1/2: readings fill the spread + frames. Click 3: pulls TWO      │
+  │    distinct majors side-by-side in row 3 of the spread; their effects    │
+  │    chain on the mash canvas (effect-1 → snapshot → effect-2 → guaran-    │
+  │    teed channel-swap color pass) and the page scrolls down to it.        │
+  │    "draw again ↻" under the mash scrolls back up to the decks.           │
+  │                                                                          │
+  │  For AI (terse):                                                         │
+  │    loads: ../css/base.css + ../css/tarot/tarot.css; bundle: wallet.js +  │
+  │           expenses.js + child.js (window.Child.describeFace +            │
+  │           localStorage 'wendys_palace_child') → tarot/fortune.js         │
+  │           (window.TarotFortune.compose) → tarot/page.js → header.js      │
+  │           (paints #balance + injects floating #child-status widget).    │
+  │    inline route-guards (top of <head>): !wendys_palace_intro_seen →      │
+  │           splash.html; wendys_palace_death.dead → death.html; any child  │
+  │           stat<=0 → child-died.html; child.lockedUntil>now → child.html. │
+  │    DOM ids (top-to-bottom): standard <header> (.header-nav[← Lobby] +    │
+  │           h1 + .sub + .coins-bar[.coins-label + #balance + #debug-       │
+  │           reset]); #profile (.profile-head, .profile-row×4, #profile-    │
+  │           mood, #profile-login, .profile-corner×4 twinkling); #status;   │
+  │           #decks > .deck×2 + #spread (grid 4-col, slots data-draw=0..2   │
+  │           + data-glitchSlot 0|1 for row 3 majors); #gallery > .artwork-  │
+  │           frame×2 + #databash; #glitch[hidden] > #glitch-canvas +        │
+  │           .glitch-caption[#glitch-label] + .glitch-actions[#cta-reset];  │
+  │           #fortunafooter. header.js mounts #child-status async.          │
+  │    routes out: ../index.html (back), external artic.edu/artworks/{id}.   │
+  │    API: api.artic.edu/api/v1/artworks/search?params={JSON} +             │
+  │         www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg.         │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tarotheque</title>
+  <script>(function(){try{var m=false;try{m=window.matchMedia('(pointer: coarse) and (hover: none)').matches;}catch(e){}if(!m){m=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(navigator.userAgent||'');}if(m){location.replace('../mobile.html');}}catch(e){}})();</script>
+  <!-- demo build: splash/death/child guards stripped -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=VT323&family=IM+Fell+English:ital@0;1&family=Press+Start+2P&family=Creepster&family=Special+Elite&family=Monoton&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/tarot/tarot.css">
+</head>
+<body>
+  <header>
+    <div class="header-nav"><a href="../index.html">← Lobby</a></div>
+    <h1>Tarotheque</h1>
+    <p class="sub">mash two museum pieces &middot; divine thy three tenses</p>
+    <p class="sub sub-tiny">(per Fish, Popoff, Brauner, &amp; Forer (1776) · claims not validated by FDA)</p>
+
+    <div class="coins-bar">
+      <span class="coins-label">Coins</span>
+      <span id="balance">0</span>
+      <button id="debug-reset">reset</button>
+    </div>
+  </header>
+
+  <div id="status" role="status"></div>
+
+  <!-- Full-screen overlay while the AIC API is shuffling for a valid
+       spread. Hidden by default; shown by drawReading. -->
+  <div id="shuffle-overlay" hidden>
+    <div class="shuffle-text">SHUFFLING</div>
+    <div class="shuffle-sub" id="shuffle-sub"></div>
+  </div>
+
+  <!-- 2-col layout: deck pinned on the left, everything else scrolls
+       on the right. Collapses to single column under 900px. -->
+  <div class="tarot-layout">
+
+    <!-- 1. DECKS + PROFILE — click to draw. Sticky left rail. -->
+    <aside class="tarot-rail" id="tarot-rail">
+      <div id="decks">
+        <div class="deck" data-role="major" role="button" tabindex="0" aria-label="Draw — Major Arcana">
+          <div class="deck-pile">
+            <div class="back-shell" style="--n: 4"></div>
+            <div class="back-shell" style="--n: 3"></div>
+            <div class="back-shell" style="--n: 2"></div>
+            <div class="back-shell" style="--n: 1"></div>
+            <div class="back-shell" style="--n: 0"></div>
+          </div>
+          <div class="deck-label">Major Arcana</div>
+        </div>
+        <div class="deck" data-role="minor" role="button" tabindex="0" aria-label="Draw — Minor Arcana">
+          <div class="deck-pile">
+            <div class="back-shell" style="--n: 4"></div>
+            <div class="back-shell" style="--n: 3"></div>
+            <div class="back-shell" style="--n: 2"></div>
+            <div class="back-shell" style="--n: 1"></div>
+            <div class="back-shell" style="--n: 0"></div>
+          </div>
+          <div class="deck-label">Minor Arcana</div>
+        </div>
+      </div>
+
+      <div id="profile">
+        <span class="profile-corner profile-tl">★</span>
+        <span class="profile-corner profile-tr">✦</span>
+        <span class="profile-corner profile-bl">✦</span>
+        <span class="profile-corner profile-br">★</span>
+        <div class="profile-head">⌂ HI2U</div>
+        <hr class="profile-rule">
+        <div class="profile-row">
+          <span class="profile-label">mood:</span>
+          <span class="profile-value" id="profile-mood">headache</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-label">now playing:</span>
+          <span class="profile-value"><em>Your Future</em></span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-label">last login:</span>
+          <span class="profile-value" id="profile-login">—</span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="tarot-content">
+
+    <!-- 2a. SPREAD ROW 0 — first reading's four cards land ABOVE the
+         paintings, so the cards "drop" before the painting appears. -->
+    <div id="spread-0" class="spread spread-row" aria-live="polite"></div>
+
+    <!-- 2b. GALLERY — the two source paintings each reading lands.
+         Empty "Awaiting cards" placeholders until the player draws. -->
+    <section id="gallery">
+    <div class="gallery-wall">
+      <article class="artwork-frame" data-slot="0">
+        <div class="frame-inner">
+          <img class="art-image" alt="" crossorigin="anonymous">
+          <div class="art-plaque">
+            <div class="art-title"></div>
+            <div class="art-meta"></div>
+            <a class="art-link" target="_blank" rel="noopener noreferrer">View on artic.edu &rarr;</a>
+          </div>
+        </div>
+      </article>
+      <article class="artwork-frame" data-slot="1">
+        <div class="frame-inner">
+          <img class="art-image" alt="" crossorigin="anonymous">
+          <div class="art-plaque">
+            <div class="art-title"></div>
+            <div class="art-meta"></div>
+            <a class="art-link" target="_blank" rel="noopener noreferrer">View on artic.edu &rarr;</a>
+          </div>
+        </div>
+      </article>
+    </div>
+    <!-- 3. SPREAD ROW 2 — the merge / effect majors are overlaid on
+         top of the gallery, centered between the two paintings. -->
+    <div id="spread-2" class="spread spread-row" aria-live="polite"></div>
+  </section>
+
+    <!-- 2c. SPREAD ROW 1 — second reading's four cards land BELOW the
+         paintings, so they bracket the gallery. -->
+    <div id="spread-1" class="spread spread-row" aria-live="polite"></div>
+
+    </div><!-- /.tarot-content -->
+  </div><!-- /.tarot-layout -->
+
+  <!-- 4. FINAL IMAGE — pulled OUT of the 2-col layout so it lands
+       dead-center of the viewport, not center-of-right-column. Stack:
+       mash canvas, then interpretation scroll (right under it), then
+       caption + reset. -->
+  <section id="glitch" hidden>
+    <div class="album-sleeve">
+      <div class="glitch-frame">
+        <canvas id="glitch-canvas" width="600" height="600"></canvas>
+        <div class="album-grain" aria-hidden="true"></div>
+        <div class="album-grime" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <!-- 5. BOOKE OF SYMBOLS — interpretation scroll. Click to open. -->
+    <details id="symbol-book" class="symbol-book" hidden>
+      <summary class="symbol-book-summary">
+        <span class="symbol-book-title">Book of Symbols</span>
+        <span class="symbol-book-cta">click to open and interpret ⛧</span>
+      </summary>
+      <div class="symbol-book-body">
+        <p class="symbol-book-intro">
+          Look upon and find the symbols. Interpret the past, present, and future! Trust them all, they are 100% accurate according to organizations who are not the FDA (yet)!
+        </p>
+        <div class="symbol-book-grid" id="symbol-book-grid"></div>
+      </div>
+    </details>
+
+    <div class="glitch-caption">— <b id="glitch-label"></b> —</div>
+    <div class="glitch-actions">
+      <button class="cta-btn" id="cta-reset">draw again :3 ↻</button>
+    </div>
+  </section>
+
+  <!-- 6. BRIEF RUN DOWN — sources + the six drawn cards. Collapsed
+       <details> by default; click the head to expand. -->
+  <details id="mash-credits" class="mash-credits" hidden>
+    <summary class="mash-credits-head">credits ⛧</summary>
+    <div class="mash-credits-body" id="mash-credits-body"></div>
+  </details>
+
+  <footer id="fortunafooter">
+    <span class="heart">♡</span> Affective Probably Interface (TM) - Fortuna Digital Media · est. 1901 <span class="heart">♡</span><br>
+    sign my guestbook ✦ pls dont steal my layout
+  </footer>
+
+  <!-- Standard Palace bundle: wallet → expenses → child → page → header.
+       header.js auto-injects the floating #child-status widget from
+       window.Child; expenses.js and wallet.js back the coins-bar that
+       header.js populates. tarot/page.js still expects window.Child. -->
+  <script src="../js/wallet.js"></script>
+  <script src="../js/tarot/fortune.js"></script>
+  <script src="../js/tarot/audio.js"></script>
+  <script src="../js/tarot/page.js"></script>
+  <script src="../js/header.js"></script>
+</body>
+</html>

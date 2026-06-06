@@ -1,0 +1,1494 @@
+/*
+  PROVIDENCE & NORTH TULANE — page styles (fakely-nice 50s Oak Ridge)
+  ─────────────────────────────────────────────────────────────────────────
+  Theme: 1950s atomic-age suburb. Cream parchment cabinet, brass + atomic-
+    teal trim, slab-serif title, typewriter labels (Special Elite). The
+    LCD slot panel and CRT traffic feed are the "civic instrumentation"
+    embedded in the bright civic brochure — the cheerful surface is the
+    cover story, the bodies-on-asphalt is what's underneath.
+  Flow: slot-section and intersection-section are mutually exclusive,
+    toggled via .hidden by slot.js's showSlot / showArena helpers.
+  Sections:
+    1. Page chrome:  body bg, header, h1 chrome-red-blue gradient, tagline
+    2. Command center: riveted steel bunker wrapping the cabinet on all
+       four sides (sub-level B Oak Ridge feel) — dark steel bg + rivet
+       dots + brass stencil watermarks + AEC atomic stamps and analog
+       gauge SVGs in the dead corners
+    3. TV wall:      mini-CRTs lining all four bunker walls — top/bottom
+       horizontal flows, left/right vertical columns (hidden below
+       1240px viewport). Ch 4 (top wall) carries the Luigi ad live;
+       siblings are blank phosphor screens ready for future content
+       (target by [data-tv-slot="…"])
+    4. Cabinet:      framed enclosure for slot + intersection (NASCAR red)
+    5. Slot grid:    20×20 cell grid w/ color classes + diamond mod
+    6. Slot controls: bet input, MAX, DROP THE FLAG, result line
+    7. Intersection area: .tv-frame (CRT bezel + brand strip + scanlines +
+       vignette + ticker) wrapping #intersection-canvas, with the BACK TO
+       PIT button beneath
+  Owns selectors: body, header, h1, .tagline, .command-center,
+    .command-row, .atomic-decor, .atomic-dial-{tr,bl},
+    .atomic-decor-{tl,br}, .bunker-stencil, .bunker-stencil-{top,
+    tl-label,tr-label,bl-label,br-label}, .tv-wall, .tv-wall-{top,
+    bottom,left,right}, .mini-tv, .mini-tv-{screen,broadcast-img,
+    overlay-strip,live-dot,scanlines,vignette,chrome,knob,label},
+    .cabinet, .cabinet-rivet, .cabinet-divider, .hidden, #slot-grid,
+    .cell, .cell-{colors,diamond,win}, .slot-controls, #bet-amount,
+    #bet-max, #spin-btn, #continue-btn, #slot-result,
+    #intersection-status, #intersection-canvas
+  Fonts (Google): Bowlby One (title), Russo One (display), Permanent Marker
+    (tagline); loaded via <link> in pages/hollerworks.html.
+  Consumed by: pages/hollerworks.html
+  External deps: base.css (vars + header chrome)
+*/
+
+html, body {
+  min-height: 100vh;
+  /* caltron.jpg is the page atmosphere — the Tennessee sky above the
+     whole brochure. Darkened with a warm overlay so cream content stays
+     readable on top. Fixed attachment so the sky stays still while the
+     page scrolls (parallax postcard feel). */
+  background:
+    linear-gradient(180deg,
+      rgba(20, 14, 6, 0.30) 0%,
+      rgba(40, 25, 10, 0.60) 50%,
+      rgba(20, 12, 6, 0.92) 100%),
+    url('../../assets/images/caltron.jpg') center top / cover no-repeat fixed,
+    #1a0e08;
+  background-color: #1a0e08;
+  color: #faf2dc;
+  font-family: 'Special Elite', 'Courier New', var(--font-ui);
+}
+
+body {
+  padding: 2px 16px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2px;
+  width: 100%;
+  max-width: 960px;
+  position: relative;
+}
+
+.header-nav {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  font-family: 'Special Elite', monospace;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+.header-nav a {
+  color: #faf2dc;
+  opacity: 0.7;
+  text-decoration: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+.header-nav a:hover {
+  opacity: 1;
+  color: #ffd24a;
+}
+
+/* Postcard-stamp above the title — anchors the page in Oak Ridge. */
+.oak-ridge-mark {
+  font-family: 'Alfa Slab One', serif;
+  font-size: 11px;
+  letter-spacing: 0.34em;
+  color: #ffd24a;
+  text-transform: uppercase;
+  margin: 2px 0 2px;
+  text-shadow:
+    0 0 8px rgba(255, 210, 74, 0.45),
+    0 2px 0 rgba(0, 0, 0, 0.85);
+}
+
+h1 {
+  font-family: 'Alfa Slab One', 'Bowlby One', serif;
+  font-weight: normal;
+  letter-spacing: 0.01em;
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.05;
+  color: #faf2dc;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.85),
+    0 4px 14px rgba(0, 0, 0, 0.6),
+    0 0 24px rgba(255, 210, 100, 0.18);
+}
+/* Brass + atomic-teal accent rule beneath the title. */
+h1::after {
+  content: '';
+  display: block;
+  width: 380px;
+  max-width: 84%;
+  height: 2px;
+  margin: 4px auto 0;
+  background: linear-gradient(90deg,
+    transparent 0%, #c4a14a 18%, #5cc0b8 50%, #c4a14a 82%, transparent 100%);
+  box-shadow: 0 0 10px rgba(255, 210, 74, 0.45);
+}
+
+.tagline {
+  font-family: 'Special Elite', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  color: #faf2dc;
+  text-transform: uppercase;
+  margin: 2px 0 2px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  opacity: 0.92;
+}
+#tagline-pop {
+  color: #ffd24a;
+  text-shadow:
+    0 0 6px rgba(255, 210, 74, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+/* Coins + jackpot share a single horizontal row to save vertical space. */
+.header-meters {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.coins-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #faf2dc;
+  font-family: 'Special Elite', monospace;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+.coins-bar .coins-label {
+  letter-spacing: 0.28em;
+}
+#balance {
+  font-family: 'VT323', monospace;
+  font-size: 30px;
+  letter-spacing: 0.04em;
+  color: #6cff5a;
+  background: #0a1208;
+  border: 1px solid #92733a;
+  padding: 1px 10px;
+  border-radius: 2px;
+  text-shadow:
+    0 0 6px rgba(108, 255, 90, 0.6),
+    0 0 12px rgba(108, 255, 90, 0.25);
+  box-shadow:
+    inset 0 0 10px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 250, 230, 0.18);
+}
+#debug-reset {
+  font-family: 'Special Elite', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  padding: 3px 8px;
+  margin-left: 4px;
+  background: #2a1a0e;
+  color: #faf2dc;
+  border: 1px solid #92733a;
+  border-radius: 2px;
+  cursor: pointer;
+  opacity: 0.75;
+}
+#debug-reset:hover { opacity: 1; background: #3a2614; }
+
+/* Persistent jackpot pool — fed by pizza-truck wrecks, won by splatting
+   the 💰 character. Bright gold so it pulls attention away from coins. */
+.jackpot-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0;
+  padding: 2px 14px;
+  background: linear-gradient(180deg, #2a1a00 0%, #160a00 100%);
+  border: 1px solid #c4a14a;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 130, 0.25),
+    0 0 18px rgba(196, 161, 74, 0.35);
+}
+.jackpot-label {
+  font-family: 'Alfa Slab One', serif;
+  font-size: 12px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #ffd24a;
+  text-shadow: 0 0 8px rgba(255, 210, 74, 0.6);
+}
+#jackpot-pool {
+  font-family: 'VT323', monospace;
+  font-size: 30px;
+  letter-spacing: 0.04em;
+  color: #ffe070;
+  text-shadow:
+    0 0 8px rgba(255, 210, 74, 0.85),
+    0 0 18px rgba(255, 180, 50, 0.45);
+  animation: jackpot-pulse 2.6s ease-in-out infinite;
+}
+@keyframes jackpot-pulse {
+  0%, 100% {
+    text-shadow:
+      0 0 8px rgba(255, 210, 74, 0.85),
+      0 0 18px rgba(255, 180, 50, 0.45);
+  }
+  50% {
+    text-shadow:
+      0 0 14px rgba(255, 230, 110, 1),
+      0 0 28px rgba(255, 190, 60, 0.7);
+  }
+}
+
+/* Transient bump on the jackpot bar when a pizza wreck adds to the pool.
+   JS toggles .jackpot-bumped on .jackpot-bar; CSS plays a brief gold flare
+   on the bar shell and a scale/burst on the number. */
+.jackpot-bar.jackpot-bumped {
+  animation: jackpot-bar-bump 0.9s ease-out 1;
+}
+.jackpot-bar.jackpot-bumped #jackpot-pool {
+  animation: jackpot-number-bump 0.9s ease-out 1;
+}
+@keyframes jackpot-bar-bump {
+  0%   { box-shadow:
+           inset 0 1px 0 rgba(255, 220, 130, 0.25),
+           0 0 18px rgba(196, 161, 74, 0.35); }
+  20%  { box-shadow:
+           inset 0 1px 0 rgba(255, 240, 180, 0.95),
+           0 0 38px rgba(255, 220, 100, 0.95),
+           0 0 70px rgba(255, 180, 50, 0.55);
+         border-color: #ffe070; }
+  100% { box-shadow:
+           inset 0 1px 0 rgba(255, 220, 130, 0.25),
+           0 0 18px rgba(196, 161, 74, 0.35); }
+}
+@keyframes jackpot-number-bump {
+  0%   { transform: scale(1);
+         text-shadow:
+           0 0 8px rgba(255, 210, 74, 0.85),
+           0 0 18px rgba(255, 180, 50, 0.45); }
+  25%  { transform: scale(1.18);
+         text-shadow:
+           0 0 22px rgba(255, 245, 180, 1),
+           0 0 44px rgba(255, 210, 90, 0.9),
+           0 0 80px rgba(255, 170, 30, 0.55); }
+  100% { transform: scale(1);
+         text-shadow:
+           0 0 8px rgba(255, 210, 74, 0.85),
+           0 0 18px rgba(255, 180, 50, 0.45); }
+}
+
+/* Jackpot WON celebration — bigger, longer flare on splat-payout. */
+.jackpot-bar.jackpot-won {
+  animation: jackpot-bar-won 2.4s ease-out 1;
+}
+.jackpot-bar.jackpot-won #jackpot-pool {
+  animation: jackpot-number-won 2.4s ease-out 1;
+}
+@keyframes jackpot-bar-won {
+  0%, 20%, 40%, 60%, 80% { box-shadow:
+           inset 0 1px 0 rgba(255, 245, 200, 1),
+           0 0 50px rgba(255, 230, 120, 1),
+           0 0 110px rgba(255, 180, 30, 0.8);
+         border-color: #ffe070; }
+  10%, 30%, 50%, 70% { box-shadow:
+           inset 0 1px 0 rgba(255, 220, 130, 0.4),
+           0 0 30px rgba(255, 220, 100, 0.7),
+           0 0 70px rgba(255, 180, 30, 0.5);
+         border-color: #c4a14a; }
+  100% { box-shadow:
+           inset 0 1px 0 rgba(255, 220, 130, 0.25),
+           0 0 18px rgba(196, 161, 74, 0.35);
+         border-color: #c4a14a; }
+}
+@keyframes jackpot-number-won {
+  0%, 20%, 40%, 60%, 80% { transform: scale(1.25);
+         text-shadow:
+           0 0 28px rgba(255, 250, 220, 1),
+           0 0 60px rgba(255, 220, 110, 1),
+           0 0 100px rgba(255, 170, 30, 0.8); }
+  10%, 30%, 50%, 70% { transform: scale(1.05);
+         text-shadow:
+           0 0 16px rgba(255, 230, 110, 0.95),
+           0 0 32px rgba(255, 190, 60, 0.7); }
+  100% { transform: scale(1);
+         text-shadow:
+           0 0 8px rgba(255, 210, 74, 0.85),
+           0 0 18px rgba(255, 180, 50, 0.45); }
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  /* Widened from 960 so the .command-center can host side TV banks
+     flanking the cabinet on wide viewports. The 960 limit still lives
+     on the inner .cabinet, so the slot/canvas don't sprawl. */
+  max-width: 1340px;
+}
+
+.hidden { display: none !important; }
+
+
+/* ═════ Command center (atomic-era bunker) ═════
+   Sub-level B of the Oak Ridge facility. The cheerful brochure-style
+   cabinet sits at the center of a riveted steel chamber; banks of
+   CRT monitors line all four walls. Brass stencil watermarks (K-25,
+   Q-CLEARANCE, REACTOR, GEIGER) + AEC "atoms for peace" stamps in
+   the dead corners carry the Manhattan-Project subtext beneath the
+   civilian civic-broadcast facade. */
+.command-center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 1340px;
+  padding: 22px 18px 18px;
+  background:
+    /* Rivet dots — a small darker stud in every 28-px cell. Two
+       offset stripes give a staggered brick-of-rivets pattern. */
+    radial-gradient(circle at 14px 14px, rgba(0, 0, 0, 0.55) 1.6px, transparent 2.1px) 0 0 / 28px 28px,
+    radial-gradient(circle at 14px 14px, rgba(255, 250, 230, 0.05) 1px, transparent 1.5px) 1px 1px / 28px 28px,
+    /* Warm-iron grain top→bottom. */
+    linear-gradient(180deg, #20232a 0%, #16181d 55%, #0c0d11 100%);
+  background-color: #14161a;
+  border: 2px solid #2a2d34;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.08),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.7),
+    inset 0 0 0 1px rgba(146, 115, 58, 0.18),
+    0 14px 36px rgba(0, 0, 0, 0.75);
+  /* Establish a 3D context so the wall rotateY/rotateX transforms
+     foreshorten properly (without this each wall sets its own
+     ad-hoc perspective and the angles don't share a vanishing point). */
+  perspective: 1600px;
+  perspective-origin: 50% 50%;
+  transform-style: preserve-3d;
+}
+/* Inward vignette — the cabinet sits in a sickly amber pool, the
+   walls of the bunker (and their TVs) recede into shadow. Sits
+   above the TVs (z-index 4) so edge sets dim into the dark; gentle
+   enough at the edges that channel labels stay legible. Pointer-
+   events none so the cabinet underneath still takes clicks. */
+.command-center::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 50%,
+      transparent 0%,
+      transparent 45%,
+      rgba(4, 2, 2, 0.45) 85%,
+      rgba(2, 1, 1, 0.7) 100%);
+  border-radius: 8px;
+  z-index: 4;
+}
+
+/* Console row — side TV banks flanking the cabinet, packed in tight
+   so the side walls crowd the central console. preserve-3d propagates
+   the bunker's perspective down to .tv-wall-left/right so their
+   rotateY transforms actually foreshorten (without this the side
+   walls render flat). */
+.command-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  transform-style: preserve-3d;
+}
+.command-row .cabinet {
+  flex: 0 1 auto;
+}
+
+/* ═════ TV wall (orientations) ═════
+   .tv-wall is the base row of mini-CRTs. The -top/-bottom rows flow
+   horizontally; -left/-right columns stack vertically along the
+   cabinet's flanks. Each .mini-tv is a brass-trimmed cream cabinet
+   wrapping a dark phosphor screen + a chrome strip with two knob
+   silhouettes and a channel label. Ch 4 (top wall) carries the Luigi
+   broadcast; the rest are blank dark phosphor, ready for future
+   content (target via [data-tv-slot="…"]). */
+.tv-wall {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+}
+/* Each wall leans inward toward the central cabinet — perspective
+   foreshortens the far edge so the bunker reads as closing in on the
+   operator. Tilts are subtle (≤10°) so legibility holds. */
+.tv-wall-top, .tv-wall-bottom {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+.tv-wall-top {
+  transform: rotateX(-6deg);
+  transform-origin: center bottom;
+}
+.tv-wall-bottom {
+  transform: rotateX(6deg);
+  transform-origin: center top;
+}
+.tv-wall-left, .tv-wall-right {
+  flex-direction: column;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.tv-wall-left {
+  transform: rotateY(10deg);
+  transform-origin: right center;
+}
+.tv-wall-right {
+  transform: rotateY(-10deg);
+  transform-origin: left center;
+}
+
+/* Askew sets — decades-of-neglect tilt on the mini-TVs so the wall
+   reads as twisted, not factory-fresh. translateZ raises each tilted
+   set above its neighbors so the rotated corners aren't clipped. */
+.mini-tv.tv-askew-1 { transform: rotate(-6deg)  translateZ(8px); }
+.mini-tv.tv-askew-2 { transform: rotate(4.5deg) translateZ(6px); }
+.mini-tv.tv-askew-3 { transform: rotate(-3deg)  translateZ(10px); }
+.mini-tv.tv-askew-4 { transform: rotate(7deg)   translateZ(7px); }
+.mini-tv.tv-askew-5 { transform: rotate(-9deg)  translateZ(12px); }
+.mini-tv.tv-askew-6 { transform: rotate(2.2deg) translateZ(4px); }
+
+/* Size variants — chaotic sizes break the regular grid rhythm. md is
+   the default (set on .mini-tv itself); sm/lg are explicit opt-ins. */
+.mini-tv.mini-tv-sm { flex-basis: 102px; }
+.mini-tv.mini-tv-lg { flex-basis: 200px; }
+.mini-tv.mini-tv-xl { flex-basis: 240px; }
+
+/* Overlap classes — negative margins push a TV into its neighbor.
+   z-index raise so the overlapping set sits on top. Used to break
+   the orderly row/column rhythm of the wall — TVs crash into each
+   other and into the cabinet. */
+.mini-tv.tv-overlap-r  { margin-right: -28px;  z-index: 3; }
+.mini-tv.tv-overlap-l  { margin-left:  -22px;  z-index: 3; }
+.mini-tv.tv-overlap-up { margin-bottom: -18px; z-index: 3; }
+.mini-tv.tv-overlap-dn { margin-top:    -14px; z-index: 3; }
+/* Bleed across cabinet edge — applied to the first/last TV in a side
+   column so the wall encroaches into the central console area. */
+.mini-tv.tv-bleed-in { transform: translateX(28px) rotate(-2deg) translateZ(14px); z-index: 3; }
+.tv-wall-right .mini-tv.tv-bleed-in {
+  transform: translateX(-28px) rotate(2deg) translateZ(14px);
+}
+
+/* ═════ Broken / dying / dead screens ═════
+   "Don't" rules of TV-broadcast design — color-shifted phosphor,
+   cracked glass, dead sets sitting in the wall. */
+.mini-tv.tv-broken .mini-tv-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    /* Three crack lines at irregular angles. */
+    linear-gradient(38deg,
+      transparent 47.2%, rgba(255, 255, 255, 0.55) 47.7%,
+      rgba(255, 255, 255, 0.85) 48.0%, rgba(255, 255, 255, 0.55) 48.3%,
+      transparent 48.8%),
+    linear-gradient(-72deg,
+      transparent 32%, rgba(255, 255, 255, 0.35) 32.3%,
+      rgba(255, 255, 255, 0.7) 32.6%, rgba(255, 255, 255, 0.35) 32.9%,
+      transparent 33.3%),
+    linear-gradient(115deg,
+      transparent 64%, rgba(255, 255, 255, 0.30) 64.4%,
+      rgba(255, 255, 255, 0.55) 64.7%, transparent 65.2%),
+    /* Dead-pixel speckle at the impact point. */
+    radial-gradient(circle at 38% 47%,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.18) 4%,
+      transparent 12%);
+  z-index: 7;
+  mix-blend-mode: screen;
+}
+.mini-tv.tv-dying .mini-tv-screen {
+  background:
+    /* Failing phosphor — magenta/cyan bleed. */
+    linear-gradient(180deg,
+      rgba(80, 10, 50, 0.6) 0%,
+      rgba(20, 5, 30, 0.85) 50%,
+      rgba(10, 30, 50, 0.6) 100%),
+    #050608;
+  filter: hue-rotate(-12deg) saturate(1.6);
+}
+.mini-tv.tv-dying .mini-tv-vignette {
+  background:
+    radial-gradient(ellipse at center,
+      transparent 30%,
+      rgba(120, 20, 80, 0.4) 70%,
+      rgba(0, 0, 0, 0.85) 100%);
+}
+.mini-tv.tv-dead .mini-tv-screen {
+  background: #0a0a0c;
+}
+.mini-tv.tv-dead .mini-tv-scanlines { opacity: 0.4; }
+.mini-tv.tv-dead .mini-tv-chrome { opacity: 0.5; }
+.mini-tv.tv-dead .mini-tv-label { color: #5a5040; }
+
+/* NO SIGNAL caption overlay — opt in by adding .tv-no-signal in
+   addition to one of the off-states. */
+.mini-tv.tv-no-signal .mini-tv-screen::before {
+  content: 'NO SIGNAL';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'VT323', monospace;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  color: rgba(255, 64, 90, 0.7);
+  text-shadow: 0 0 6px rgba(255, 64, 90, 0.5);
+  z-index: 6;
+  pointer-events: none;
+}
+
+.mini-tv {
+  flex: 0 0 148px;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #ecdfb8 0%, #c4a76a 100%);
+  border: 1px solid #92733a;
+  border-radius: 6px;
+  padding: 5px 5px 0;
+  position: relative;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.85),
+    inset 0 -2px 0 rgba(146, 115, 58, 0.45),
+    0 6px 14px rgba(0, 0, 0, 0.45);
+}
+/* Brass + atomic-teal accent rule along the top edge — matches the
+   cabinet's civic-brochure trim. */
+.mini-tv::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 4px; right: 4px;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%, #c4a14a 22%, #5cc0b8 50%, #c4a14a 78%, transparent 100%);
+  border-radius: 2px;
+}
+
+.mini-tv-screen {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: #050608;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 16px rgba(0, 0, 0, 0.85),
+    0 0 0 1px #0a0c10;
+}
+
+.mini-tv-broadcast-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px 8px 18px;
+  box-sizing: border-box;
+  filter: contrast(1.18) saturate(1.35) brightness(1.05);
+}
+
+.mini-tv-overlay-strip {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 3px 6px;
+  background: linear-gradient(180deg,
+    transparent 0%, rgba(0, 0, 0, 0.55) 45%, rgba(0, 0, 0, 0.85) 100%);
+  font-family: 'Special Elite', monospace;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-align: center;
+  color: #ffd24a;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 4px rgba(255, 210, 74, 0.55),
+    0 1px 0 rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 4;
+}
+.mini-tv-live-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #dc0028;
+  margin-right: 5px;
+  vertical-align: 1px;
+  box-shadow: 0 0 4px rgba(220, 0, 40, 0.7);
+  animation: tv-onair-blink 1.4s steps(1, end) infinite;
+}
+
+/* CRT scanline + curved-glass vignette — same treatment as the big TV
+   so the wall reads as one consistent broadcast medium. */
+.mini-tv-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.22) 0,
+    rgba(0, 0, 0, 0.22) 1px,
+    transparent 1px,
+    transparent 2px);
+  z-index: 5;
+}
+.mini-tv-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.65) 100%);
+  z-index: 6;
+}
+
+.mini-tv-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 5px;
+  gap: 6px;
+}
+.mini-tv-knob {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 30%,
+      #faf2dc 0%, #c4a14a 45%, #5e4310 100%);
+  box-shadow:
+    inset 0 -1px 1px rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+.mini-tv-label {
+  font-family: 'Alfa Slab One', serif;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #2a2010;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(255, 250, 230, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* ═════ Bunker decorations (SVG stamps + stencil watermarks) ═════
+   Absolutely positioned over the riveted bg, behind the TV walls
+   (z-index 0 vs. .tv-wall's z-index 2). Brass color across the
+   board — currentColor on the SVGs, mid-amber on the stencils —
+   so they read as factory-painted Oak Ridge signage. */
+.atomic-decor {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  color: #c4a14a;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 0;
+}
+.atomic-decor-tl { top: 8px;    left: 8px; }
+.atomic-decor-br { bottom: 8px; right: 8px; }
+.atomic-dial-tr  { top: 8px;    right: 8px; }
+.atomic-dial-bl  { bottom: 8px; left: 8px; }
+
+.bunker-stencil {
+  position: absolute;
+  font-family: 'Alfa Slab One', serif;
+  letter-spacing: 0.32em;
+  color: rgba(255, 210, 74, 0.22);
+  text-transform: uppercase;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.85),
+    0 0 12px rgba(255, 210, 74, 0.10);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  white-space: nowrap;
+}
+.bunker-stencil-top {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+}
+.bunker-stencil-tl-label,
+.bunker-stencil-tr-label,
+.bunker-stencil-bl-label,
+.bunker-stencil-br-label {
+  font-size: 8px;
+  letter-spacing: 0.28em;
+}
+.bunker-stencil-tl-label { top: 122px; left: 18px; }
+.bunker-stencil-tr-label { top: 122px; right: 18px; }
+.bunker-stencil-bl-label { bottom: 122px; left: 18px; }
+.bunker-stencil-br-label { bottom: 122px; right: 18px; }
+
+/* ===== Cabinet ===== */
+
+.cabinet {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  background:
+    linear-gradient(180deg, #faf2dc 0%, #f0e5c4 100%);
+  border: 1px solid #92733a;
+  border-radius: 4px;
+  padding: 6px 18px 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.9),
+    inset 0 0 0 1px rgba(196, 161, 74, 0.25),
+    0 8px 24px rgba(120, 90, 40, 0.35);
+}
+/* Brass + atomic-teal accent rule along the top edge — civic brochure feel. */
+.cabinet::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    transparent 0%, #92733a 14%, #c4a14a 32%, #5cc0b8 50%,
+    #c4a14a 68%, #92733a 86%, transparent 100%);
+  border-radius: 4px 4px 0 0;
+}
+
+/* Rivets retired — sleek look has no exposed fasteners. */
+.cabinet-rivet { display: none; }
+
+.cabinet-divider {
+  text-align: center;
+  margin: 10px 0 8px;
+  font-family: 'Special Elite', monospace;
+  letter-spacing: 0.4em;
+  color: #5e5340;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+/* ===== Slot grid (20×20) ===== */
+
+/* The slot grid is treated as a vintage backlit LCD module — dark bezel,
+   phosphor-greenish base, slight color bleed inside, scanline overlay. */
+#slot-grid {
+  display: grid;
+  grid-template-columns: repeat(20, 20px);
+  grid-template-rows: repeat(20, 20px);
+  gap: 1px;
+  background: #0a1208;
+  padding: 6px;
+  border: 3px solid #b8995e;
+  border-radius: 6px;
+  margin: 0 auto;
+  width: fit-content;
+  position: relative;
+  box-shadow:
+    inset 0 0 22px rgba(0, 0, 0, 0.95),
+    inset 0 0 80px rgba(80, 200, 60, 0.06),
+    0 0 0 1px #92733a,
+    0 6px 16px rgba(120, 90, 40, 0.4);
+}
+/* CRT scanline overlay across the LCD face. */
+#slot-grid::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.22) 0,
+    rgba(0, 0, 0, 0.22) 1px,
+    transparent 1px,
+    transparent 3px);
+  z-index: 2;
+}
+
+.cell {
+  /* --glow-rgb is the cell's own color, used by .cell-win to glow in-kind.
+     Defaults to phosphor green for the (rare) un-classed state.
+     NB: no text-shadow on the base — with 400 cells tumbling 20×/sec
+     during a spin, a per-cell Gaussian blur is the difference between
+     smooth and "runs like shit". The LCD glow lives on .cell-win only. */
+  --glow-rgb: 108, 255, 90;
+  background: #122010;
+  color: #6cff5a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-family: 'VT323', monospace;
+  line-height: 1;
+  border-radius: 1px;
+  position: relative;
+}
+.cell.cell-red    { --glow-rgb: 255, 70, 100; background: #4a0a14; color: #ff506a; }
+.cell.cell-yellow { --glow-rgb: 255, 220, 80; background: #4a3810; color: #ffd060; }
+.cell.cell-green  { --glow-rgb: 120, 255, 90; background: #1a3a18; color: #80ff60; }
+.cell.cell-black  { --glow-rgb: 200, 220, 255; background: #1a1a1c; color: #7a7a7c; }
+.cell.cell-diamond {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+.cell.cell-diamond::after {
+  content: '◆';
+  position: absolute;
+  top: 0;
+  right: 1px;
+  font-size: 7px;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
+}
+.cell.cell-cow {
+  box-shadow: inset 0 0 0 1px rgba(168, 120, 76, 0.85);
+}
+.cell.cell-cow::after {
+  content: '🐄';
+  position: absolute;
+  top: 0;
+  right: 1px;
+  font-size: 8px;
+  line-height: 1;
+}
+.cell.cell-gas {
+  box-shadow: inset 0 0 0 1px rgba(255, 220, 40, 0.95);
+}
+.cell.cell-gas::after {
+  content: '⛽';
+  position: absolute;
+  top: 0;
+  right: 1px;
+  font-size: 8px;
+  line-height: 1;
+}
+.cell.cell-acid {
+  box-shadow: inset 0 0 0 1px rgba(120, 255, 60, 0.95);
+}
+.cell.cell-acid::after {
+  content: '☣';
+  position: absolute;
+  top: 0;
+  right: 1px;
+  font-size: 9px;
+  line-height: 1;
+  color: #80ff60;
+  text-shadow: 0 0 3px rgba(120, 255, 60, 0.8);
+}
+.cell.cell-pizza {
+  box-shadow: inset 0 0 0 1px rgba(255, 180, 80, 0.95);
+}
+.cell.cell-pizza::after {
+  content: '🍕';
+  position: absolute;
+  top: 0;
+  right: 1px;
+  font-size: 8px;
+  line-height: 1;
+}
+/* Win state: LCD pixel "fully on". The glow itself is STATIC (rendered
+   once, browser caches the blur) and the pulse is a `transform: scale`
+   — GPU-composited, no paint cost. Animating box-shadow's blur on ~450
+   winning cells was the perf killer; transforms are nearly free. */
+.cell.cell-win {
+  color: #ffffff;
+  text-shadow:
+    0 0 6px rgba(var(--glow-rgb), 1),
+    0 0 12px rgba(var(--glow-rgb), 0.7);
+  background-color: rgba(var(--glow-rgb), 0.18);
+  box-shadow:
+    inset 0 0 8px rgba(var(--glow-rgb), 0.85),
+    0 0 10px rgba(var(--glow-rgb), 0.55);
+  animation: hw-cell-pulse 0.85s ease-in-out infinite;
+  z-index: 1;
+  will-change: transform;
+}
+
+@keyframes hw-cell-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.18); }
+}
+
+/* ===== Slot controls ===== */
+
+.slot-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.slot-controls .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#slot-result {
+  flex-basis: 100%;
+  order: 99;
+}
+
+.bet-label {
+  font-family: 'Special Elite', monospace;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  color: #5e5340;
+  text-transform: uppercase;
+}
+
+#bet-amount {
+  width: 92px;
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  text-align: center;
+  background: #0a1208;
+  color: #6cff5a;
+  border: 1px solid #2a3a28;
+  border-radius: 3px;
+  padding: 2px 6px;
+  outline: none;
+  text-shadow:
+    0 0 4px rgba(108, 255, 90, 0.7),
+    0 0 10px rgba(108, 255, 90, 0.3);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.85);
+  -moz-appearance: textfield;
+}
+#bet-amount::-webkit-outer-spin-button,
+#bet-amount::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#bet-amount:focus {
+  border-color: #6cff5a;
+  box-shadow:
+    inset 0 0 12px rgba(0, 0, 0, 0.85),
+    0 0 6px rgba(108, 255, 90, 0.35);
+}
+
+#bet-max {
+  font-family: 'Special Elite', monospace;
+  font-size: 11px;
+  letter-spacing: 0.20em;
+  padding: 6px 14px;
+  background: #faf2dc;
+  color: #2a2620;
+  border: 1px solid #92733a;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+#bet-max:hover:not(:disabled) {
+  background: #f0e5c4;
+  color: #2a2010;
+  border-color: #b88c38;
+}
+#bet-max:disabled { opacity: 0.35; cursor: not-allowed; }
+
+#spin-btn {
+  font-family: 'Alfa Slab One', serif;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  padding: 4px 22px;
+  background: linear-gradient(180deg, #6bd0c6 0%, #3a9d96 100%);
+  color: #faf2dc;
+  border: 1px solid #faf2dc;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    0 2px 0 #1f6863,
+    0 4px 10px rgba(58, 157, 150, 0.35);
+  transition: background 0.12s, box-shadow 0.12s, transform 0.05s;
+}
+#spin-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #7ce0d6 0%, #45b0a8 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    0 2px 0 #1f6863,
+    0 6px 14px rgba(80, 200, 190, 0.55);
+}
+#spin-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+#spin-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.30),
+    0 0 0 #1f6863,
+    0 0 10px rgba(58, 157, 150, 0.30);
+}
+
+#slot-result {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: #6cff5a;
+  min-height: 20px;
+  text-align: center;
+  letter-spacing: 0.06em;
+  text-shadow:
+    0 0 4px rgba(108, 255, 90, 0.55),
+    0 0 10px rgba(108, 255, 90, 0.2);
+}
+
+/* ===== Intersection area ===== */
+
+#intersection-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* ═════ TV broadcast frame ═════
+   The intersection canvas is reframed as a CRT-style screen carrying a
+   GNASHCAR live race feed: brand strip on top, scanline + vignette overlay
+   on the screen, ticker for the status line. */
+.tv-frame {
+  /* Was width:fit-content — that fed back into .tv-screen's
+     content-driven sizing and (combined with the canvas's intrinsic
+     920px) left a black band on the right of the screen at wide
+     cabinets. Now an explicit width with the canvas's intended cap. */
+  width: 100%;
+  max-width: 600px;
+  background: linear-gradient(180deg, #d4bd84 0%, #b8995e 100%);
+  border: 1px solid #92733a;
+  border-radius: 8px;
+  padding: 6px 8px 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.6),
+    inset 0 0 0 1px rgba(146, 115, 58, 0.4),
+    0 6px 18px rgba(120, 90, 40, 0.45);
+}
+
+.tv-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1px 6px 4px;
+  font-family: 'Special Elite', monospace;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #2a2010;
+}
+
+.tv-onair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #b8001f;
+  letter-spacing: 0.18em;
+}
+.tv-onair-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #dc0028;
+  box-shadow: 0 0 6px rgba(220, 0, 40, 0.7);
+  animation: tv-onair-blink 1.4s steps(1, end) infinite;
+}
+@keyframes tv-onair-blink {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: 0.30; }
+}
+
+.tv-channel-id {
+  font-family: 'Alfa Slab One', serif;
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  color: #2a2010;
+}
+
+.tv-broadcast {
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  color: #5e5340;
+}
+
+/* .tv-screen carries the 920/600 aspect ratio and the canvas stretches
+   to fill it 100% in both dimensions. (Previously the canvas was
+   width:auto with intrinsic 920 while .tv-screen stretched to fill
+   .tv-frame's content box — when the frame's content box was wider
+   than 920, the dark .tv-screen background peeked out on the right
+   of the canvas as a vertical black bar during gameplay.) */
+.tv-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 920 / 600;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #050608;
+  line-height: 0;
+  box-shadow:
+    inset 0 0 28px rgba(0, 0, 0, 0.7),
+    0 0 0 1px #0a0c10;
+}
+
+#intersection-canvas {
+  display: block;
+  background: #050608;
+  width: 100%;
+  height: 100%;
+}
+
+/* CRT scanline overlay across the entire screen face. */
+.tv-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.20) 0,
+    rgba(0, 0, 0, 0.20) 1px,
+    transparent 1px,
+    transparent 3px);
+  z-index: 5;
+}
+
+/* Soft corner-darkening so the screen reads as curved glass. */
+.tv-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+  z-index: 6;
+}
+
+/* Sponsor "bug" in the bottom-right of the broadcast — pure image in a
+   CRT-styled frame. The image is rolled at page-load from a small pool
+   (see inline <script> in pages/hollerworks.html). CRT treatment baked
+   in: contrast + saturation push for the phosphor look, repeating
+   scanline overlay, and a subtle low-rate flicker. */
+.tv-sponsor-bug {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 7;
+  pointer-events: none;
+  background: #0c0e0a;
+  border-radius: 3px;
+  border: 1px solid rgba(196, 161, 74, 0.55);
+  overflow: hidden;
+  line-height: 0;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 4px 14px rgba(0, 0, 0, 0.7);
+  /* (former tv-bug-flicker animation removed — at opacity dips the dark
+      chyron exposed the bright canvas behind it, reading as a black-bar
+      flash. Steady is the right call.) */
+}
+.tv-sponsor-img {
+  display: block;
+  height: 140px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  filter: contrast(1.18) saturate(1.35) brightness(1.05);
+}
+/* CRT scanlines over the bug only, plus a subtle vignette so it reads
+   as a tiny TV picture inside the bigger TV picture. */
+.tv-sponsor-bug::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.28) 0,
+      rgba(0, 0, 0, 0.28) 1px,
+      transparent 1px,
+      transparent 2px),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
+}
+@keyframes tv-bug-flicker {
+  0%, 91%, 100% { opacity: 1; }
+  92%, 93%      { opacity: 0.72; }
+  94%           { opacity: 0.92; }
+  95%           { opacity: 0.86; }
+}
+
+.tv-ticker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+  padding: 3px 10px;
+  background: #0a0c10;
+  border: 1px solid #2a2d34;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 10px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(146, 115, 58, 0.55);
+}
+.tv-ticker-label {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'Special Elite', monospace;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  color: #c4a14a;
+  padding: 2px 6px;
+  border: 1px solid #c4a14a;
+  border-radius: 2px;
+  flex-shrink: 0;
+  z-index: 2;
+}
+#intersection-status {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  color: #6cff5a;
+  text-align: center;
+  flex: 1;
+  min-height: 22px;
+  text-shadow:
+    0 0 4px rgba(108, 255, 90, 0.55),
+    0 0 10px rgba(108, 255, 90, 0.22);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Race-complete summary card — slides in over the bottom third of the
+   broadcast screen 3 seconds after the round ends. Carries the final
+   stats and the BACK TO PIT button. */
+#tv-summary {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20px 22px 18px;
+  background: #080a0e;
+  border-top: 2px solid rgba(255, 64, 90, 0.6);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  z-index: 10;
+  animation: tv-summary-in 0.4s ease-out both;
+}
+@keyframes tv-summary-in {
+  0%   { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+.tv-summary-title {
+  font-family: 'Russo One', sans-serif;
+  font-size: 22px;
+  letter-spacing: 0.24em;
+  color: #ff405a;
+  text-shadow:
+    0 0 10px rgba(255, 64, 90, 0.65),
+    0 1px 0 rgba(0, 0, 0, 0.85);
+  font-style: italic;
+}
+.tv-summary-stats {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+  flex-wrap: nowrap;
+}
+.tv-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 78px;
+}
+.tv-stat i {
+  font-family: 'Russo One', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  color: #98a0ac;
+  font-style: normal;
+  text-transform: uppercase;
+}
+.tv-stat b {
+  font-family: 'VT323', monospace;
+  font-size: 28px;
+  color: #d8dce0;
+  font-weight: normal;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.65);
+}
+.tv-stat-payout {
+  min-width: 100px;
+}
+.tv-stat-payout b.win {
+  color: #6cff5a;
+  text-shadow: 0 0 8px rgba(108, 255, 90, 0.7);
+}
+.tv-stat-payout b.loss {
+  color: #ff405a;
+  text-shadow: 0 0 8px rgba(255, 64, 90, 0.7);
+}
+.tv-stat-payout b.even {
+  color: #d8dce0;
+}
+
+/* Wrecks + splats are what actually pay — light them up.
+   Escapes + deaths are misses — dim them so the reader's eye
+   tracks the right column. */
+.tv-stat-pay b {
+  color: #6cff5a;
+  text-shadow: 0 0 6px rgba(108, 255, 90, 0.55);
+}
+.tv-stat-pay i {
+  color: #b8e0a8;
+}
+.tv-stat-miss b {
+  color: #98a0ac;
+  opacity: 0.7;
+}
+.tv-stat-miss i {
+  opacity: 0.6;
+}
+
+/* BACK HOME — surfaces after the round ends. Warm brass livery so the
+   "return to the suburb" reads cozy against the dark broadcast screen. */
+#continue-btn {
+  font-family: 'Alfa Slab One', serif;
+  font-size: 16px;
+  letter-spacing: 0.14em;
+  padding: 10px 32px;
+  margin: 14px 0 4px;
+  background: linear-gradient(180deg, #e6b865 0%, #b88c38 100%);
+  color: #2a2010;
+  border: 1px solid #faf2dc;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(255, 250, 230, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.6),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    0 2px 0 #5e4310,
+    0 4px 10px rgba(184, 140, 56, 0.45);
+  transition: background 0.12s, box-shadow 0.12s, transform 0.05s;
+}
+#continue-btn:hover {
+  background: linear-gradient(180deg, #f0c878 0%, #c89c44 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 230, 0.7),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    0 2px 0 #5e4310,
+    0 6px 14px rgba(220, 170, 80, 0.55);
+}
+#continue-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.30),
+    0 0 0 #5e4310,
+    0 0 10px rgba(184, 140, 56, 0.40);
+}
+
+/* ===== Skee-ball area (orphan; selectors retained until cleanup) ===== */
+
+#skeeball-status {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--sulfur);
+  text-align: center;
+  min-height: 18px;
+  margin: 4px 0 6px;
+  text-shadow: 0 0 6px rgba(212, 175, 55, 0.3);
+}
+
+#skeeball-canvas {
+  display: block;
+  margin: 0 auto;
+  background: #050203;
+  border: 1px solid #5a4028;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 18px rgba(0, 0, 0, 0.8),
+    0 0 18px rgba(212, 175, 55, 0.18);
+  max-width: 100%;
+  height: auto;
+}
+
+/* ===== Responsive — keep the grid + lane readable on narrow screens ===== */
+
+/* Side TV banks need ~316px of horizontal room (148px × 2 + gaps). Below
+   ~1240px the cabinet would shrink past its canvas comfort zone, so the
+   east/west walls drop off and the corner SVG dials retreat with them. */
+@media (max-width: 1240px) {
+  .tv-wall-left, .tv-wall-right { display: none; }
+  .atomic-dial-tr, .atomic-dial-bl { display: none; }
+  .bunker-stencil-tr-label, .bunker-stencil-bl-label { display: none; }
+}
+
+@media (max-width: 600px) {
+  #slot-grid {
+    grid-template-columns: repeat(20, 18px);
+    grid-template-rows: repeat(20, 18px);
+  }
+  .cell { font-size: 13px; }
+  h1 { font-size: 38px; }
+  #spin-btn { font-size: 20px; padding: 8px 22px; }
+}
+
+/* Short-viewport rules: when the user's screen height can't hold the full
+   20×20 @ 20px LCD plus the chrome above it, shrink cells so the whole
+   cabinet fits without scrolling. Canvas already scales via max-height. */
+@media (max-height: 820px) {
+  #slot-grid {
+    grid-template-columns: repeat(20, 18px);
+    grid-template-rows: repeat(20, 18px);
+  }
+  .cell { font-size: 12px; }
+}
+@media (max-height: 720px) {
+  #slot-grid {
+    grid-template-columns: repeat(20, 16px);
+    grid-template-rows: repeat(20, 16px);
+  }
+  .cell { font-size: 11px; }
+  .cell.cell-diamond::after,
+  .cell.cell-cow::after,
+  .cell.cell-gas::after,
+  .cell.cell-pizza::after { font-size: 7px; }
+  h1 { font-size: 22px; }
+  .mini-tv { flex-basis: 120px; padding-top: 4px; }
+  .mini-tv-label { font-size: 9px; letter-spacing: 0.10em; }
+  .mini-tv-knob { width: 9px; height: 9px; }
+  .mini-tv-overlay-strip { font-size: 7px; padding: 2px 4px; }
+}
